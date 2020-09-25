@@ -62,7 +62,13 @@ NS: Not supported
 				
 i7-9700K: from 2018, 3.6 GHz, 8 physical cores (no hyperthreading)		
 		
-i7-3770: from 2012, 3.4 GHz, 4 physical cores, 8 virtual cores (hyperthreading)				
+i7-3770: from 2012, 3.4 GHz, 4 physical cores, 8 virtual cores (hyperthreading)
+
+To run the code with the correct setting for comparing timing to other repos (only CLEAR and ID metrics @ alpha=0.5 threshold) run the following:
+
+```
+python eval_code/Scripts/run_MOTChallenge.py --TRACKERS_TO_EVAL MOT17_train/Lif_T --METRICS CLEAR ID --ALPHA_BEHAVIOUR fifty_only --NUM_PARALLEL_CORES 8
+```
 
 ## Similarity to the MOTChallengeEvalKit
 
