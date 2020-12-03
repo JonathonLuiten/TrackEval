@@ -4,87 +4,54 @@
 
 This is the official implementation of the [HOTA metrics](https://arxiv.org/pdf/2009.07736.pdf) for Multi-Object Tracking.
 
+ - [IJCV version](https://link.springer.com/article/10.1007/s11263-020-01375-2)
+ - [ArXiv version](https://arxiv.org/pdf/2009.07736.pdf)
+
 HOTA is a novel set of MOT evaluation metrics which enable better understanding of tracking behaviour than previous metrics.
 
 ## Further metrics
 
 This code also includes implementations of the [CLEARMOT metrics](https://link.springer.com/article/10.1155/2008/246309), and the [ID metrics](https://arxiv.org/pdf/1609.01775.pdf).
 
-The code is written in python and is designed to be easily understandable and extendable, unlike previous metrics code such at the [MOTChallengeEvalKit](https://github.com/dendorferpatrick/MOTChallengeEvalKit).
+The code is written in python and is designed to be easily understandable and extendable.
 
-The code is also extremely fast, running at more than 10x the speed of the [MOTChallengeEvalKit](https://github.com/dendorferpatrick/MOTChallengeEvalKit), and 3x the speed of [py-motmetrics](https://github.com/cheind/py-motmetrics) with a single core and more than 10x with multi-processing (see detailed speed comparison below).
+The code is also extremely fast, running at more than 10x the speed of the both [MOTChallengeEvalKit](https://github.com/dendorferpatrick/MOTChallengeEvalKit), and [py-motmetrics](https://github.com/cheind/py-motmetrics) (see detailed speed comparison below).
 
-The implementation of CLEARMOT and ID metrics aligns almost perfectly with the [MOTChallengeEvalKit](https://github.com/dendorferpatrick/MOTChallengeEvalKit), although there are still some [known issues](known_issues.md).
+The implementation of CLEARMOT and ID metrics aligns perfectly with the [MOTChallengeEvalKit](https://github.com/dendorferpatrick/MOTChallengeEvalKit).
 
 ## Running the code
 
-The code currently only runs with tracking data in the [MOTChallenge](https://motchallenge.net/) format, however the code is currently under active development and extension,
-and is also easily expandable. See the current list of planned [extensions](todo.md).
+We provide two scripts to run the code: 
+ - For running [MOTChallenge](https://motchallenge.net/) there is [scripts/run_mot_challenge.py](scripts/run_mot_challenge.py).
+ - For running [KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php) there is [scripts/run_kitti.py](scripts/run_mot_challenge.py).
 
-The code should currently work on MOT15, MOT16, MOT17 and MOT20 benchmarks, although it has only been extensively tested on MOT17 and MOT20.
+There are a number of parameters that can be tweaked, these are all self-explanatory, see each script for more details.
 
-To run simply run the [MOTChallenge run script](eval_code/Scripts/run_MOTChallenge.py).
-
-```
-python eval_code/Scripts/run_MOTChallenge.py
-```
-
-There are a number of parameters that can be tweaked, these are all self-explanatory, see the [script](eval_code/Scripts/run_MOTChallenge.py) for more details.
-These can be passed either by editing the config in the script, or as command line arguments which overwrite the defaults.
-
-By default the script prints results to the screen, saves them as a .csv file, and outputs plots of the results.
+By default the script prints results to the screen, saves results out as both a summary csv and detailed csv, and outputs plots of the results.
 
 ## Timing analysis
 
-Evaluating Lift_T tracker on MOT17-train (seconds):			
-CPU|Num Cores|MOTChallenge|py-motmetrics|HOTA-metrics
-:---|:---|:---|:---|:---
-i7-9700K|8|29.51|NS|1.62
-i7-9700K|4|29.42*|NS|3.01
-i7-9700K|1|66.23*|27.07**|9.64
-i7-3770|8|104.55|NS|4.43
-i7-3770|4|107.65*|NS|5.63
-i7-3770|1|208.11*|49.02**|18.4
-				
-Evaluating LPC_MOT tracker on MOT20-train (seconds):	
-CPU|Num Cores|MOTChallenge|py-motmetrics|HOTA-metrics
-:---|:---|:---|:---|:---
-i7-9700K|1|105.3*|52.91**|18.63
-i7-3770|1|195.93*|98.54**|29.71
-				
-All results are the median of three runs.				
-				
-*actually still uses all 8 cores	
-			
-**using the fastest available solver (lapsolver)	
-			
-NS: Not supported				
-				
-i7-9700K: from 2018, 3.6 GHz, 8 physical cores (no hyperthreading)		
-		
-i7-3770: from 2012, 3.4 GHz, 4 physical cores, 8 virtual cores (hyperthreading)
+Evaluating CLEAR + ID metrics on Lift_T tracker on MOT17-train (seconds) on a i7-9700K CPU with 8 physical cores (median of 3 runs):		
+Num Cores|HOTA-metrics|MOTChallenge|Speedup vs MOTChallenge|py-motmetrics|Speedup vs py-motmetrics
+:---|:---|:---|:---|:---|:---
+1|9.64|66.23|6.87x|99.65|10.34x
+4|3.01|29.42|9.77x| |33.11x*
+8|1.62|29.51|18.22x| |61.51x*
 
-To run the code with the correct setting for comparing timing to other repos (only CLEAR and ID metrics @ alpha=0.5 threshold) run the following:
+*using different number of cores at py-motmetrics doesn't allow multiprocessing.
+				
+```
+python scripts/run_mot_challenge.py --BENCHMARK MOT17 --TRACKERS_TO_EVAL Lif_T --METRICS Clear ID --USE_PARALLEL False --NUM_PARALLEL_CORES 1  
+```
+				
+Evaluating CLEAR + ID metrics on LPC_MOT tracker on MOT20-train (seconds) on a i7-9700K CPU with 8 physical cores (median of 3 runs):	
+Num Cores|HOTA-metrics|MOTChallenge|Speedup vs MOTChallenge|py-motmetrics|Speedup vs py-motmetrics
+:---|:---|:---|:---|:---|:---
+1|18.63|105.3|5.65x|175.17|9.40x
 
 ```
-python eval_code/Scripts/run_MOTChallenge.py --TRACKERS_TO_EVAL MOT17_train/Lif_T --METRICS CLEAR ID --ALPHA_BEHAVIOUR fifty_only --NUM_PARALLEL_CORES 8
+python scripts/run_mot_challenge.py --BENCHMARK MOT20 --TRACKERS_TO_EVAL LPC_MOT --METRICS Clear ID --USE_PARALLEL False --NUM_PARALLEL_CORES 1
 ```
-
-## Similarity to the MOTChallengeEvalKit
-
-This code achieves identical results to the [offical](https://github.com/dendorferpatrick/MOTChallengeEvalKit) MOTChallenge code for the following trackers on the MOT17-train benchmark.
-
-MOTChallenge
-Tracker|TP|FP|FN|IDSW|MT|PT|ML|Frag|MOTA|Recall|Precision|MOTP|IDR|IDP|IDF1
-:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---
-Lif_T|229088|2655|107803|791|679|595|364|1153|66.98|68|98.85|89.09|61.06|88.77|72.35
-SSAT|244338|2272|92553|966|761|660|217|2027|71.57|72.53|99.08|89.53|63.38|86.58|73.18
-
-HOTA-metrics
-Tracker|TP|FP|FN|IDSW|MT|PT|ML|Frag|MOTA|Recall|Precision|MOTP|IDR|IDP|IDF1
-:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---
-Lif_T|229088|2655|107803|791|679|595|364|1153|66.98|68|98.85|89.09|61.06|88.77|72.35
-SSAT|244338|2272|92553|966|761|660|217|2027|71.57|72.53|99.08|89.53|63.38|86.58|73.18
 
 ## Contact
 
