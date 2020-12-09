@@ -3,6 +3,8 @@ from multiprocessing.pool import Pool
 from . import _utils
 from . import _timing
 
+from functools import partial
+
 
 class Evaluator:
     """Evaluator class for evaluating different metrics for different datasets"""
@@ -13,7 +15,8 @@ class Evaluator:
         default_config = {
             'USE_PARALLEL': False,
             'NUM_PARALLEL_CORES': 8,
-            'BREAK_ON_ERROR': True,
+            'BREAK_ON_ERROR': True,  # Raises exception and exits with error
+            'RETURN_ON_ERROR': False,  # if not BREAK_ON_ERROR, then returns from function on error\
 
             'PRINT_RESULTS': True,
             'PRINT_ONLY_COMBINED': False,
@@ -29,18 +32,23 @@ class Evaluator:
     def __init__(self, config=None):
         """Initialise the evaluator with a config file"""
         self.config = _utils.init_config(config, self.get_default_eval_config(), 'Eval')
-        if self.config['TIME_PROGRESS']:
+        # Only run timing analysis if not run in parallel.
+        if self.config['TIME_PROGRESS'] and not self.config['USE_PARALLEL']:
             _timing.DO_TIMING = True
 
     @_timing.time
     def evaluate(self, dataset_list, metrics_list):
         """Evaluate a set of metrics on a set of datasets"""
         config = self.config
-        metric_names = [metric.get_name() for metric in metrics_list]
+        metric_names = _utils.validate_metrics_list(metrics_list)
         dataset_names = [dataset.get_name() for dataset in dataset_list]
+        output_res = {}
+        output_msg = {}
 
         for dataset, dataset_name in zip(dataset_list, dataset_names):
             # Get dataset info about what to evaluate
+            output_res[dataset_name] = {}
+            output_msg[dataset_name] = {}
             tracker_list, seq_list, class_list = dataset.get_eval_info()
             print('\nEvaluating %i tracker(s) on %i sequence(s) for %i class(es) on %s dataset using the following '
                   'metrics: %s\n' % (len(tracker_list), len(seq_list), len(class_list), dataset_name,
@@ -50,32 +58,22 @@ class Evaluator:
             for tracker in tracker_list:
                 # if not config['BREAK_ON_ERROR'] then go to next tracker without breaking
                 try:
-                    print('\nEvaluating %s\n' % tracker)
-
-                    @_timing.time
-                    def eval_sequence(seq):
-                        """Function for evaluating a single sequence"""
-                        raw_data = dataset.get_raw_seq_data(tracker, seq)
-                        seq_res = {}
-                        for cls in class_list:
-                            seq_res[cls] = {}
-                            data = dataset.get_preprocessed_seq_data(raw_data, cls)
-                            for metric, met_name in zip(metrics_list, metric_names):
-                                seq_res[cls][met_name] = metric.eval_sequence(data)
-                        return seq_res
-
                     # Evaluate each sequence in parallel or in series.
-                    # returns a nested dict (res), indexed like: res[seq][class][metric_name][sub_metric header]
+                    # returns a nested dict (res), indexed like: res[seq][class][metric_name][sub_metric field]
                     # e.g. res[seq_0001][pedestrian][hota][DetA]
+                    print('\nEvaluating %s\n' % tracker)
                     time_start = time.time()
                     if config['USE_PARALLEL']:
                         with Pool(config['NUM_PARALLEL_CORES']) as pool:
-                            results = pool.map(eval_sequence, seq_list)
+                            _eval_sequence = partial(eval_sequence, dataset=dataset, tracker=tracker,
+                                                     class_list=class_list, metrics_list=metrics_list,
+                                                     metric_names=metric_names)
+                            results = pool.map(_eval_sequence, seq_list)
                             res = dict(zip(seq_list, results))
                     else:
                         res = {}
                         for curr_seq in sorted(seq_list):
-                            res[curr_seq] = eval_sequence(curr_seq)
+                            res[curr_seq] = eval_sequence(curr_seq, dataset, tracker, class_list, metrics_list, metric_names)
 
                     # Combine results over all sequences and then over all classes
                     res['COMBINED_SEQ'] = {}
@@ -115,9 +113,31 @@ class Evaluator:
                         if config['OUTPUT_DETAILED']:
                             _utils.write_detailed_results(details, c_cls, output_fol)
 
+                    # Output for returning from function
+                    output_res[dataset_name][tracker] = res
+                    output_msg[dataset_name][tracker] = 'Success'
+
                 except Exception as err:
+                    output_res[dataset_name][tracker] = None
+                    output_msg[dataset_name][tracker] = err
+                    print('Tracker %s was unable to be evaluated. Error:' % tracker)
+                    print(err)
                     if config["BREAK_ON_ERROR"]:
                         raise err
-                    else:
-                        print('Tracker %s was unable to be evaluated. Error:' % tracker)
-                        print(err)
+                    elif config["RETURN_ON_ERROR"]:
+                        return output_res, output_msg
+
+        return output_res, output_msg
+
+
+@_timing.time
+def eval_sequence(seq, dataset, tracker, class_list, metrics_list, metric_names):
+    """Function for evaluating a single sequence"""
+    raw_data = dataset.get_raw_seq_data(tracker, seq)
+    seq_res = {}
+    for cls in class_list:
+        seq_res[cls] = {}
+        data = dataset.get_preprocessed_seq_data(raw_data, cls)
+        for metric, met_name in zip(metrics_list, metric_names):
+            seq_res[cls][met_name] = metric.eval_sequence(data)
+    return seq_res

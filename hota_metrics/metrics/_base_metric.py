@@ -3,21 +3,18 @@ import numpy as np
 from abc import ABC, abstractmethod
 from .. import _timing
 
-# Used to ensure namespace of all headers for all metrics is unique.
-global_headers = []
-
 
 class _BaseMetric(ABC):
     @abstractmethod
     def __init__(self):
         self.plottable = False
-        self.integer_headers = []
-        self.float_headers = []
-        self.set_keys = []
-        self.integer_set_headers = []
-        self.float_set_headers = []
-        self.headers = []
-        self.summary_headers = []
+        self.integer_fields = []
+        self.float_fields = []
+        self.array_labels = []
+        self.integer_array_fields = []
+        self.float_array_fields = []
+        self.fields = []
+        self.summary_fields = []
         self.registered = False
 
     #####################################################################
@@ -35,7 +32,7 @@ class _BaseMetric(ABC):
     def plot_results(self, all_res, tracker, output_folder, cls):
         """Plot results of metrics, only valid for metrics with self.plottable"""
         if self.plottable:
-            raise NotImplementedError
+            raise NotImplementedError('plot_results is not implemented for metric %s' % self.get_name())
         else:
             pass
 
@@ -46,30 +43,22 @@ class _BaseMetric(ABC):
     def get_name(cls):
         return cls.__name__
 
-    def register_headers_globally(self):
-        global global_headers
-        for h in self.headers:
-            if h in global_headers:
-                raise Exception('metric header %s is defined multiple times by different metrics')
-        global_headers += self.headers
-        self.registered = True
-
     @staticmethod
-    def _combine_sum(all_res, header):
+    def _combine_sum(all_res, field):
         """Combine sequence results via sum"""
-        return sum([all_res[k][header] for k in all_res.keys()])
+        return sum([all_res[k][field] for k in all_res.keys()])
 
     @staticmethod
-    def _combine_weighted_av(all_res, header, comb_res, weight_header):
+    def _combine_weighted_av(all_res, field, comb_res, weight_field):
         """Combine sequence results via weighted average"""
-        return sum([all_res[k][header] * all_res[k][weight_header] for k in all_res.keys()]) / np.maximum(1.0, comb_res[
-            weight_header])
+        return sum([all_res[k][field] * all_res[k][weight_field] for k in all_res.keys()]) / np.maximum(1.0, comb_res[
+            weight_field])
 
     def print_table(self, table_res, tracker, cls):
         """Prints table of results for all sequences"""
         print('')
         metric_name = self.get_name()
-        self._row_print([metric_name + ': ' + tracker + '-' + cls] + self.summary_headers)
+        self._row_print([metric_name + ': ' + tracker + '-' + cls] + self.summary_fields)
         for seq, results in sorted(table_res.items()):
             if seq == 'COMBINED_SEQ':
                 continue
@@ -80,15 +69,15 @@ class _BaseMetric(ABC):
 
     def _summary_row(self, results_):
         vals = []
-        for h in self.summary_headers:
-            if h in self.float_set_headers:
+        for h in self.summary_fields:
+            if h in self.float_array_fields:
                 vals.append("{0:1.5g}".format(100 * np.mean(results_[h])))
-            elif h in self.float_headers:
+            elif h in self.float_fields:
                 vals.append("{0:1.5g}".format(100 * results_[h]))
-            elif h in self.integer_headers:
+            elif h in self.integer_fields:
                 vals.append("{0:d}".format(int(results_[h])))
             else:
-                raise NotImplementedError("Summary function not implemented for this header type.")
+                raise NotImplementedError("Summary function not implemented for this field type.")
         return vals
 
     @staticmethod
@@ -103,36 +92,33 @@ class _BaseMetric(ABC):
 
     def summary_results(self, table_res):
         """Returns a simple summary of final results for a tracker"""
-        # Ensure that header namespace does not have duplicates across metrics.
-        assert self.registered, 'self.register_headers_globally() not run for this metric'
-        return dict(zip(self.summary_headers, self._summary_row(table_res['COMBINED_SEQ'])))
+        return dict(zip(self.summary_fields, self._summary_row(table_res['COMBINED_SEQ'])))
 
     def detailed_results(self, table_res):
         """Returns detailed final results for a tracker"""
-        # Ensure that header namespace does not have duplicates across metrics.
-        assert self.registered, 'self.register_headers_globally() not run for this metric'
-
-        # Get detailed headers
-        detailed_headers = self.float_headers + self.integer_headers
-        for h in self.float_set_headers + self.integer_set_headers:
-            for alpha in [int(100*x) for x in self.set_keys]:
-                detailed_headers.append(h + '___' + str(alpha))
-            detailed_headers.append(h + '___AUC')
+        # Get detailed field information
+        detailed_fields = self.float_fields + self.integer_fields
+        for h in self.float_array_fields + self.integer_array_fields:
+            for alpha in [int(100*x) for x in self.array_labels]:
+                detailed_fields.append(h + '___' + str(alpha))
+            detailed_fields.append(h + '___AUC')
 
         # Get detailed results
         detailed_results = {}
         for seq, res in table_res.items():
             detailed_row = self._detailed_row(res)
-            assert len(detailed_row) == len(detailed_headers), 'Headers and data have different sizes'
-            detailed_results[seq] = dict(zip(detailed_headers, detailed_row))
+            if len(detailed_row) != len(detailed_fields):
+                raise Exception(
+                    'Field names and data have different sizes (%i and %i)' % (len(detailed_row), len(detailed_fields)))
+            detailed_results[seq] = dict(zip(detailed_fields, detailed_row))
         return detailed_results
 
     def _detailed_row(self, res):
         detailed_row = []
-        for h in self.float_headers + self.integer_headers:
+        for h in self.float_fields + self.integer_fields:
             detailed_row.append(res[h])
-        for h in self.float_set_headers + self.integer_set_headers:
-            for i, alpha in enumerate([int(100 * x) for x in self.set_keys]):
+        for h in self.float_array_fields + self.integer_array_fields:
+            for i, alpha in enumerate([int(100 * x) for x in self.array_labels]):
                 detailed_row.append(res[h][i])
             detailed_row.append(np.mean(res[h]))
         return detailed_row

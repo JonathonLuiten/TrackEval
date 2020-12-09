@@ -5,15 +5,14 @@ from ._base_metric import _BaseMetric
 from .. import _timing
 
 
-class Clear(_BaseMetric):
+class CLEAR(_BaseMetric):
     """Class which implements the CLEAR metrics"""
     def __init__(self):
         super().__init__()
-        self.integer_headers = ['CLR_TP', 'CLR_FN', 'CLR_FP', 'IDSW', 'MT', 'PT', 'ML', 'Frag']
-        self.float_headers = ['MOTA', 'MOTP', 'MODA', 'CLR_Re', 'CLR_Pr', 'MTR', 'PTR', 'MLR']
-        self.headers = self.float_headers + self.integer_headers
-        self.summary_headers = self.headers
-        self.register_headers_globally()
+        self.integer_fields = ['CLR_TP', 'CLR_FN', 'CLR_FP', 'IDSW', 'MT', 'PT', 'ML', 'Frag']
+        self.float_fields = ['MOTA', 'MOTP', 'MODA', 'CLR_Re', 'CLR_Pr', 'MTR', 'PTR', 'MLR']
+        self.fields = self.float_fields + self.integer_fields
+        self.summary_fields = self.fields
 
         self.threshold = 0.5
 
@@ -22,8 +21,8 @@ class Clear(_BaseMetric):
         """Calculates CLEAR metrics for one sequence"""
         # Initialise results
         res = {}
-        for header in self.headers:
-            res[header] = 0
+        for field in self.fields:
+            res[field] = 0
 
         # Return result quickly if tracker or gt sequence is empty
         if data['num_tracker_dets'] == 0:
@@ -97,31 +96,32 @@ class Clear(_BaseMetric):
             if num_matches > 0:
                 res['MOTP'] += sum(similarity[match_rows, match_cols])
 
-        # Calculate MT/ML/PT/Frag
+        # Calculate MT/ML/PT/Frag/MOTP
         tracked_ratio = gt_matched_count[gt_id_count > 0] / gt_id_count[gt_id_count > 0]
         res['MT'] = np.sum(np.greater(tracked_ratio, 0.8))
         res['PT'] = np.sum(np.greater_equal(tracked_ratio, 0.2)) - res['MT']
         res['ML'] = num_gt_ids - res['MT'] - res['PT']
-
         res['Frag'] = np.sum(np.subtract(gt_frag_count[gt_frag_count > 0], 1))
-        res['MTR'] = res['MT'] / np.maximum(1.0, num_gt_ids)
-        res['MLR'] = res['ML'] / np.maximum(1.0, num_gt_ids)
-        res['PTR'] = res['PT'] / np.maximum(1.0, num_gt_ids)
-
-        # Calc final metrics
-        res['MODA'] = (res['CLR_TP'] - res['CLR_FP']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
-        res['MOTA'] = (res['CLR_TP'] - res['CLR_FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
-        res['CLR_Re'] = (res['CLR_TP']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
-        res['CLR_Pr'] = (res['CLR_TP']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FP'])
         res['MOTP'] = res['MOTP'] / np.maximum(1.0, res['CLR_TP'])
+
+        # Calculate final CLEAR scores
+        res = self._compute_final_fields(res)
         return res
 
     def combine_sequences(self, all_res):
         """Combines metrics across all sequences"""
         res = {}
-        for header in self.integer_headers:
-            res[header] = self._combine_sum(all_res, header)
-        res['MOTP'] = self._combine_weighted_av(all_res, 'MOTP', res, weight_header='CLR_TP')
+        for field in self.integer_fields:
+            res[field] = self._combine_sum(all_res, field)
+        res['MOTP'] = self._combine_weighted_av(all_res, 'MOTP', res, weight_field='CLR_TP')
+        res = self._compute_final_fields(res)
+        return res
+
+    @staticmethod
+    def _compute_final_fields(res):
+        """Calculate sub-metric ('field') values which only depend on other sub-metric values.
+        This function is used both for both per-sequence calculation, and in combining values across sequences.
+        """
         num_gt_ids = res['MT'] + res['ML'] + res['PT']
         res['MTR'] = res['MT'] / np.maximum(1.0, num_gt_ids)
         res['MLR'] = res['ML'] / np.maximum(1.0, num_gt_ids)

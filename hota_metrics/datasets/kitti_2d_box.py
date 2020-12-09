@@ -54,7 +54,8 @@ class Kitti2DBox(_BaseDataset):
         self.valid_classes = ['car', 'pedestrian']
         self.class_list = [cls.lower() if cls.lower() in self.valid_classes else None
                            for cls in self.config['CLASSES_TO_EVAL']]
-        assert all(self.class_list), 'Only classes [car, pedestrian] are valid.'
+        if not all(self.class_list):
+            raise Exception('Attempted to evaluate an invalid class. Only classes [car, pedestrian] are valid.')
         self.class_name_to_class_id = {'car': 1, 'van': 2, 'truck': 3, 'pedestrian': 4, 'person': 5,  # person sitting
                                        'cyclist': 6, 'tram': 7, 'misc': 8, 'dontcare': 9}
 
@@ -63,7 +64,8 @@ class Kitti2DBox(_BaseDataset):
         self.seq_lengths = {}
         seqmap_name = 'evaluate_tracking.seqmap.' + self.config['SPLIT_TO_EVAL']
         seqmap_file = os.path.join(self.gt_fol, seqmap_name)
-        assert os.path.isfile(seqmap_file), 'no seqmap found: ' + seqmap_file
+        if not os.path.isfile(seqmap_file):
+            raise Exception('no seqmap found: ' + os.path.basename(seqmap_file))
         with open(seqmap_file) as fp:
             dialect = csv.Sniffer().sniff(fp.read(1024))
             fp.seek(0)
@@ -75,10 +77,12 @@ class Kitti2DBox(_BaseDataset):
                     self.seq_lengths[seq] = int(row[3])
                     if not self.data_is_zipped:
                         curr_file = os.path.join(self.gt_fol, 'label_02', seq + '.txt')
-                        assert os.path.isfile(curr_file), 'GT file not found: ' + curr_file
+                        if not os.path.isfile(curr_file):
+                            raise Exception('GT file not found: ' + os.path.basename(curr_file))
             if self.data_is_zipped:
                 curr_file = os.path.join(self.gt_fol, 'data.zip')
-                assert os.path.isfile(curr_file), 'GT file not found: ' + curr_file
+                if not os.path.isfile(curr_file):
+                    raise Exception('GT file not found: ' + os.path.basename(curr_file))
 
         # Get trackers to eval
         if self.config['TRACKERS_TO_EVAL'] is None:
@@ -88,11 +92,15 @@ class Kitti2DBox(_BaseDataset):
         for tracker in self.tracker_list:
             if self.data_is_zipped:
                 curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol + '.zip')
-                assert os.path.isfile(curr_file), 'Tracker file not found: ' + curr_file
+                if not os.path.isfile(curr_file):
+                    raise Exception('Tracker file not found: ' + tracker + '/' + os.path.basename(curr_file))
             else:
                 for seq in self.seq_list:
                     curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.txt')
-                    assert os.path.isfile(curr_file), 'Tracker file not found: ' + curr_file
+                    if not os.path.isfile(curr_file):
+                        raise Exception(
+                            'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol + '/' + os.path.basename(
+                                curr_file))
 
     def _load_raw_file(self, tracker, seq, is_gt):
         """Load a file (gt or tracker) in the kitti 2D box format

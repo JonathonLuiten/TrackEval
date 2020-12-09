@@ -1,4 +1,4 @@
-from .hota import Hota
-from .clear import Clear
-from .id import ID
+from .hota import HOTA
+from .clear import CLEAR
+from .identity import Identity
 from .count import Count

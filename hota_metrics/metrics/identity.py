@@ -5,15 +5,14 @@ from ._base_metric import _BaseMetric
 from .. import _timing
 
 
-class ID(_BaseMetric):
+class Identity(_BaseMetric):
     """Class which implements the ID metrics"""
     def __init__(self):
         super().__init__()
-        self.integer_headers = ['IDTP', 'IDFN', 'IDFP']
-        self.float_headers = ['IDF1', 'IDR', 'IDP']
-        self.headers = self.float_headers + self.integer_headers
-        self.summary_headers = self.headers
-        self.register_headers_globally()
+        self.integer_fields = ['IDTP', 'IDFN', 'IDFP']
+        self.float_fields = ['IDF1', 'IDR', 'IDP']
+        self.fields = self.float_fields + self.integer_fields
+        self.summary_fields = self.fields
 
         self.threshold = 0.5
 
@@ -22,8 +21,8 @@ class ID(_BaseMetric):
         """Calculates ID metrics for one sequence"""
         # Initialise results
         res = {}
-        for header in self.headers:
-            res[header] = 0
+        for field in self.fields:
+            res[field] = 0
 
         # Return result quickly if tracker or gt sequence is empty
         if data['num_tracker_dets'] == 0:
@@ -74,16 +73,22 @@ class ID(_BaseMetric):
         res['IDTP'] = (gt_id_count.sum() - res['IDFN']).astype(np.int)
 
         # Calculate final ID scores
-        res['IDP'] = res['IDTP'] / np.maximum(1.0, res['IDTP'] + res['IDFP'])
-        res['IDR'] = res['IDTP'] / np.maximum(1.0, res['IDTP'] + res['IDFN'])
-        res['IDF1'] = res['IDTP'] / np.maximum(1.0, res['IDTP'] + 0.5 * res['IDFN'] + 0.5 * res['IDFP'])
+        res = self._compute_final_fields(res)
         return res
 
     def combine_sequences(self, all_res):
         """Combines metrics across all sequences"""
         res = {}
-        for header in self.integer_headers:
-            res[header] = self._combine_sum(all_res, header)
+        for field in self.integer_fields:
+            res[field] = self._combine_sum(all_res, field)
+        res = self._compute_final_fields(res)
+        return res
+
+    @staticmethod
+    def _compute_final_fields(res):
+        """Calculate sub-metric ('field') values which only depend on other sub-metric values.
+        This function is used both for both per-sequence calculation, and in combining values across sequences.
+        """
         res['IDR'] = res['IDTP'] / np.maximum(1.0, res['IDTP'] + res['IDFN'])
         res['IDP'] = res['IDTP'] / np.maximum(1.0, res['IDTP'] + res['IDFP'])
         res['IDF1'] = res['IDTP'] / np.maximum(1.0, res['IDTP'] + 0.5*res['IDFP'] + 0.5*res['IDFN'])

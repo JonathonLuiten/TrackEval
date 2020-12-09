@@ -1,7 +1,4 @@
 
-import os
-import numpy as np
-from matplotlib import pyplot as plt
 from ._base_metric import _BaseMetric
 from .. import _timing
 
@@ -10,10 +7,9 @@ class Count(_BaseMetric):
     """Class which simply counts the number of tracker and gt detections and ids."""
     def __init__(self):
         super().__init__()
-        self.integer_headers = ['Dets', 'GT_Dets', 'IDs', 'GT_IDs']
-        self.headers = self.integer_headers
-        self.summary_headers = self.headers
-        self.register_headers_globally()
+        self.integer_fields = ['Dets', 'GT_Dets', 'IDs', 'GT_IDs']
+        self.fields = self.integer_fields
+        self.summary_fields = self.fields
 
     @_timing.time
     def eval_sequence(self, data):
@@ -28,6 +24,6 @@ class Count(_BaseMetric):
     def combine_sequences(self, all_res):
         """Combines metrics across all sequences"""
         res = {}
-        for header in self.integer_headers:
-            res[header] = self._combine_sum(all_res, header)
+        for field in self.integer_fields:
+            res[field] = self._combine_sum(all_res, field)
         return res

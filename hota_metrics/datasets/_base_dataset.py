@@ -199,7 +199,7 @@ class _BaseDataset(ABC):
             bboxes2[:, 2] = bboxes2[:, 0] + bboxes2[:, 2]
             bboxes2[:, 3] = bboxes2[:, 1] + bboxes2[:, 3]
         elif box_format not in 'x0y0x1y1':
-            raise (Exception('box_format %s not implemented' % box_format))
+            raise (Exception('box_format %s is not implemented' % box_format))
 
         # layout: (x0, y0, x1, y1)
         min_ = np.minimum(bboxes1[:, np.newaxis, :], bboxes2[np.newaxis, :, :])
@@ -226,10 +226,16 @@ class _BaseDataset(ABC):
         """Check the requirement that the tracker_ids and gt_ids are unique per timestep"""
         gt_ids = data['gt_ids']
         tracker_ids = data['tracker_ids']
-        for gt_ids_t, tracker_ids_t in zip(gt_ids, tracker_ids):
+        for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(gt_ids, tracker_ids)):
             if len(tracker_ids_t) > 0:
                 _, counts = np.unique(tracker_ids_t, return_counts=True)
-                assert np.max(counts) == 1, 'Tracker predicts the same ID more than once in a single timestep'
+                if np.max(counts) != 1:
+                    raise Exception(
+                        'Tracker predicts the same ID more than once in a single timestep (seq: %s, time: %i)' % (
+                            data['seq'], t))
             if len(gt_ids_t) > 0:
                 _, counts = np.unique(gt_ids_t, return_counts=True)
-                assert np.max(counts) == 1, 'Ground-truth has the same ID more than once in a single timestep'
+                if np.max(counts) != 1:
+                    raise Exception(
+                        'Ground-truth has the same ID more than once in a single timestep (seq: %s, time: %i)' % (
+                            data['seq'], t))

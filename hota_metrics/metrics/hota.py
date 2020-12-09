@@ -1,25 +1,23 @@
 
 import os
 import numpy as np
-from matplotlib import pyplot as plt
 from scipy.optimize import linear_sum_assignment
 from ._base_metric import _BaseMetric
 from .. import _timing
 
 
-class Hota(_BaseMetric):
+class HOTA(_BaseMetric):
     """Class which implements the HOTA metrics.
     See: https://link.springer.com/article/10.1007/s11263-020-01375-2
     """
     def __init__(self):
         super().__init__()
         self.plottable = True
-        self.set_keys = np.arange(0.05, 1, 0.05)
-        self.integer_set_headers = ['HOTA_TP', 'HOTA_FN', 'HOTA_FP']
-        self.float_set_headers = ['HOTA', 'DetA', 'AssA', 'DetRe', 'DetPr', 'AssRe', 'AssPr', 'LocA']
-        self.headers = self.integer_set_headers + self.float_set_headers
-        self.summary_headers = self.float_set_headers
-        self.register_headers_globally()
+        self.array_labels = np.arange(0.05, 1, 0.05)
+        self.integer_array_fields = ['HOTA_TP', 'HOTA_FN', 'HOTA_FP']
+        self.float_array_fields = ['HOTA', 'DetA', 'AssA', 'DetRe', 'DetPr', 'AssRe', 'AssPr', 'LocA']
+        self.fields = self.integer_array_fields + self.float_array_fields
+        self.summary_fields = self.float_array_fields
 
     @_timing.time
     def eval_sequence(self, data):
@@ -27,15 +25,15 @@ class Hota(_BaseMetric):
 
         # Initialise results
         res = {}
-        for header in self.headers:
-            res[header] = np.zeros((len(self.set_keys)), dtype=np.float)
+        for field in self.fields:
+            res[field] = np.zeros((len(self.array_labels)), dtype=np.float)
 
         # Return result quickly if tracker or gt sequence is empty
         if data['num_tracker_dets'] == 0:
-            res['HOTA_FN'] = data['num_gt_dets'] * np.ones((len(self.set_keys)), dtype=np.float)
+            res['HOTA_FN'] = data['num_gt_dets'] * np.ones((len(self.array_labels)), dtype=np.float)
             return res
         if data['num_gt_dets'] == 0:
-            res['HOTA_FP'] = data['num_tracker_dets'] * np.ones((len(self.set_keys)), dtype=np.float)
+            res['HOTA_FP'] = data['num_tracker_dets'] * np.ones((len(self.array_labels)), dtype=np.float)
             return res
 
         # Variables counting global association
@@ -60,17 +58,17 @@ class Hota(_BaseMetric):
 
         # Calculate overall jaccard alignment score (before unique matching) between IDs
         global_alignment_score = potential_matches_count / (gt_id_count + tracker_id_count - potential_matches_count)
-        matches_counts = [np.zeros_like(potential_matches_count) for _ in self.set_keys]
+        matches_counts = [np.zeros_like(potential_matches_count) for _ in self.array_labels]
 
         # Calculate scores for each timestep
         for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(data['gt_ids'], data['tracker_ids'])):
             # Deal with the case that there are no gt_det/tracker_det in a timestep.
             if len(gt_ids_t) == 0:
-                for a, alpha in enumerate(self.set_keys):
+                for a, alpha in enumerate(self.array_labels):
                     res['HOTA_FP'][a] += len(tracker_ids_t)
                 continue
             if len(tracker_ids_t) == 0:
-                for a, alpha in enumerate(self.set_keys):
+                for a, alpha in enumerate(self.array_labels):
                     res['HOTA_FN'][a] += len(gt_ids_t)
                 continue
 
@@ -82,7 +80,7 @@ class Hota(_BaseMetric):
             match_rows, match_cols = linear_sum_assignment(-score_mat)
 
             # Calculate and accumulate basic statistics
-            for a, alpha in enumerate(self.set_keys):
+            for a, alpha in enumerate(self.array_labels):
                 actually_matched_mask = similarity[match_rows, match_cols] >= alpha
                 alpha_match_rows = match_rows[actually_matched_mask]
                 alpha_match_cols = match_cols[actually_matched_mask]
@@ -96,7 +94,7 @@ class Hota(_BaseMetric):
 
         # Calculate association scores (AssA, AssRe, AssPr) for the alpha value.
         # First calculate scores per gt_id/tracker_id combo and then average over the number of detections.
-        for a, alpha in enumerate(self.set_keys):
+        for a, alpha in enumerate(self.array_labels):
             matches_count = matches_counts[a]
             ass_a = matches_count / np.maximum(1, gt_id_count + tracker_id_count - matches_count)
             res['AssA'][a] = np.sum(matches_count * ass_a) / np.maximum(1, res['HOTA_TP'][a])
@@ -107,19 +105,24 @@ class Hota(_BaseMetric):
 
         # Calculate final scores
         res['LocA'] = res['LocA'] / np.maximum(1, res['HOTA_TP'])
-        res['DetRe'] = res['HOTA_TP'] / np.maximum(1, res['HOTA_TP'] + res['HOTA_FN'])
-        res['DetPr'] = res['HOTA_TP'] / np.maximum(1, res['HOTA_TP'] + res['HOTA_FP'])
-        res['DetA'] = res['HOTA_TP'] / np.maximum(1, res['HOTA_TP'] + res['HOTA_FN'] + res['HOTA_FP'])
-        res['HOTA'] = np.sqrt(res['DetA'] * res['AssA'])
+        res = self._compute_final_fields(res)
         return res
 
     def combine_sequences(self, all_res):
         """Combines metrics across all sequences"""
         res = {}
-        for header in self.integer_set_headers:
-            res[header] = self._combine_sum(all_res, header)
-        for header in ['AssRe', 'AssPr', 'AssA', 'LocA']:
-            res[header] = self._combine_weighted_av(all_res, header, res, weight_header='HOTA_TP')
+        for field in self.integer_array_fields:
+            res[field] = self._combine_sum(all_res, field)
+        for field in ['AssRe', 'AssPr', 'AssA', 'LocA']:
+            res[field] = self._combine_weighted_av(all_res, field, res, weight_field='HOTA_TP')
+        res = self._compute_final_fields(res)
+        return res
+
+    @staticmethod
+    def _compute_final_fields(res):
+        """Calculate sub-metric ('field') values which only depend on other sub-metric values.
+        This function is used both for both per-sequence calculation, and in combining values across sequences.
+        """
         res['DetRe'] = res['HOTA_TP'] / np.maximum(1, res['HOTA_TP'] + res['HOTA_FN'])
         res['DetPr'] = res['HOTA_TP'] / np.maximum(1, res['HOTA_TP'] + res['HOTA_FP'])
         res['DetA'] = res['HOTA_TP'] / np.maximum(1, res['HOTA_TP'] + res['HOTA_FN'] + res['HOTA_FP'])
@@ -128,17 +131,20 @@ class Hota(_BaseMetric):
 
     def plot_results(self, table_res, tracker, cls, output_folder):
         """Create plot of results"""
+        # Optional dependency only for plotting
+        from matplotlib import pyplot as plt
+
         alpha_thresholds = np.arange(0.05, 1, 0.05)
         res = table_res['COMBINED_SEQ']
         styles_to_plot = ['r', 'b', 'g', 'b--', 'b:', 'g--', 'g:', 'm']
-        for name, style in zip(self.float_set_headers, styles_to_plot):
+        for name, style in zip(self.float_array_fields, styles_to_plot):
             plt.plot(alpha_thresholds, res[name], style)
         plt.xlabel('alpha')
         plt.ylabel('score')
         plt.title(tracker)
         plt.axis([0, 1, 0, 1])
         legend = []
-        for name in self.float_set_headers:
+        for name in self.float_array_fields:
             legend += [name + ' (' + str(np.round(np.mean(res[name]), 2)) + ')']
         plt.legend(legend, loc='lower left')
         out_file = os.path.join(output_folder, cls + '_plot.pdf')

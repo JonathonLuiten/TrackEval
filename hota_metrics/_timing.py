@@ -23,7 +23,7 @@ def time(f):
             else:
                 method_name = f.__name__
 
-            # Record accumulative time in each function
+            # Record accumulative time in each function for analysis
             if method_name in timer_dict.keys():
                 timer_dict[method_name] += tt
             else:
@@ -53,6 +53,6 @@ def time(f):
 
             return result
         else:
-            # If config["TIME_PROGRESS"] is false, run functions normally without timing.
+            # If config["TIME_PROGRESS"] is false, or config["USE_PARALLEL"] is true, run functions normally without timing.
             return f(*args, **kw)
     return wrap
