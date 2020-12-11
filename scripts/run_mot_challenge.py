@@ -47,7 +47,7 @@ if __name__ == '__main__':
     # Command line interface:
     default_eval_config = hm.Evaluator.get_default_eval_config()
     default_dataset_config = hm.datasets.MotChallenge2DBox.get_default_dataset_config()
-    default_metrics_config = {'METRICS': ['Hota','Clear', 'ID', 'Count']}
+    default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity', 'Count']}
     config = {**default_eval_config, **default_dataset_config, **default_metrics_config}  # Merge default configs
     parser = argparse.ArgumentParser()
     for setting in config.keys():

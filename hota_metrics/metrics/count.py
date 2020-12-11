@@ -18,7 +18,8 @@ class Count(_BaseMetric):
         res = {'Dets': data['num_tracker_dets'],
                'GT_Dets': data['num_gt_dets'],
                'IDs': data['num_tracker_ids'],
-               'GT_IDs': data['num_gt_ids']}
+               'GT_IDs': data['num_gt_ids'],
+               'Frames': data['num_timesteps']}
         return res
 
     def combine_sequences(self, all_res):

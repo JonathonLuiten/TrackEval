@@ -9,10 +9,14 @@ class CLEAR(_BaseMetric):
     """Class which implements the CLEAR metrics"""
     def __init__(self):
         super().__init__()
-        self.integer_fields = ['CLR_TP', 'CLR_FN', 'CLR_FP', 'IDSW', 'MT', 'PT', 'ML', 'Frag']
-        self.float_fields = ['MOTA', 'MOTP', 'MODA', 'CLR_Re', 'CLR_Pr', 'MTR', 'PTR', 'MLR']
+        main_integer_fields = ['CLR_TP', 'CLR_FN', 'CLR_FP', 'IDSW', 'MT', 'PT', 'ML', 'Frag']
+        extra_integer_fields = ['CLR_Frames']
+        self.integer_fields = main_integer_fields + extra_integer_fields
+        main_float_fields = ['MOTA', 'MOTP', 'MODA', 'CLR_Re', 'CLR_Pr', 'MTR', 'PTR', 'MLR']
+        extra_float_fields = ['CLR_F1', 'FP_per_frame', 'Frag_per_Re', 'IDSW_per_Re']
+        self.float_fields = main_float_fields + extra_float_fields
         self.fields = self.float_fields + self.integer_fields
-        self.summary_fields = self.fields
+        self.summary_fields = main_float_fields + main_integer_fields
 
         self.threshold = 0.5
 
@@ -104,6 +108,8 @@ class CLEAR(_BaseMetric):
         res['Frag'] = np.sum(np.subtract(gt_frag_count[gt_frag_count > 0], 1))
         res['MOTP'] = res['MOTP'] / np.maximum(1.0, res['CLR_TP'])
 
+        res['CLR_Frames'] = data['num_timesteps']
+
         # Calculate final CLEAR scores
         res = self._compute_final_fields(res)
         return res
@@ -130,4 +136,9 @@ class CLEAR(_BaseMetric):
         res['CLR_Pr'] = res['CLR_TP'] / np.maximum(1.0, res['CLR_TP'] + res['CLR_FP'])
         res['MODA'] = (res['CLR_TP'] - res['CLR_FP']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
         res['MOTA'] = (res['CLR_TP'] - res['CLR_FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
+
+        res['CLR_F1'] = res['CLR_TP'] / np.maximum(1.0, res['CLR_TP'] + 0.5*res['CLR_FN'] + 0.5*res['CLR_FP'])
+        res['FP_per_frame'] = res['CLR_FP'] / np.maximum(1.0, res['CLR_Frames'])
+        res['Frag_per_Re'] = res['Frag'] / np.maximum(1.0, res['CLR_Re'])
+        res['IDSW_per_Re'] = res['IDSW'] / np.maximum(1.0, res['CLR_Re'])
         return res
