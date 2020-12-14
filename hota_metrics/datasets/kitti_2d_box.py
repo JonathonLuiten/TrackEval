@@ -25,8 +25,10 @@ class Kitti2DBox(_BaseDataset):
             'INPUT_AS_ZIP': False,  # Whether tracker input files are zipped
             'PRINT_CONFIG': True,  # Whether to print current config
             'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
-            'OUTPUT_SUB_FOLDER': ''  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
+            'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
+            'TRACKER_DISPLAY_NAMES': None,  # Names of trackers to display, if None: TRACKERS_TO_EVAL
         }
+        #todo: do tracker display name above, also set that if empty do not output 'summary' for that class
         return default_config
 
     def __init__(self, config=None):
@@ -57,7 +59,7 @@ class Kitti2DBox(_BaseDataset):
         if not all(self.class_list):
             raise Exception('Attempted to evaluate an invalid class. Only classes [car, pedestrian] are valid.')
         self.class_name_to_class_id = {'car': 1, 'van': 2, 'truck': 3, 'pedestrian': 4, 'person': 5,  # person sitting
-                                       'cyclist': 6, 'tram': 7, 'misc': 8, 'dontcare': 9}
+                                       'cyclist': 6, 'tram': 7, 'misc': 8, 'dontcare': 9, 'car_2': 1}
 
         # Get sequences to eval and check gt files exist
         self.seq_list = []
@@ -89,6 +91,15 @@ class Kitti2DBox(_BaseDataset):
             self.tracker_list = os.listdir(self.tracker_fol)
         else:
             self.tracker_list = self.config['TRACKERS_TO_EVAL']
+
+        if self.config['TRACKER_DISPLAY_NAMES'] is None:
+            self.tracker_to_disp = dict(zip(self.tracker_list, self.tracker_list))
+        elif (self.config['TRACKERS_TO_EVAL'] is not None) and (
+                len(self.config['TRACKER_DISPLAY_NAMES']) == len(self.tracker_list)):
+            self.tracker_to_disp = dict(zip(self.tracker_list, self.config['TRACKER_DISPLAY_NAMES']))
+        else:
+            raise Exception('List of tracker files and tracker display names do not match.')
+
         for tracker in self.tracker_list:
             if self.data_is_zipped:
                 curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol + '.zip')
@@ -101,6 +112,9 @@ class Kitti2DBox(_BaseDataset):
                         raise Exception(
                             'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol + '/' + os.path.basename(
                                 curr_file))
+
+    def get_display_name(self, tracker):
+        return self.tracker_to_disp[tracker]
 
     def _load_raw_file(self, tracker, seq, is_gt):
         """Load a file (gt or tracker) in the kitti 2D box format
@@ -171,7 +185,10 @@ class Kitti2DBox(_BaseDataset):
                                       'occlusion': np.atleast_1d(time_data[:, 4].astype(int))}
                     raw_data['gt_extras'][t] = gt_extras_dict
                 else:
-                    raw_data['tracker_confidences'][t] = np.atleast_1d(time_data[:, 17])
+                    if time_data.shape[1] > 17:
+                        raw_data['tracker_confidences'][t] = np.atleast_1d(time_data[:, 17])
+                    else:
+                        raw_data['tracker_confidences'][t] = np.ones(time_data.shape[0])
             else:
                 raw_data['dets'][t] = np.empty((0, 4))
                 raw_data['ids'][t] = np.empty(0).astype(int)

@@ -16,4 +16,5 @@ classes = ['pedestrian']
 data_fol = os.path.join(tracker_folder, dataset)
 trackers = os.listdir(data_fol)
 out_loc = os.path.join(plots_folder, dataset)
-hm.plotting.plot_compare_trackers(data_fol, trackers, classes, out_loc)
+for cls in classes:
+    hm.plotting.plot_compare_trackers(data_fol, trackers, cls, out_loc)

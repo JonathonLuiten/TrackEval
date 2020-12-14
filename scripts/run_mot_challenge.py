@@ -47,7 +47,7 @@ if __name__ == '__main__':
     # Command line interface:
     default_eval_config = hm.Evaluator.get_default_eval_config()
     default_dataset_config = hm.datasets.MotChallenge2DBox.get_default_dataset_config()
-    default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity', 'Count']}
+    default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity']}
     config = {**default_eval_config, **default_dataset_config, **default_metrics_config}  # Merge default configs
     parser = argparse.ArgumentParser()
     for setting in config.keys():
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     evaluator = hm.Evaluator(eval_config)
     dataset_list = [hm.datasets.MotChallenge2DBox(dataset_config)]
     metrics_list = []
-    for metric in [hm.metrics.HOTA, hm.metrics.CLEAR, hm.metrics.Identity, hm.metrics.Count]:
+    for metric in [hm.metrics.HOTA, hm.metrics.CLEAR, hm.metrics.Identity]:
         if metric.get_name() in metrics_config['METRICS']:
             metrics_list.append(metric())
     if len(metrics_list) == 0:

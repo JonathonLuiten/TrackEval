@@ -47,6 +47,12 @@ class _BaseDataset(ABC):
     def get_output_fol(self, tracker):
         return os.path.join(self.output_fol, tracker, self.output_sub_fol)
 
+    def get_display_name(self, tracker):
+        """ Can be overwritten if the trackers name (in files) is different to how it should be displayed.
+        By default this method just returns the trackers name as is.
+        """
+        return tracker
+
     def get_eval_info(self):
         """Return info about the dataset needed for the Evaluator"""
         return self.tracker_list, self.seq_list, self.class_list
@@ -137,48 +143,52 @@ class _BaseDataset(ABC):
             fp = io.TextIOWrapper(archive.open(file, 'r'))
         else:
             fp = open(file)
-        dialect = csv.Sniffer().sniff(fp.read(10240), delimiters=force_delimiters)  # Auto determine file structure.
-        dialect.skipinitialspace = True  # Deal with extra spaces between columns
-        fp.seek(0)
-        reader = csv.reader(fp, dialect)
         read_data = {}
         crowd_ignore_data = {}
-        for row in reader:
-            # Deal with extra trailing spaces at the end of rows
-            if row[-1] in '':
-                row = row[:-1]
-            timestep = row[time_col]
-            # Read ignore regions separately.
-            is_ignored = False
-            for ignore_key, ignore_value in crowd_ignore_filter.items():
-                if row[ignore_key].lower() in ignore_value:
-                    # Convert values in one column (e.g. string to id)
-                    for convert_key, convert_value in convert_filter.items():
-                        row[convert_key] = convert_value[row[convert_key].lower()]
-                    # Save data separated by timestep.
-                    if timestep in crowd_ignore_data.keys():
-                        crowd_ignore_data[timestep].append(row)
-                    else:
-                        crowd_ignore_data[timestep] = [row]
-                    is_ignored = True
-            if is_ignored:  # if det is an ignore region, it cannot be a normal det.
-                continue
-            # Exclude some dets if not valid.
-            if valid_filter is not None:
-                for key, value in valid_filter.items():
-                    if row[key].lower() not in value:
-                        continue
-            if remove_negative_ids:
-                if int(float(row[id_col])) < 0:
+        fp.seek(0, os.SEEK_END)
+        # check if file is empty
+        if fp.tell():
+            fp.seek(0)
+            dialect = csv.Sniffer().sniff(fp.read(10240), delimiters=force_delimiters)  # Auto determine file structure.
+            dialect.skipinitialspace = True  # Deal with extra spaces between columns
+            fp.seek(0)
+            reader = csv.reader(fp, dialect)
+            for row in reader:
+                # Deal with extra trailing spaces at the end of rows
+                if row[-1] in '':
+                    row = row[:-1]
+                timestep = row[time_col]
+                # Read ignore regions separately.
+                is_ignored = False
+                for ignore_key, ignore_value in crowd_ignore_filter.items():
+                    if row[ignore_key].lower() in ignore_value:
+                        # Convert values in one column (e.g. string to id)
+                        for convert_key, convert_value in convert_filter.items():
+                            row[convert_key] = convert_value[row[convert_key].lower()]
+                        # Save data separated by timestep.
+                        if timestep in crowd_ignore_data.keys():
+                            crowd_ignore_data[timestep].append(row)
+                        else:
+                            crowd_ignore_data[timestep] = [row]
+                        is_ignored = True
+                if is_ignored:  # if det is an ignore region, it cannot be a normal det.
                     continue
-            # Convert values in one column (e.g. string to id)
-            for convert_key, convert_value in convert_filter.items():
-                row[convert_key] = convert_value[row[convert_key].lower()]
-            # Save data separated by timestep.
-            if timestep in read_data.keys():
-                read_data[timestep].append(row)
-            else:
-                read_data[timestep] = [row]
+                # Exclude some dets if not valid.
+                if valid_filter is not None:
+                    for key, value in valid_filter.items():
+                        if row[key].lower() not in value:
+                            continue
+                if remove_negative_ids:
+                    if int(float(row[id_col])) < 0:
+                        continue
+                # Convert values in one column (e.g. string to id)
+                for convert_key, convert_value in convert_filter.items():
+                    row[convert_key] = convert_value[row[convert_key].lower()]
+                # Save data separated by timestep.
+                if timestep in read_data.keys():
+                    read_data[timestep].append(row)
+                else:
+                    read_data[timestep] = [row]
         fp.close()
         return read_data, crowd_ignore_data
 

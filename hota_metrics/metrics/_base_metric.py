@@ -73,7 +73,7 @@ class _BaseMetric(ABC):
             if h in self.float_array_fields:
                 vals.append("{0:1.5g}".format(100 * np.mean(results_[h])))
             elif h in self.float_fields:
-                vals.append("{0:1.5g}".format(100 * results_[h]))
+                vals.append("{0:1.5g}".format(100 * float(results_[h])))
             elif h in self.integer_fields:
                 vals.append("{0:d}".format(int(results_[h])))
             else:

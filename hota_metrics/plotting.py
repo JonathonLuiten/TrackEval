@@ -3,32 +3,34 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 
-
-def plot_compare_trackers(tracker_folder, tracker_list, classes, output_folder, to_plot_list=None):
+def plot_compare_trackers(tracker_folder, tracker_list, cls, output_folder, plots_list=None):
     """Create plots which compare metrics across different trackers."""
     # Define what to plot
-    if to_plot_list is None:
-        # y_label, x_label, sort_label, bg_label, bg_function
-        to_plot_list = [
-            ['AssA', 'DetA', 'HOTA', 'HOTA', 'geometric_mean'],
-            ['AssPr', 'AssRe', 'HOTA', 'AssA', 'jaccard'],
-            ['DetPr', 'DetRe', 'HOTA', 'DetA', 'jaccard'],
-            ['HOTA(0)', 'LocA(0)', 'HOTA', '(HOTA*LocA)(0)', 'multiplication'],
+    if plots_list is None:
+        plots_list = get_default_plots_list()
 
-            ['HOTA', 'MOTA', 'HOTA', None, None],
-            ['HOTA', 'IDF1', 'HOTA', None, None],
-            ['IDF1', 'MOTA', 'HOTA', None, None],
-        ]
+    # Load data
+    data = load_multiple_tracker_summaries(tracker_folder, tracker_list, cls)
+    out_loc = os.path.join(output_folder, cls)
 
-    for cls in classes:
-        # Load data
-        data = load_multiple_tracker_summaries(tracker_folder, tracker_list, cls)
-        out_loc = os.path.join(output_folder, cls)
+    # Plot
+    for args in plots_list:
+        create_comparison_plot(data, out_loc, *args)
 
-        # Plot
-        for args in to_plot_list:
-            create_comparison_plot(data, out_loc, *args)
 
+def get_default_plots_list():
+    # y_label, x_label, sort_label, bg_label, bg_function
+    plots_list = [
+        ['AssA', 'DetA', 'HOTA', 'HOTA', 'geometric_mean'],
+        ['AssPr', 'AssRe', 'HOTA', 'AssA', 'jaccard'],
+        ['DetPr', 'DetRe', 'HOTA', 'DetA', 'jaccard'],
+        ['HOTA(0)', 'LocA(0)', 'HOTA', 'HOTALocA(0)', 'multiplication'],
+
+        ['HOTA', 'MOTA', 'HOTA', None, None],
+        ['HOTA', 'IDF1', 'HOTA', None, None],
+        ['IDF1', 'MOTA', 'HOTA', None, None],
+    ]
+    return plots_list
 
 def load_multiple_tracker_summaries(tracker_folder, tracker_list, cls):
     """Loads summary data for multiple trackers."""
@@ -179,12 +181,11 @@ def _plot_bg_contour(bg_function, plot_boundaries, gap_val):
     levels = np.arange(0, 100, gap_val)
     con = plt.contour(x_grid, y_grid, z_grid, levels, colors='grey')
 
-    class ContourFormat(float):
-        def __repr__(self):
-            s = f'{self:.1f}'
-            return f'{self:.0f}' if s[-1] == '0' else s
+    def bg_format(val):
+        s = '{:1f}'.format(val)
+        return '{:.0f}'.format(val) if s[-1] == '0' else s
 
-    con.levels = [ContourFormat(val) for val in con.levels]
+    con.levels = [bg_format(val) for val in con.levels]
     plt.clabel(con, con.levels, inline=True, fmt='%r', fontsize=8)
 
 

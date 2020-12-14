@@ -16,8 +16,8 @@ class HOTA(_BaseMetric):
         self.array_labels = np.arange(0.0, 1.01, 0.05)
         self.integer_array_fields = ['HOTA_TP', 'HOTA_FN', 'HOTA_FP']
         self.float_array_fields = ['HOTA', 'DetA', 'AssA', 'DetRe', 'DetPr', 'AssRe', 'AssPr', 'LocA', 'RHOTA']
-        self.float_fields = ['HOTA(0)', 'LocA(0)', '(HOTA*LocA)(0)']
-        self.fields = self.integer_array_fields + self.float_array_fields + self.float_fields
+        self.float_fields = ['HOTA(0)', 'LocA(0)', 'HOTALocA(0)']
+        self.fields = self.float_array_fields + self.integer_array_fields + self.float_fields
         self.summary_fields = self.float_array_fields + self.float_fields
 
     @_timing.time
@@ -26,15 +26,21 @@ class HOTA(_BaseMetric):
 
         # Initialise results
         res = {}
-        for field in self.fields:
+        for field in self.float_array_fields + self.integer_array_fields:
             res[field] = np.zeros((len(self.array_labels)), dtype=np.float)
+        for field in self.float_fields:
+            res[field] = 0
 
         # Return result quickly if tracker or gt sequence is empty
         if data['num_tracker_dets'] == 0:
             res['HOTA_FN'] = data['num_gt_dets'] * np.ones((len(self.array_labels)), dtype=np.float)
+            res['LocA'] = np.ones((len(self.array_labels)), dtype=np.float)
+            res['LocA(0)'] = 1.0
             return res
         if data['num_gt_dets'] == 0:
             res['HOTA_FP'] = data['num_tracker_dets'] * np.ones((len(self.array_labels)), dtype=np.float)
+            res['LocA'] = np.ones((len(self.array_labels)), dtype=np.float)
+            res['LocA(0)'] = 1.0
             return res
 
         # Variables counting global association
@@ -134,7 +140,7 @@ class HOTA(_BaseMetric):
 
         res['HOTA(0)'] = res['HOTA'][0]
         res['LocA(0)'] = res['LocA'][0]
-        res['(HOTA*LocA)(0)'] = res['HOTA(0)']*res['LocA(0)']
+        res['HOTALocA(0)'] = res['HOTA(0)']*res['LocA(0)']
         return res
 
     def plot_single_tracker_results(self, table_res, tracker, cls, output_folder):
