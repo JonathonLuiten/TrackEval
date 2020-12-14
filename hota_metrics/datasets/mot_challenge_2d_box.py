@@ -30,6 +30,7 @@ class MotChallenge2DBox(_BaseDataset):
             'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
             'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
             'SEQMAP_FOLDER': None,  # Where seqmaps are found (if None, GT_FOLDER/seqmaps)
+            'SEQMAP_FILE': None,  # Directly specify seqmap file (if none use seqmap_folder/benchmark-split_to_eval)
             'SKIP_SPLIT_FOL': False,  # If False, data is in GT_FOLDER/BENCHMARK-SPLIT_TO_EVAL/ and in
                                       # TRACKERS_FOLDER/BENCHMARK-SPLIT_TO_EVAL/tracker/
                                       # If True, then the middle 'benchmark-split' folder is skipped for both.
@@ -76,10 +77,13 @@ class MotChallenge2DBox(_BaseDataset):
         # Get sequences to eval and check gt files exist
         self.seq_list = []
         self.seq_lengths = {}
-        if self.config["SEQMAP_FOLDER"] is None:
-            seqmap_file = os.path.join(self.config['GT_FOLDER'], 'seqmaps', gt_set + '.txt')
+        if self.config["SEQMAP_FILE"]:
+            seqmap_file = self.config["SEQMAP_FILE"]
         else:
-            seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], gt_set + '.txt')
+            if self.config["SEQMAP_FOLDER"] is None:
+                seqmap_file = os.path.join(self.config['GT_FOLDER'], 'seqmaps', gt_set + '.txt')
+            else:
+                seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], gt_set + '.txt')
         if not os.path.isfile(seqmap_file):
             raise Exception('no seqmap found: ' + os.path.basename(seqmap_file))
         with open(seqmap_file) as fp:
