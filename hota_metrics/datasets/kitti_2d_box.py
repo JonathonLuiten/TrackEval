@@ -4,7 +4,7 @@ import csv
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from ._base_dataset import _BaseDataset
-from .. import _utils
+from .. import utils
 from .. import _timing
 
 
@@ -14,7 +14,7 @@ class Kitti2DBox(_BaseDataset):
     @staticmethod
     def get_default_dataset_config():
         """Default class config values"""
-        code_path = _utils.get_code_path()
+        code_path = utils.get_code_path()
         default_config = {
             'GT_FOLDER': os.path.join(code_path, 'data/gt/kitti/kitti_2d_box_train'),  # Location of GT data
             'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/kitti/kitti_2d_box_train/'),  # Trackers location
@@ -33,7 +33,7 @@ class Kitti2DBox(_BaseDataset):
         """Initialise dataset, checking that all required files are present"""
         super().__init__()
         # Fill non-given config values with defaults
-        self.config = _utils.init_config(config, self.get_default_dataset_config(), self.get_name())
+        self.config = utils.init_config(config, self.get_default_dataset_config(), self.get_name())
         self.gt_fol = self.config['GT_FOLDER']
         self.tracker_fol = self.config['TRACKERS_FOLDER']
         self.should_classes_combine = False

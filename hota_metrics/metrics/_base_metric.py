@@ -29,7 +29,7 @@ class _BaseMetric(ABC):
     def combine_sequences(self, all_res):
         ...
 
-    def plot_results(self, all_res, tracker, output_folder, cls):
+    def plot_single_tracker_results(self, all_res, tracker, output_folder, cls):
         """Plot results of metrics, only valid for metrics with self.plottable"""
         if self.plottable:
             raise NotImplementedError('plot_results is not implemented for metric %s' % self.get_name())
@@ -85,7 +85,7 @@ class _BaseMetric(ABC):
         """Prints results in an evenly spaced rows, with more space in first row"""
         if len(argv) == 1:
             argv = argv[0]
-        to_print = '%-30s' % argv[0]
+        to_print = '%-35s' % argv[0]
         for v in argv[1:]:
             to_print += '%-10s' % str(v)
         print(to_print)

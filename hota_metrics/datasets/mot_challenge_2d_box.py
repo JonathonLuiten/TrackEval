@@ -5,7 +5,7 @@ import configparser
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from ._base_dataset import _BaseDataset
-from .. import _utils
+from .. import utils
 from .. import _timing
 
 
@@ -15,7 +15,7 @@ class MotChallenge2DBox(_BaseDataset):
     @staticmethod
     def get_default_dataset_config():
         """Default class config values"""
-        code_path = _utils.get_code_path()
+        code_path = utils.get_code_path()
         default_config = {
             'GT_FOLDER': os.path.join(code_path, 'data/gt/mot_challenge/'),  # Location of GT data
             'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/mot_challenge/'),  # Trackers location
@@ -40,7 +40,7 @@ class MotChallenge2DBox(_BaseDataset):
         """Initialise dataset, checking that all required files are present"""
         super().__init__()
         # Fill non-given config values with defaults
-        self.config = _utils.init_config(config, self.get_default_dataset_config(), self.get_name())
+        self.config = utils.init_config(config, self.get_default_dataset_config(), self.get_name())
 
         self.benchmark = self.config['BENCHMARK']
         gt_set = self.config['BENCHMARK'] + '-' + self.config['SPLIT_TO_EVAL']
@@ -265,7 +265,7 @@ class MotChallenge2DBox(_BaseDataset):
             similarity_scores = raw_data['similarity_scores'][t]
 
             # Evaluation is ONLY valid for pedestrian class
-            if np.max(tracker_classes) > 1:
+            if len(tracker_classes)>0 and np.max(tracker_classes) > 1:
                 raise Exception('Evaluation is only valid for pedestrian class. Non pedestrian class (%i) found in '
                                 'sequence %s at timestep %i.' % (np.max(tracker_classes), raw_data['seq'], t))
 

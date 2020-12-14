@@ -13,11 +13,12 @@ class HOTA(_BaseMetric):
     def __init__(self):
         super().__init__()
         self.plottable = True
-        self.array_labels = np.arange(0.05, 1, 0.05)
+        self.array_labels = np.arange(0.0, 1.01, 0.05)
         self.integer_array_fields = ['HOTA_TP', 'HOTA_FN', 'HOTA_FP']
-        self.float_array_fields = ['HOTA', 'DetA', 'AssA', 'DetRe', 'DetPr', 'AssRe', 'AssPr', 'LocA']
-        self.fields = self.integer_array_fields + self.float_array_fields
-        self.summary_fields = self.float_array_fields
+        self.float_array_fields = ['HOTA', 'DetA', 'AssA', 'DetRe', 'DetPr', 'AssRe', 'AssPr', 'LocA', 'RHOTA']
+        self.float_fields = ['HOTA(0)', 'LocA(0)', '(HOTA*LocA)(0)']
+        self.fields = self.integer_array_fields + self.float_array_fields + self.float_fields
+        self.summary_fields = self.float_array_fields + self.float_fields
 
     @_timing.time
     def eval_sequence(self, data):
@@ -104,7 +105,7 @@ class HOTA(_BaseMetric):
             res['AssPr'][a] = np.sum(matches_count * ass_pr) / np.maximum(1, res['HOTA_TP'][a])
 
         # Calculate final scores
-        res['LocA'] = res['LocA'] / np.maximum(1, res['HOTA_TP'])
+        res['LocA'] = np.maximum(1e-10, res['LocA']) / np.maximum(1e-10, res['HOTA_TP'])
         res = self._compute_final_fields(res)
         return res
 
@@ -113,8 +114,10 @@ class HOTA(_BaseMetric):
         res = {}
         for field in self.integer_array_fields:
             res[field] = self._combine_sum(all_res, field)
-        for field in ['AssRe', 'AssPr', 'AssA', 'LocA']:
+        for field in ['AssRe', 'AssPr', 'AssA']:
             res[field] = self._combine_weighted_av(all_res, field, res, weight_field='HOTA_TP')
+        loca_weighted_sum = sum([all_res[k]['LocA'] * all_res[k]['HOTA_TP'] for k in all_res.keys()])
+        res['LocA'] = np.maximum(1e-10, loca_weighted_sum) / np.maximum(1e-10, res['HOTA_TP'])
         res = self._compute_final_fields(res)
         return res
 
@@ -127,18 +130,21 @@ class HOTA(_BaseMetric):
         res['DetPr'] = res['HOTA_TP'] / np.maximum(1, res['HOTA_TP'] + res['HOTA_FP'])
         res['DetA'] = res['HOTA_TP'] / np.maximum(1, res['HOTA_TP'] + res['HOTA_FN'] + res['HOTA_FP'])
         res['HOTA'] = np.sqrt(res['DetA'] * res['AssA'])
+        res['RHOTA'] = np.sqrt(res['DetRe'] * res['AssA'])
+
+        res['HOTA(0)'] = res['HOTA'][0]
+        res['LocA(0)'] = res['LocA'][0]
+        res['(HOTA*LocA)(0)'] = res['HOTA(0)']*res['LocA(0)']
         return res
 
-    def plot_results(self, table_res, tracker, cls, output_folder):
+    def plot_single_tracker_results(self, table_res, tracker, cls, output_folder):
         """Create plot of results"""
         # Optional dependency only for plotting
         from matplotlib import pyplot as plt
-
-        alpha_thresholds = np.arange(0.05, 1, 0.05)
         res = table_res['COMBINED_SEQ']
         styles_to_plot = ['r', 'b', 'g', 'b--', 'b:', 'g--', 'g:', 'm']
         for name, style in zip(self.float_array_fields, styles_to_plot):
-            plt.plot(alpha_thresholds, res[name], style)
+            plt.plot(self.array_labels, res[name], style)
         plt.xlabel('alpha')
         plt.ylabel('score')
         plt.title(tracker)

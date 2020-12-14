@@ -1,6 +1,6 @@
 import time
 from multiprocessing.pool import Pool
-from . import _utils
+from . import utils
 from . import _timing
 
 from functools import partial
@@ -31,7 +31,7 @@ class Evaluator:
 
     def __init__(self, config=None):
         """Initialise the evaluator with a config file"""
-        self.config = _utils.init_config(config, self.get_default_eval_config(), 'Eval')
+        self.config = utils.init_config(config, self.get_default_eval_config(), 'Eval')
         # Only run timing analysis if not run in parallel.
         if self.config['TIME_PROGRESS'] and not self.config['USE_PARALLEL']:
             _timing.DO_TIMING = True
@@ -40,7 +40,7 @@ class Evaluator:
     def evaluate(self, dataset_list, metrics_list):
         """Evaluate a set of metrics on a set of datasets"""
         config = self.config
-        metric_names = _utils.validate_metrics_list(metrics_list)
+        metric_names = utils.validate_metrics_list(metrics_list)
         dataset_names = [dataset.get_name() for dataset in dataset_list]
         output_res = {}
         output_msg = {}
@@ -107,11 +107,11 @@ class Evaluator:
                             if config['OUTPUT_DETAILED']:
                                 details.append(metric.detailed_results(table_res))
                             if config['PLOT_CURVES']:
-                                metric.plot_results(table_res, tracker, c_cls, output_fol)
+                                metric.plot_single_tracker_results(table_res, tracker, c_cls, output_fol)
                         if config['OUTPUT_SUMMARY']:
-                            _utils.write_summary_results(summaries, c_cls, output_fol)
+                            utils.write_summary_results(summaries, c_cls, output_fol)
                         if config['OUTPUT_DETAILED']:
-                            _utils.write_detailed_results(details, c_cls, output_fol)
+                            utils.write_detailed_results(details, c_cls, output_fol)
 
                     # Output for returning from function
                     output_res[dataset_name][tracker] = res
