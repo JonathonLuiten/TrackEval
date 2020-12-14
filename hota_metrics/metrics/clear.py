@@ -13,7 +13,7 @@ class CLEAR(_BaseMetric):
         extra_integer_fields = ['CLR_Frames']
         self.integer_fields = main_integer_fields + extra_integer_fields
         main_float_fields = ['MOTA', 'MOTP', 'MODA', 'CLR_Re', 'CLR_Pr', 'MTR', 'PTR', 'MLR']
-        extra_float_fields = ['CLR_F1', 'FP_per_frame', 'Frag_per_Re', 'IDSW_per_Re']
+        extra_float_fields = ['CLR_F1', 'FP_per_frame', 'Frag_per_Re', 'IDSW_per_Re', 'MOTAL']
         self.float_fields = main_float_fields + extra_float_fields
         self.fields = self.float_fields + self.integer_fields
         self.summary_fields = main_float_fields + main_integer_fields
@@ -139,6 +139,8 @@ class CLEAR(_BaseMetric):
 
         res['CLR_F1'] = res['CLR_TP'] / np.maximum(1.0, res['CLR_TP'] + 0.5*res['CLR_FN'] + 0.5*res['CLR_FP'])
         res['FP_per_frame'] = res['CLR_FP'] / np.maximum(1.0, res['CLR_Frames'])
-        res['Frag_per_Re'] = res['Frag'] / np.maximum(1.0, res['CLR_Re'])
-        res['IDSW_per_Re'] = res['IDSW'] / np.maximum(1.0, res['CLR_Re'])
+        res['Frag_per_Re'] = (res['Frag'] / res['CLR_Re']) if res['CLR_Re'] else 0.0
+        res['IDSW_per_Re'] = (res['IDSW'] / res['CLR_Re']) if res['CLR_Re'] else 0.0
+        safe_log_idsw = np.log10(res['IDSW']) if res['IDSW'] > 0 else res['IDSW']
+        res['MOTAL'] = (res['CLR_TP'] - res['CLR_FP'] - safe_log_idsw) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
         return res
