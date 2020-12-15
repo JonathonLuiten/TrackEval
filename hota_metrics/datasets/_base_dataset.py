@@ -1,4 +1,3 @@
-
 import csv
 import io
 import zipfile
@@ -238,14 +237,18 @@ class _BaseDataset(ABC):
         tracker_ids = data['tracker_ids']
         for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(gt_ids, tracker_ids)):
             if len(tracker_ids_t) > 0:
-                _, counts = np.unique(tracker_ids_t, return_counts=True)
+                unique_ids, counts = np.unique(tracker_ids_t, return_counts=True)
                 if np.max(counts) != 1:
-                    raise Exception(
-                        'Tracker predicts the same ID more than once in a single timestep (seq: %s, time: %i)' % (
-                            data['seq'], t))
+                    duplicate_ids = unique_ids[counts > 1]
+                    exc_str_init = 'Tracker predicts the same ID more than once in a single timestep ' \
+                                   '(seq: %s, frame: %i, ids:' % (data['seq'], t)
+                    exc_str = ''.join([exc_str_init] + [str(d) for d in duplicate_ids]) + ')'
+                    raise Exception(exc_str)
             if len(gt_ids_t) > 0:
-                _, counts = np.unique(gt_ids_t, return_counts=True)
+                unique_ids, counts = np.unique(gt_ids_t, return_counts=True)
                 if np.max(counts) != 1:
-                    raise Exception(
-                        'Ground-truth has the same ID more than once in a single timestep (seq: %s, time: %i)' % (
-                            data['seq'], t))
+                    duplicate_ids = unique_ids[counts > 1]
+                    exc_str_init = 'Ground-truth has the same ID more than once in a single timestep ' \
+                                   '(seq: %s, frame: %i, ids:' % (data['seq'], t)
+                    exc_str = ''.join([exc_str_init] + [str(d) for d in duplicate_ids]) + ')'
+                    raise Exception(exc_str)
