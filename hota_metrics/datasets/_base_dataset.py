@@ -4,6 +4,7 @@ import io
 import zipfile
 import os
 import numpy as np
+from pycocotools import mask as mask_utils
 from copy import deepcopy
 from abc import ABC, abstractmethod
 from .. import _timing
@@ -191,6 +192,28 @@ class _BaseDataset(ABC):
                     read_data[timestep] = [row]
         fp.close()
         return read_data, crowd_ignore_data
+
+    @staticmethod
+    def _calculate_mask_ious(masks1, masks2, is_encoded=False, do_ioa=False):
+        """ Calculates the IOU (intersection over union) between two arrays of segmentation masks.
+        If is_encoded a run length encoding with pycocotools is assumed as input format, otherwise the encoding is
+        performed.
+        If do_ioa (intersection over area) , then calculates the intersection over the area of masks1 - this is commonly
+        used to determine if detections are within crowd ignore region.
+        """
+        # use pycocotools for run length encoding of masks
+        if not is_encoded:
+            masks1 = mask_utils.encode(np.array(np.transpose(masks1, (1, 2, 0)), order='F'))
+            masks2 = mask_utils.encode(np.array(np.transpose(masks2, (1, 2, 0)), order='F'))
+
+        # use pycocotools for iou computation of rle encoded masks
+        ious = np.asarray(mask_utils.iou(masks1, masks2, [do_ioa for _ in range(len(masks1))]))
+        if len(masks1) == 0 or len(masks2) == 0:
+            ious = ious.reshape(len(masks1), len(masks2))
+        assert (ious >= 0).all()
+        assert (ious <= 1).all()
+
+        return ious
 
     @staticmethod
     def _calculate_box_ious(bboxes1, bboxes2, box_format='xywh', do_ioa=False):
