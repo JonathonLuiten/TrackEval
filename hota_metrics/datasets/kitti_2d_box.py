@@ -355,15 +355,17 @@ class Kitti2DBox(_BaseDataset):
                 if len(data['tracker_ids'][t]) > 0:
                     data['tracker_ids'][t] = tracker_id_map[data['tracker_ids'][t]].astype(np.int)
 
-        # Ensure that ids are unique per timestep.
-        self._check_unique_ids(data)
-
         # Record overview statistics.
         data['num_tracker_dets'] = num_tracker_dets
         data['num_gt_dets'] = num_gt_dets
         data['num_tracker_ids'] = len(unique_tracker_ids)
         data['num_gt_ids'] = len(unique_gt_ids)
         data['num_timesteps'] = raw_data['num_timesteps']
+        data['seq'] = raw_data['seq']
+
+        # Ensure that ids are unique per timestep.
+        self._check_unique_ids(data)
+
         return data
 
     def _calculate_similarities(self, gt_dets_t, tracker_dets_t):
