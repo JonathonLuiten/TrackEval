@@ -1,10 +1,10 @@
 import time
+import traceback
 from multiprocessing.pool import Pool
+from functools import partial
 from . import utils
 from . import _timing
 from .metrics import Count
-
-from functools import partial
 
 
 class Evaluator:
@@ -100,21 +100,21 @@ class Evaluator:
                     for c_cls in res['COMBINED_SEQ'].keys():  # class_list + 'COMBINED_CLS' if calculated
                         summaries = []
                         details = []
-                        for metric, metric_name in zip(metrics_list, metric_names):
-                            table_res = {seq_key: seq_value[c_cls][metric_name] for seq_key, seq_value in res.items()}
-                            if config['PRINT_RESULTS'] and config['PRINT_ONLY_COMBINED']:
-                                metric.print_table({'COMBINED_SEQ': table_res['COMBINED_SEQ']}, tracker_display_name,
-                                                   c_cls)
-                            elif config['PRINT_RESULTS']:
-                                metric.print_table(table_res, tracker_display_name, c_cls)
-                            if config['OUTPUT_SUMMARY']:
-                                summaries.append(metric.summary_results(table_res))
-                            if config['OUTPUT_DETAILED']:
-                                details.append(metric.detailed_results(table_res))
-                            if config['PLOT_CURVES']:
-                                metric.plot_single_tracker_results(table_res, tracker_display_name, c_cls, output_fol)
                         num_dets = res['COMBINED_SEQ'][c_cls]['Count']['Dets']
                         if config['OUTPUT_EMPTY_CLASSES'] or num_dets > 0:
+                            for metric, metric_name in zip(metrics_list, metric_names):
+                                table_res = {seq_key: seq_value[c_cls][metric_name] for seq_key, seq_value in res.items()}
+                                if config['PRINT_RESULTS'] and config['PRINT_ONLY_COMBINED']:
+                                    metric.print_table({'COMBINED_SEQ': table_res['COMBINED_SEQ']}, tracker_display_name,
+                                                       c_cls)
+                                elif config['PRINT_RESULTS']:
+                                    metric.print_table(table_res, tracker_display_name, c_cls)
+                                if config['OUTPUT_SUMMARY']:
+                                    summaries.append(metric.summary_results(table_res))
+                                if config['OUTPUT_DETAILED']:
+                                    details.append(metric.detailed_results(table_res))
+                                if config['PLOT_CURVES']:
+                                    metric.plot_single_tracker_results(table_res, tracker_display_name, c_cls, output_fol)
                             if config['OUTPUT_SUMMARY']:
                                 utils.write_summary_results(summaries, c_cls, output_fol)
                             if config['OUTPUT_DETAILED']:
@@ -128,7 +128,7 @@ class Evaluator:
                     output_res[dataset_name][tracker] = None
                     output_msg[dataset_name][tracker] = err
                     print('Tracker %s was unable to be evaluated. Error:' % tracker)
-                    print(err)
+                    traceback.print_exc()
                     if config["BREAK_ON_ERROR"]:
                         raise err
                     elif config["RETURN_ON_ERROR"]:
