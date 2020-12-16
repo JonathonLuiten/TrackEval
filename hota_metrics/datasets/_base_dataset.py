@@ -245,7 +245,7 @@ class _BaseDataset(ABC):
             return ious
 
     @staticmethod
-    def _check_unique_ids(data):
+    def _check_unique_ids(data, after_preproc=False):
         """Check the requirement that the tracker_ids and gt_ids are unique per timestep"""
         gt_ids = data['gt_ids']
         tracker_ids = data['tracker_ids']
@@ -255,14 +255,20 @@ class _BaseDataset(ABC):
                 if np.max(counts) != 1:
                     duplicate_ids = unique_ids[counts > 1]
                     exc_str_init = 'Tracker predicts the same ID more than once in a single timestep ' \
-                                   '(seq: %s, frame: %i, ids:' % (data['seq'], t)
+                                   '(seq: %s, frame: %i, ids:' % (data['seq'], t+1)
                     exc_str = ' '.join([exc_str_init] + [str(d) for d in duplicate_ids]) + ')'
+                    if after_preproc:
+                        exc_str_init += '\n Note that this error occurred after preprocessing (but not before), ' \
+                                        'so ids may not be as in file, and something seems wrong with preproc.'
                     raise TrackEvalException(exc_str)
             if len(gt_ids_t) > 0:
                 unique_ids, counts = np.unique(gt_ids_t, return_counts=True)
                 if np.max(counts) != 1:
                     duplicate_ids = unique_ids[counts > 1]
                     exc_str_init = 'Ground-truth has the same ID more than once in a single timestep ' \
-                                   '(seq: %s, frame: %i, ids:' % (data['seq'], t)
+                                   '(seq: %s, frame: %i, ids:' % (data['seq'], t+1)
                     exc_str = ' '.join([exc_str_init] + [str(d) for d in duplicate_ids]) + ')'
+                    if after_preproc:
+                        exc_str_init += '\n Note that this error occurred after preprocessing (but not before), ' \
+                                        'so ids may not be as in file, and something seems wrong with preproc.'
                     raise TrackEvalException(exc_str)

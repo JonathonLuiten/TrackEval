@@ -281,6 +281,9 @@ class MotChallenge2DBox(_BaseDataset):
                 3) There is no crowd ignore regions.
                 4) All gt dets except pedestrian are removed, also removes pedestrian gt dets marked with zero_marked.
         """
+        # Check that input data has unique ids
+        self._check_unique_ids(raw_data)
+
         distractor_class_names = ['person_on_vehicle', 'static_person', 'distractor', 'reflection']
         if self.benchmark == 'MOT20':
             distractor_class_names += 'non_mot_vehicle'
@@ -373,8 +376,8 @@ class MotChallenge2DBox(_BaseDataset):
         data['num_timesteps'] = raw_data['num_timesteps']
         data['seq'] = raw_data['seq']
 
-        # Ensure that ids are unique per timestep.
-        self._check_unique_ids(data)
+        # Ensure again that ids are unique per timestep after preproc.
+        self._check_unique_ids(data, after_preproc=True)
 
         return data
 
