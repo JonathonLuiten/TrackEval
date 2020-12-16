@@ -256,7 +256,7 @@ class _BaseDataset(ABC):
                     duplicate_ids = unique_ids[counts > 1]
                     exc_str_init = 'Tracker predicts the same ID more than once in a single timestep ' \
                                    '(seq: %s, frame: %i, ids:' % (data['seq'], t)
-                    exc_str = ''.join([exc_str_init] + [str(d) for d in duplicate_ids]) + ')'
+                    exc_str = ' '.join([exc_str_init] + [str(d) for d in duplicate_ids]) + ')'
                     raise TrackEvalException(exc_str)
             if len(gt_ids_t) > 0:
                 unique_ids, counts = np.unique(gt_ids_t, return_counts=True)
@@ -264,5 +264,5 @@ class _BaseDataset(ABC):
                     duplicate_ids = unique_ids[counts > 1]
                     exc_str_init = 'Ground-truth has the same ID more than once in a single timestep ' \
                                    '(seq: %s, frame: %i, ids:' % (data['seq'], t)
-                    exc_str = ''.join([exc_str_init] + [str(d) for d in duplicate_ids]) + ')'
+                    exc_str = ' '.join([exc_str_init] + [str(d) for d in duplicate_ids]) + ')'
                     raise TrackEvalException(exc_str)
