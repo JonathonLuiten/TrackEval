@@ -126,7 +126,7 @@ class Evaluator:
 
                 except Exception as err:
                     output_res[dataset_name][tracker] = None
-                    output_msg[dataset_name][tracker] = err
+                    output_msg[dataset_name][tracker] = str(err)
                     print('Tracker %s was unable to be evaluated. Error:' % tracker)
                     traceback.print_exc()
                     if config["BREAK_ON_ERROR"]:

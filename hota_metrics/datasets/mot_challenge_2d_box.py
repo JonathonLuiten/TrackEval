@@ -22,15 +22,16 @@ class MotChallenge2DBox(_BaseDataset):
             'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
             'CLASSES_TO_EVAL': ['pedestrian'],  # Valid: ['pedestrian']
-            'BENCHMARK': 'MOT17',  # Valid: 'MOT17', 'MOT16', 'MOT20', '2D_MOT_2015'
+            'BENCHMARK': 'MOT17',  # Valid: 'MOT17', 'MOT16', 'MOT20', 'MOT15'
             'SPLIT_TO_EVAL': 'train',  # Valid: 'train', 'test', 'all'
             'INPUT_AS_ZIP': False,  # Whether tracker input files are zipped
             'PRINT_CONFIG': True,  # Whether to print current config
-            'DO_PREPROC': True,  # Whether to perform preprocessing (never done for 2D_MOT_2015)
+            'DO_PREPROC': True,  # Whether to perform preprocessing (never done for MOT15)
             'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
             'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
             'SEQMAP_FOLDER': None,  # Where seqmaps are found (if None, GT_FOLDER/seqmaps)
             'SEQMAP_FILE': None,  # Directly specify seqmap file (if none use seqmap_folder/benchmark-split_to_eval)
+            'SEQ_INFO': None,  # If not None, directly specify sequences to eval and their number of timesteps
             'SKIP_SPLIT_FOL': False,  # If False, data is in GT_FOLDER/BENCHMARK-SPLIT_TO_EVAL/ and in
                                       # TRACKERS_FOLDER/BENCHMARK-SPLIT_TO_EVAL/tracker/
                                       # If True, then the middle 'benchmark-split' folder is skipped for both.
@@ -54,7 +55,7 @@ class MotChallenge2DBox(_BaseDataset):
         self.should_classes_combine = False
         self.data_is_zipped = self.config['INPUT_AS_ZIP']
         self.do_preproc = self.config['DO_PREPROC']
-        if self.benchmark == '2D_MOT_2015':
+        if self.benchmark == 'MOT15':
             self.do_preproc = False
 
         self.output_fol = self.config['OUTPUT_FOLDER']
@@ -77,32 +78,38 @@ class MotChallenge2DBox(_BaseDataset):
         # Get sequences to eval and check gt files exist
         self.seq_list = []
         self.seq_lengths = {}
-        if self.config["SEQMAP_FILE"]:
-            seqmap_file = self.config["SEQMAP_FILE"]
+        if self.config["SEQ_INFO"]:
+            self.seq_list = list(self.config["SEQ_INFO"].keys())
+            self.seq_lengths = list(self.config["SEQ_INFO"].values())
         else:
-            if self.config["SEQMAP_FOLDER"] is None:
-                seqmap_file = os.path.join(self.config['GT_FOLDER'], 'seqmaps', gt_set + '.txt')
+            if self.config["SEQMAP_FILE"]:
+                seqmap_file = self.config["SEQMAP_FILE"]
             else:
-                seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], gt_set + '.txt')
-        if not os.path.isfile(seqmap_file):
-            raise Exception('no seqmap found: ' + os.path.basename(seqmap_file))
-        with open(seqmap_file) as fp:
-            reader = csv.reader(fp)
-            for i, row in enumerate(reader):
-                if i == 0 or row[0] == '':
-                    continue
-                seq = row[0]
-                self.seq_list.append(seq)
-                ini_file = os.path.join(self.gt_fol, seq, 'seqinfo.ini')
-                if not os.path.isfile(ini_file):
-                    raise Exception('ini file does not exist: ' + seq + '/' + os.path.basename(ini_file))
-                ini_data = configparser.ConfigParser()
-                ini_data.read(ini_file)
-                self.seq_lengths[seq] = int(ini_data['Sequence']['seqLength'])
-                if not self.data_is_zipped:
-                    curr_file = os.path.join(self.gt_fol, seq, 'gt', 'gt.txt')
-                    if not os.path.isfile(curr_file):
-                        raise Exception('GT file not found: ' + seq + '/gt/' + os.path.basename(curr_file))
+                if self.config["SEQMAP_FOLDER"] is None:
+                    seqmap_file = os.path.join(self.config['GT_FOLDER'], 'seqmaps', gt_set + '.txt')
+                else:
+                    seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], gt_set + '.txt')
+            if not os.path.isfile(seqmap_file):
+                raise Exception('no seqmap found: ' + os.path.basename(seqmap_file))
+            with open(seqmap_file) as fp:
+                reader = csv.reader(fp)
+                for i, row in enumerate(reader):
+                    if i == 0 or row[0] == '':
+                        continue
+                    seq = row[0]
+                    self.seq_list.append(seq)
+                    ini_file = os.path.join(self.gt_fol, seq, 'seqinfo.ini')
+                    if not os.path.isfile(ini_file):
+                        raise Exception('ini file does not exist: ' + seq + '/' + os.path.basename(ini_file))
+                    ini_data = configparser.ConfigParser()
+                    ini_data.read(ini_file)
+                    self.seq_lengths[seq] = int(ini_data['Sequence']['seqLength'])
+
+        for seq in self.seq_list:
+            if not self.data_is_zipped:
+                curr_file = os.path.join(self.gt_fol, seq, 'gt', 'gt.txt')
+                if not os.path.isfile(curr_file):
+                    raise Exception('GT file not found: ' + seq + '/gt/' + os.path.basename(curr_file))
         if self.data_is_zipped:
             curr_file = os.path.join(self.gt_fol, 'data.zip')
             if not os.path.isfile(curr_file):
