@@ -58,8 +58,6 @@ class MotChallenge2DBox(_BaseDataset):
         self.should_classes_combine = False
         self.data_is_zipped = self.config['INPUT_AS_ZIP']
         self.do_preproc = self.config['DO_PREPROC']
-        if self.benchmark == 'MOT15':
-            self.do_preproc = False
 
         self.output_fol = self.config['OUTPUT_FOLDER']
         if self.output_fol is None:
@@ -310,14 +308,14 @@ class MotChallenge2DBox(_BaseDataset):
             similarity_scores = raw_data['similarity_scores'][t]
 
             # Evaluation is ONLY valid for pedestrian class
-            if len(tracker_classes)>0 and np.max(tracker_classes) > 1:
+            if len(tracker_classes) > 0 and np.max(tracker_classes) > 1:
                 raise TrackEvalException('Evaluation is only valid for pedestrian class. Non pedestrian class (%i) found in '
                                 'sequence %s at timestep %i.' % (np.max(tracker_classes), raw_data['seq'], t))
 
             # Match tracker and gt dets (with hungarian algorithm) and remove tracker dets which match with gt dets
             # which are labeled as belonging to a distractor class.
             to_remove_tracker = np.array([], np.int)
-            if self.do_preproc and gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
+            if self.do_preproc and self.benchmark != 'MOT15' and gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
                 matching_scores = similarity_scores.copy()
                 matching_scores[matching_scores < 0.5] = 0
                 match_rows, match_cols = linear_sum_assignment(-matching_scores)
@@ -336,8 +334,12 @@ class MotChallenge2DBox(_BaseDataset):
 
             # Also remove gt dets that were only useful for preprocessing and are not needed for evaluation.
             # These are those that are occluded, truncated and from distractor objects.
-            gt_to_keep_mask = (np.not_equal(gt_zero_marked, 0)) & \
-                              (np.equal(gt_classes, cls_id))
+            if self.benchmark != 'MOT15':
+                gt_to_keep_mask = (np.not_equal(gt_zero_marked, 0)) & \
+                                  (np.equal(gt_classes, cls_id))
+            else:
+                # Don't remove gt for MOT15
+                gt_to_keep_mask = np.ones(shape=len(gt_ids), dtype=np.bool)
             data['gt_ids'][t] = gt_ids[gt_to_keep_mask]
             data['gt_dets'][t] = gt_dets[gt_to_keep_mask, :]
             data['similarity_scores'][t] = similarity_scores[gt_to_keep_mask]
