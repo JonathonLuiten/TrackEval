@@ -30,13 +30,13 @@ def validate_metrics_list(metrics_list):
     metric_names = [metric.get_name() for metric in metrics_list]
     # check metric names are unique
     if len(metric_names) != len(set(metric_names)):
-        raise Exception('Code being run with multiple metrics of the same name')
+        raise TrackEvalException('Code being run with multiple metrics of the same name')
     fields = []
     for m in metrics_list:
         fields += m.fields
     # check metric fields are unique
     if len(fields) != len(set(fields)):
-        raise Exception('Code being run with multiple metrics with fields of the same name')
+        raise TrackEvalException('Code being run with multiple metrics with fields of the same name')
     return metric_names
 
 
@@ -66,3 +66,8 @@ def write_detailed_results(details, cls, output_folder):
                 continue
             writer.writerow([seq] + sum([list(s[seq].values()) for s in details], []))
         writer.writerow(['COMBINED'] + sum([list(s['COMBINED_SEQ'].values()) for s in details], []))
+
+
+class TrackEvalException(Exception):
+    """Custom exception for catching expected errors."""
+    ...

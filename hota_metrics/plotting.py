@@ -2,6 +2,8 @@
 import os
 import numpy as np
 from matplotlib import pyplot as plt
+from .utils import TrackEvalException
+
 
 def plot_compare_trackers(tracker_folder, tracker_list, cls, output_folder, plots_list=None):
     """Create plots which compare metrics across different trackers."""
@@ -71,7 +73,7 @@ def create_comparison_plot(data, out_loc, y_label, x_label, sort_label, bg_label
         num_to_plot = settings['num_to_plot']
 
     if (bg_label is None) != (bg_function is None):
-        raise Exception('bg_function and bg_label must either be both given or neither given.')
+        raise TrackEvalException('bg_function and bg_label must either be both given or neither given.')
 
     # Extract data
     tracker_names = np.array(list(data.keys()))
@@ -177,7 +179,7 @@ def _plot_bg_contour(bg_function, plot_boundaries, gap_val):
     if bg_function in bg_function_dict.keys():
         z_grid = bg_function_dict[bg_function](x_grid, y_grid)
     else:
-        raise Exception("background plotting function '%s' is not defined." % bg_function)
+        raise TrackEvalException("background plotting function '%s' is not defined." % bg_function)
     levels = np.arange(0, 100, gap_val)
     con = plt.contour(x_grid, y_grid, z_grid, levels, colors='grey')
 

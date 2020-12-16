@@ -2,6 +2,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
 from .. import _timing
+from ..utils import TrackEvalException
 
 
 class _BaseMetric(ABC):
@@ -108,7 +109,7 @@ class _BaseMetric(ABC):
         for seq, res in table_res.items():
             detailed_row = self._detailed_row(res)
             if len(detailed_row) != len(detailed_fields):
-                raise Exception(
+                raise TrackEvalException(
                     'Field names and data have different sizes (%i and %i)' % (len(detailed_row), len(detailed_fields)))
             detailed_results[seq] = dict(zip(detailed_fields, detailed_row))
         return detailed_results
