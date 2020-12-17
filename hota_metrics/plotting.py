@@ -34,6 +34,7 @@ def get_default_plots_list():
     ]
     return plots_list
 
+
 def load_multiple_tracker_summaries(tracker_folder, tracker_list, cls):
     """Loads summary data for multiple trackers."""
     data = {}

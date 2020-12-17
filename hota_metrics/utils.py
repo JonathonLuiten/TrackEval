@@ -68,6 +68,23 @@ def write_detailed_results(details, cls, output_folder):
         writer.writerow(['COMBINED'] + sum([list(s['COMBINED_SEQ'].values()) for s in details], []))
 
 
+def load_detail(file):
+    """Loads detailed data for a tracker."""
+    data = {}
+    with open(file) as f:
+        for i, row in enumerate(f):
+            if i == 0:
+                keys = row.split(' ')[1:]
+                continue
+            seq = row[0]
+            data[seq] = {}
+            current_values = row.split(' ')[1:]
+            if len(current_values) == len(keys):
+                for key, value in zip(keys, current_values):
+                    data[seq][key] = value
+    return data
+
+
 class TrackEvalException(Exception):
     """Custom exception for catching expected errors."""
     ...

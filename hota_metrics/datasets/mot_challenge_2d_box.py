@@ -285,7 +285,7 @@ class MotChallenge2DBox(_BaseDataset):
 
         distractor_class_names = ['person_on_vehicle', 'static_person', 'distractor', 'reflection']
         if self.benchmark == 'MOT20':
-            distractor_class_names += 'non_mot_vehicle'
+            distractor_class_names.append('non_mot_vehicle')
         distractor_classes = [self.class_name_to_class_id[x] for x in distractor_class_names]
         cls_id = self.class_name_to_class_id[cls]
 
