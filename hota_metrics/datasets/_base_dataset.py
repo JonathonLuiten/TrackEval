@@ -201,7 +201,7 @@ class _BaseDataset(ABC):
             print('Error loading file: %s, printing traceback.' % file)
             traceback.print_exc()
             raise TrackEvalException(
-                'File %s cannot be read because it is either not present of invalidly formatted' % os.path.basename(
+                'File %s cannot be read because it is either not present or invalidly formatted' % os.path.basename(
                     file))
         return read_data, crowd_ignore_data
 

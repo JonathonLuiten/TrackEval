@@ -144,7 +144,6 @@ class MotChallenge2DBox(_BaseDataset):
                     seq_lengths[seq] = int(ini_data['Sequence']['seqLength'])
         return seq_list, seq_lengths
 
-
     def _load_raw_file(self, tracker, seq, is_gt):
         """Load a file (gt or tracker) in the MOT Challenge 2D box format
 
@@ -195,11 +194,11 @@ class MotChallenge2DBox(_BaseDataset):
                     else:
                         raise TrackEvalException(
                             'Cannot convert tracking data from tracker %s, sequence %s to float. Is data corrupted?' % (
-                            tracker, seq))
+                                tracker, seq))
                 try:
                     raw_data['dets'][t] = np.atleast_2d(time_data[:, 2:6])
                     raw_data['ids'][t] = np.atleast_1d(time_data[:, 1]).astype(int)
-                except Exception:
+                except IndexError:
                     if is_gt:
                         err = 'Cannot load gt data from sequence %s, because there is not enough ' \
                               'columns in the data.' % seq
@@ -312,8 +311,9 @@ class MotChallenge2DBox(_BaseDataset):
 
             # Evaluation is ONLY valid for pedestrian class
             if len(tracker_classes) > 0 and np.max(tracker_classes) > 1:
-                raise TrackEvalException('Evaluation is only valid for pedestrian class. Non pedestrian class (%i) found in '
-                                'sequence %s at timestep %i.' % (np.max(tracker_classes), raw_data['seq'], t))
+                raise TrackEvalException(
+                    'Evaluation is only valid for pedestrian class. Non pedestrian class (%i) found in sequence %s at '
+                    'timestep %i.' % (np.max(tracker_classes), raw_data['seq'], t))
 
             # Match tracker and gt dets (with hungarian algorithm) and remove tracker dets which match with gt dets
             # which are labeled as belonging to a distractor class.
@@ -335,14 +335,14 @@ class MotChallenge2DBox(_BaseDataset):
             data['tracker_confidences'][t] = np.delete(tracker_confidences, to_remove_tracker, axis=0)
             similarity_scores = np.delete(similarity_scores, to_remove_tracker, axis=1)
 
-            # Also remove gt dets that were only useful for preprocessing and are not needed for evaluation.
-            # These are those that are occluded, truncated and from distractor objects.
+            # Remove gt detections marked as to remove (zero marked), and also remove gt detections not in pedestrian
+            # class (not applicable for MOT15)
             if self.benchmark != 'MOT15':
                 gt_to_keep_mask = (np.not_equal(gt_zero_marked, 0)) & \
                                   (np.equal(gt_classes, cls_id))
             else:
-                # Don't remove gt for MOT15
-                gt_to_keep_mask = np.ones(shape=len(gt_ids), dtype=np.bool)
+                # There are no classes for MOT15
+                gt_to_keep_mask = np.not_equal(gt_zero_marked, 0)
             data['gt_ids'][t] = gt_ids[gt_to_keep_mask]
             data['gt_dets'][t] = gt_dets[gt_to_keep_mask, :]
             data['similarity_scores'][t] = similarity_scores[gt_to_keep_mask]
