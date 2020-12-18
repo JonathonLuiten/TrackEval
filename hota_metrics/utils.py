@@ -72,16 +72,19 @@ def load_detail(file):
     """Loads detailed data for a tracker."""
     data = {}
     with open(file) as f:
-        for i, row in enumerate(f):
+        for i, row_text in enumerate(f):
+            row = row_text.replace('\r', '').replace('\n', '').split(',')
             if i == 0:
-                keys = row.split(' ')[1:]
+                keys = row[1:]
                 continue
+            current_values = row[1:]
             seq = row[0]
-            data[seq] = {}
-            current_values = row.split(' ')[1:]
-            if len(current_values) == len(keys):
+            if seq == 'COMBINED':
+                seq = 'COMBINED_SEQ'
+            if (len(current_values) == len(keys)) and seq is not '':
+                data[seq] = {}
                 for key, value in zip(keys, current_values):
-                    data[seq][key] = value
+                    data[seq][key] = float(value)
     return data
 
 

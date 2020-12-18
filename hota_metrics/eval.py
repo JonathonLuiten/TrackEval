@@ -43,7 +43,7 @@ class Evaluator:
     def evaluate(self, dataset_list, metrics_list):
         """Evaluate a set of metrics on a set of datasets"""
         config = self.config
-        metrics_list.append(Count())  # Count metrics are always run
+        metrics_list = metrics_list + [Count()]  # Count metrics are always run
         metric_names = utils.validate_metrics_list(metrics_list)
         dataset_names = [dataset.get_name() for dataset in dataset_list]
         output_res = {}
