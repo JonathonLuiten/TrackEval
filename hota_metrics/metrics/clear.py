@@ -123,6 +123,15 @@ class CLEAR(_BaseMetric):
         res = self._compute_final_fields(res)
         return res
 
+    def combine_classes(self, all_res):
+        """Combines metrics across all sequences"""
+        res = {}
+        for field in self.integer_fields:
+            res[field] = self._combine_sum(all_res, field)
+        res['MOTP'] = self._combine_weighted_av(all_res, 'MOTP', res, weight_field='CLR_TP')
+        res = self._compute_final_fields(res)
+        return res
+
     @staticmethod
     def _compute_final_fields(res):
         """Calculate sub-metric ('field') values which only depend on other sub-metric values.

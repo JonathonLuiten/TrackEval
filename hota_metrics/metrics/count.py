@@ -28,3 +28,10 @@ class Count(_BaseMetric):
         for field in self.integer_fields:
             res[field] = self._combine_sum(all_res, field)
         return res
+
+    def combine_classes(self, all_res):
+        """Combines metrics across all sequences"""
+        res = {}
+        for field in self.integer_fields:
+            res[field] = self._combine_sum(all_res, field)
+        return res
