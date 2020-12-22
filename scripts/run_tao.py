@@ -81,7 +81,7 @@ if __name__ == '__main__':
     evaluator = hm.Evaluator(eval_config)
     dataset_list = [hm.datasets.TAO2DBox(dataset_config)]
     metrics_list = []
-    for metric in [hm.metrics.TrackMAP, hm.metrics.CLEAR, hm.metrics.HOTA, hm.metrics.Identity]:
+    for metric in [hm.metrics.TrackMAP, hm.metrics.CLEAR, hm.metrics.Identity, hm.metrics.HOTA]:
         if metric.get_name() in metrics_config['METRICS']:
             metrics_list.append(metric())
     if len(metrics_list) == 0:

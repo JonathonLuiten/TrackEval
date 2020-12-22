@@ -231,7 +231,22 @@ class TrackMAP(_BaseMetric):
 
         return res
 
-    def combine_classes(self, all_res):
+    def combine_classes_class_averaged(self, all_res):
+        res = {}
+        for field in self.fields:
+            res[field] = np.zeros((len(self.array_labels)), dtype=np.float)
+            field_stacked = np.array([res[field] for res in all_res.values()])
+
+            for a_id, alpha in enumerate(self.array_labels):
+                values = field_stacked[:, a_id]
+                if len(values[values > -1]) == 0:
+                    mean = -1
+                else:
+                    mean = np.mean(values[values > -1])
+                res[field][a_id] = mean
+        return res
+
+    def combine_classes_det_averaged(self, all_res):
         all_prec = np.array([res['precision'] for res in all_res.values()])
         all_rec = np.array([res['recall'] for res in all_res.values()])
 

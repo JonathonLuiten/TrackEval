@@ -127,7 +127,21 @@ class HOTA(_BaseMetric):
         res = self._compute_final_fields(res)
         return res
 
-    def combine_classes(self, all_res):
+    def combine_classes_class_averaged(self, all_res):
+        """Combines metrics across all sequences"""
+        res = {}
+        for field in self.integer_array_fields:
+            res[field] = self._combine_sum(
+                {k: v for k, v in all_res.items() if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0).any()}, field)
+        for field in self.float_fields:
+            res[field] = np.mean([v[field] for v in all_res.values() if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0).any()],
+                                 axis=0)
+        for field in self.float_array_fields:
+            res[field] = np.mean([v[field] for v in all_res.values() if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0).any()],
+                                 axis=0)
+        return res
+
+    def combine_classes_det_averaged(self, all_res):
         """Combines metrics across all sequences"""
         res = {}
         for field in self.integer_array_fields:

@@ -72,7 +72,7 @@ class TAO2DBox(_BaseDataset):
         self.class_name_to_class_id = {k: v for k, v in cls_name_to_cls_id_map.items() if k in self.class_list}
 
         # Get sequences to eval and check gt files exist
-        self.seq_list = [vid['name'] for vid in self.gt_data['videos']]
+        self.seq_list = [vid['name'] for vid in self.gt_data['videos']][:3]
         self.seq_name_to_seq_id = {vid['name']: vid['id'] for vid in self.gt_data['videos']}
         self.videos_to_gt_tracks, self.videos_to_gt_images = self._compute_vid_mappings(self.gt_data['annotations'])
         self.seq_lengths = {vid_id: len(images) for vid_id, images in self.videos_to_gt_images.items()}
@@ -242,6 +242,7 @@ class TAO2DBox(_BaseDataset):
             raw_data[v] = raw_data.pop(k)
 
         raw_data['num_timesteps'] = num_timesteps
+        raw_data['neg_cat_ids'] = self.seq_to_classes[seq_id]['neg_cat_ids']
         raw_data['not_exhaustively_labeled_cls'] = self.seq_to_classes[seq_id]['not_exhaustively_labeled_cat_ids']
         return raw_data
 
@@ -283,6 +284,7 @@ class TAO2DBox(_BaseDataset):
         """
         cls_id = self.class_name_to_class_id[cls]
         is_not_exhaustively_labeled = cls_id in raw_data['not_exhaustively_labeled_cls']
+        is_neg_category = cls_id in raw_data['neg_cat_ids']
 
         data_keys = ['gt_ids', 'tracker_ids', 'gt_dets', 'tracker_dets', 'tracker_confidences', 'similarity_scores']
         data = {key: [None] * raw_data['num_timesteps'] for key in data_keys}
@@ -316,7 +318,9 @@ class TAO2DBox(_BaseDataset):
                 match_cols = match_cols[actually_matched_mask]
                 unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
 
-            if is_not_exhaustively_labeled:
+            if gt_ids.shape[0] == 0 and not is_neg_category:
+                to_remove_tracker = unmatched_indices
+            elif is_not_exhaustively_labeled:
                 to_remove_tracker = unmatched_indices
             else:
                 to_remove_tracker = np.array([], dtype=np.int)

@@ -123,13 +123,24 @@ class CLEAR(_BaseMetric):
         res = self._compute_final_fields(res)
         return res
 
-    def combine_classes(self, all_res):
+    def combine_classes_det_averaged(self, all_res):
         """Combines metrics across all sequences"""
         res = {}
         for field in self.integer_fields:
             res[field] = self._combine_sum(all_res, field)
         res['MOTP'] = self._combine_weighted_av(all_res, 'MOTP', res, weight_field='CLR_TP')
         res = self._compute_final_fields(res)
+        return res
+
+    def combine_classes_class_averaged(self, all_res):
+        """Combines metrics across all sequences"""
+        res = {}
+        for field in self.integer_fields:
+            res[field] = self._combine_sum(
+                {k: v for k, v in all_res.items() if v['CLR_TP'] + v['CLR_FN'] + v['CLR_FP'] > 0}, field)
+        for field in self.float_fields:
+            res[field] = np.mean(
+                [v[field] for v in all_res.values() if v['CLR_TP'] + v['CLR_FN'] + v['CLR_FP'] > 0], axis=0)
         return res
 
     @staticmethod

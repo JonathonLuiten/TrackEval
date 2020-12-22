@@ -88,21 +88,32 @@ class Evaluator:
                                         seq_key is not 'COMBINED_SEQ'}
                             res['COMBINED_SEQ'][c_cls][metric_name] = metric.combine_sequences(curr_res)
                     if dataset.should_classes_combine:
-                        res['COMBINED_SEQ']['COMBINED_CLS'] = {}
+                        res['COMBINED_SEQ']['COMBINED_CLS_CLS_AVERAGED'] = {}
+                        res['COMBINED_SEQ']['COMBINED_CLS_DET_AVERAGED'] = {}
                         for metric, metric_name in zip(metrics_list, metric_names):
                             cls_res = {cls_key: cls_value[metric_name] for cls_key, cls_value in
-                                       res['COMBINED_SEQ'].items() if cls_key is not 'COMBINED_CLS'}
-                            res['COMBINED_SEQ']['COMBINED_CLS'][metric_name] = metric.combine_classes(cls_res)
+                                       res['COMBINED_SEQ'].items() if cls_key is not 'COMBINED_CLS_CLS_AVERAGED'
+                                       and cls_key is not 'COMBINED_CLS_DET_AVERAGED'}
+                            res['COMBINED_SEQ']['COMBINED_CLS_CLS_AVERAGED'][metric_name] = \
+                                metric.combine_classes_class_averaged(cls_res)
+                            res['COMBINED_SEQ']['COMBINED_CLS_DET_AVERAGED'][metric_name] = \
+                                metric.combine_classes_det_averaged(cls_res)
 
                     # Print and output results in various formats
                     if config['TIME_PROGRESS']:
                         print('\nAll sequences for %s finished in %.2f seconds' % (tracker, time.time() - time_start))
                     output_fol = dataset.get_output_fol(tracker)
                     tracker_display_name = dataset.get_display_name(tracker)
-                    if 'COMBINED_CLS' in res['COMBINED_SEQ']:
+                    if 'COMBINED_CLS_CLS_AVERAGED' in res['COMBINED_SEQ']:
                         for metric, metric_name in zip(metrics_list, metric_names):
-                            metric.print_table({'COMBINED_SEQ': res['COMBINED_SEQ']['COMBINED_CLS'][metric_name]},
-                                               tracker_display_name, 'classes_combined')
+                            metric.print_table({'COMBINED_SEQ':
+                                                res['COMBINED_SEQ']['COMBINED_CLS_CLS_AVERAGED'][metric_name]},
+                                               tracker_display_name, 'cls_comb_cls_av')
+                    if 'COMBINED_CLS_DET_AVERAGED' in res['COMBINED_SEQ']:
+                        for metric, metric_name in zip(metrics_list, metric_names):
+                            metric.print_table({'COMBINED_SEQ':
+                                                res['COMBINED_SEQ']['COMBINED_CLS_DET_AVERAGED'][metric_name]},
+                                               tracker_display_name, 'cls_comb_det_av')
                     if not config['PRINT_ONLY_CLASSES_COMBINED']:
                         for c_cls in res['COMBINED_SEQ'].keys():  # class_list + 'COMBINED_CLS' if calculated
                             if c_cls == 'COMBINED_CLS':

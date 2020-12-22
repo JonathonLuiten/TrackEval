@@ -29,7 +29,14 @@ class Count(_BaseMetric):
             res[field] = self._combine_sum(all_res, field)
         return res
 
-    def combine_classes(self, all_res):
+    def combine_classes_class_averaged(self, all_res):
+        """Combines metrics across all sequences"""
+        res = {}
+        for field in self.integer_fields:
+            res[field] = self._combine_sum(all_res, field)
+        return res
+
+    def combine_classes_det_averaged(self, all_res):
         """Combines metrics across all sequences"""
         res = {}
         for field in self.integer_fields:
