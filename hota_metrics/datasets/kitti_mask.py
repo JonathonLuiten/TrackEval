@@ -37,6 +37,7 @@ class KittiMask(_BaseDataset):
         self.gt_fol = self.config['GT_FOLDER']
         self.tracker_fol = os.path.join(self.config['TRACKERS_FOLDER'], self.config['SPLIT_TO_EVAL'])
         self.should_classes_combine = False
+        self.use_super_categories = False
         self.data_is_zipped = self.config['INPUT_AS_ZIP']
 
         self.output_fol = self.config['OUTPUT_FOLDER']

@@ -52,6 +52,7 @@ class MotChallenge2DBox(_BaseDataset):
         self.gt_fol = os.path.join(self.config['GT_FOLDER'], split_fol)
         self.tracker_fol = os.path.join(self.config['TRACKERS_FOLDER'], split_fol)
         self.should_classes_combine = False
+        self.use_super_categories = False
         self.data_is_zipped = self.config['INPUT_AS_ZIP']
         self.do_preproc = self.config['DO_PREPROC']
         if self.benchmark == '2D_MOT_2015':

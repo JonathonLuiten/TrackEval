@@ -127,6 +127,32 @@ class HOTA(_BaseMetric):
         res = self._compute_final_fields(res)
         return res
 
+    def combine_classes_class_averaged(self, all_res):
+        """Combines metrics across all sequences"""
+        res = {}
+        for field in self.integer_array_fields:
+            res[field] = self._combine_sum(
+                {k: v for k, v in all_res.items() if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0).any()}, field)
+        for field in self.float_fields:
+            res[field] = np.mean([v[field] for v in all_res.values() if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0).any()],
+                                 axis=0)
+        for field in self.float_array_fields:
+            res[field] = np.mean([v[field] for v in all_res.values() if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0).any()],
+                                 axis=0)
+        return res
+
+    def combine_classes_det_averaged(self, all_res):
+        """Combines metrics across all sequences"""
+        res = {}
+        for field in self.integer_array_fields:
+            res[field] = self._combine_sum(all_res, field)
+        for field in ['AssRe', 'AssPr', 'AssA']:
+            res[field] = self._combine_weighted_av(all_res, field, res, weight_field='HOTA_TP')
+        loca_weighted_sum = sum([all_res[k]['LocA'] * all_res[k]['HOTA_TP'] for k in all_res.keys()])
+        res['LocA'] = np.maximum(1e-10, loca_weighted_sum) / np.maximum(1e-10, res['HOTA_TP'])
+        res = self._compute_final_fields(res)
+        return res
+
     @staticmethod
     def _compute_final_fields(res):
         """Calculate sub-metric ('field') values which only depend on other sub-metric values.
