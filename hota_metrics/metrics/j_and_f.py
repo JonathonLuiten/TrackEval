@@ -17,6 +17,7 @@ class JAndF(_BaseMetric):
         self.float_fields = ['J-Mean', 'J-Recall', 'J-Decay', 'F-Mean', 'F-Recall', 'F-Decay', 'J&F']
         self.fields = self.float_fields + self.integer_fields
         self.summary_fields = self.float_fields
+        self.optim_type = 'J'  # possible values J, J&F
 
     @_timing.time
     def eval_sequence(self, data):
@@ -30,16 +31,28 @@ class JAndF(_BaseMetric):
             zero_padding = np.zeros((tracker_masks.shape[0], diff, *tracker_masks.shape[2:]))
             tracker_masks = np.concatenate((tracker_masks, zero_padding), axis=1).astype(np.uint8)
 
-        j = JAndF._compute_j(gt_masks, tracker_masks)
+        j = self._compute_j(gt_masks, tracker_masks)
         bound_th = 0.008
 
-        # perform matching on J measure
-        j_metrics = np.mean(j, axis=2)
-        row_ind, col_ind = linear_sum_assignment(-j_metrics)
-        j_m = j[row_ind, col_ind, :]
-        f_m = np.zeros_like(j_m)
-        for i, (tr_ind, gt_ind) in enumerate(zip(row_ind, col_ind)):
-            f_m[i] = self._compute_f(gt_masks, tracker_masks, tr_ind, gt_ind, bound_th)
+        # perform matching
+        if self.optim_type == 'J&F':
+            f = np.zeros_like(j)
+            for k in range(tracker_masks.shape[1]):
+                for i in range(gt_masks.shape[1]):
+                    f[k, i, :] = self._compute_f(gt_masks, tracker_masks, k, i, bound_th)
+            optim_metrics = (np.mean(j, axis=2) + np.mean(f, axis=2)) / 2
+            row_ind, col_ind = linear_sum_assignment(- optim_metrics)
+            j_m = j[row_ind, col_ind, :]
+            f_m = f[row_ind, col_ind, :]
+        elif self.optim_type == 'J':
+            optim_metrics = np.mean(j, axis=2)
+            row_ind, col_ind = linear_sum_assignment(- optim_metrics)
+            j_m = j[row_ind, col_ind, :]
+            f_m = np.zeros_like(j_m)
+            for i, (tr_ind, gt_ind) in enumerate(zip(row_ind, col_ind)):
+                f_m[i] = self._compute_f(gt_masks, tracker_masks, tr_ind, gt_ind, bound_th)
+        else:
+            raise Exception('Unsupported optimization type %s for J&F metric.' % self.optim_type)
 
         # append zeros for false negatives
         if j_m.shape[0] < data['num_gt_ids']:
@@ -75,8 +88,7 @@ class JAndF(_BaseMetric):
 
     def combine_sequences(self, all_res):
         """Combines metrics across all sequences"""
-        res = {}
-        res['num_gt_tracks'] = self._combine_sum(all_res, 'num_gt_tracks')
+        res = {'num_gt_tracks': self._combine_sum(all_res, 'num_gt_tracks')}
         for field in self.summary_fields:
             res[field] = self._combine_weighted_av(all_res, field, res, weight_field='num_gt_tracks')
         return res
