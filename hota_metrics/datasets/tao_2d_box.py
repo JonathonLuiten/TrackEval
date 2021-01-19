@@ -1,5 +1,4 @@
 import os
-import csv
 import numpy as np
 import json
 import itertools
@@ -372,6 +371,7 @@ class TAO2DBox(_BaseDataset):
         data['dt_track_areas'] = raw_data['classes_to_dt_track_areas'][cls_id]
         data['dt_track_scores'] = raw_data['classes_to_dt_track_scores'][cls_id]
         data['not_exhaustively_labeled'] = is_not_exhaustively_labeled
+        data['iou_type'] = 'bbox'
 
         if data['dt_tracks']:
             idx = np.argsort([-score for score in data['dt_track_scores']], kind="mergesort")
