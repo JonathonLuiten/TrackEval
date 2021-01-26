@@ -54,25 +54,25 @@ class TAO2DBox(_BaseDataset):
 
         self._merge_categories(self.gt_data['annotations'] + self.gt_data['tracks'])
 
-        # Get classes to eval
-        self.valid_classes = [cls['name'] for cls in self.gt_data['categories']]
-        cls_name_to_cls_id_map = {cls['name']: cls['id'] for cls in self.gt_data['categories']}
-
-        if self.config['CLASSES_TO_EVAL']:
-            self.class_list = [cls.lower() if cls.lower() in self.valid_classes else None
-                               for cls in self.config['CLASSES_TO_EVAL']]
-            if not all(self.class_list):
-                raise Exception('Attempted to evaluate an invalid class. Only classes ' +
-                                ', '.join(self.valid_classes) + ' are valid.')
-        else:
-            seen_categories = {x['category_id'] for x in self.gt_data['annotations']}
-            neg_categories = {vid_id for x in self.gt_data['videos'] for vid_id in x['neg_category_ids']}
-            self.class_list = [cls['name'] for cls in self.gt_data['categories']
-                               if cls['id'] in seen_categories or cls['id'] in neg_categories]
-        self.class_name_to_class_id = {k: v for k, v in cls_name_to_cls_id_map.items() if k in self.class_list}
+        # # Get classes to eval
+        # self.valid_classes = [cls['name'] for cls in self.gt_data['categories']]
+        # cls_name_to_cls_id_map = {cls['name']: cls['id'] for cls in self.gt_data['categories']}
+        #
+        # if self.config['CLASSES_TO_EVAL']:
+        #     self.class_list = [cls.lower() if cls.lower() in self.valid_classes else None
+        #                        for cls in self.config['CLASSES_TO_EVAL']]
+        #     if not all(self.class_list):
+        #         raise Exception('Attempted to evaluate an invalid class. Only classes ' +
+        #                         ', '.join(self.valid_classes) + ' are valid.')
+        # else:
+        #     seen_categories = {x['category_id'] for x in self.gt_data['annotations']}
+        #     neg_categories = {vid_id for x in self.gt_data['videos'] for vid_id in x['neg_category_ids']}
+        #     self.class_list = [cls['name'] for cls in self.gt_data['categories']
+        #                        if cls['id'] in seen_categories or cls['id'] in neg_categories]
+        # self.class_name_to_class_id = {k: v for k, v in cls_name_to_cls_id_map.items() if k in self.class_list}
 
         # Get sequences to eval and check gt files exist
-        self.seq_list = [vid['name'] for vid in self.gt_data['videos']][:3]
+        self.seq_list = [vid['name'] for vid in self.gt_data['videos']]
         self.seq_name_to_seq_id = {vid['name']: vid['id'] for vid in self.gt_data['videos']}
         self.videos_to_gt_tracks, self.videos_to_gt_images = self._compute_vid_mappings(self.gt_data['annotations'])
         self.seq_lengths = {vid_id: len(images) for vid_id, images in self.videos_to_gt_images.items()}
@@ -82,6 +82,22 @@ class TAO2DBox(_BaseDataset):
                                            'neg_cat_ids': vid['neg_category_ids'],
                                            'not_exhaustively_labeled_cat_ids': vid['not_exhaustive_category_ids']}
                                for vid in self.gt_data['videos']}
+
+        # Get classes to eval
+        considered_vid_ids = [self.seq_name_to_seq_id[vid] for vid in self.seq_list]
+        seen_cats = set([cat_id for vid_id in considered_vid_ids for cat_id in self.seq_to_classes[vid_id]['pos_cat_ids']])
+        self.valid_classes = [cls['name'] for cls in self.gt_data['categories'] if cls['id'] in seen_cats]
+        cls_name_to_cls_id_map = {cls['name']: cls['id'] for cls in self.gt_data['categories']}
+
+        if self.config['CLASSES_TO_EVAL']:
+            self.class_list = [cls.lower() if cls.lower() in self.valid_classes else None
+                               for cls in self.config['CLASSES_TO_EVAL']]
+            if not all(self.class_list):
+                raise Exception('Attempted to evaluate an invalid class. Only classes ' +
+                                ', '.join(self.valid_classes) + ' are valid (classes present in ground truth data).')
+        else:
+            self.class_list = [cls for cls in self.valid_classes]
+        self.class_name_to_class_id = {k: v for k, v in cls_name_to_cls_id_map.items() if k in self.class_list}
 
         # Get trackers to eval
         if self.config['TRACKERS_TO_EVAL'] is None:
