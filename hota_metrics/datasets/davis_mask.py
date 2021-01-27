@@ -118,7 +118,7 @@ class DAVISChallengeMask(_BaseDataset):
         if self.max_det > 0 and num_objects > self.max_det:
             raise Exception('Number of proposals (%i) for sequence %s exceeds number of maximum allowed proposal (%i).'
                             % (num_objects, seq, self.max_det))
-        
+
         tmp = np.ones((num_objects, *all_masks.shape))
         tmp = tmp * np.arange(1, num_objects + 1)[:, None, None, None]
         masks = np.array(tmp == all_masks[None, ...]).astype(np.uint8)
