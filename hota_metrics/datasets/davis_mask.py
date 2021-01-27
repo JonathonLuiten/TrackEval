@@ -3,6 +3,7 @@ import csv
 import numpy as np
 from glob import glob
 from PIL import Image
+from pycocotools import mask as mask_utils
 from scipy.optimize import linear_sum_assignment
 from ._base_dataset import _BaseDataset
 from .. import utils
@@ -24,7 +25,8 @@ class DAVISChallengeMask(_BaseDataset):
             'SPLIT_TO_EVAL': 'val',  # Valid: 'val', 'train'
             'PRINT_CONFIG': True,  # Whether to print current config
             'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
-            'OUTPUT_SUB_FOLDER': ''  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
+            'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
+            'MAX_DETECTIONS': 0 # Maximum number of allowed detections per sequence (0 for no threshold)
         }
         return default_config
 
@@ -45,6 +47,8 @@ class DAVISChallengeMask(_BaseDataset):
         self.output_fol = self.config['OUTPUT_FOLDER']
         if self.output_fol is None:
             self.output_fol = self.config['TRACKERS_FOLDER']
+
+        self.max_det = self.config['MAX_DETECTIONS']
 
         # Get sequences to eval and check gt files exist
         self.seq_list = []
@@ -107,22 +111,24 @@ class DAVISChallengeMask(_BaseDataset):
         if is_gt:
             masks_void = all_masks == 255
             all_masks[masks_void] = 0
-            raw_data['masks_void'] = masks_void.astype(np.bool)
+            raw_data['masks_void'] = mask_utils.encode(np.array(
+                np.transpose(masks_void.astype(np.uint8), (1, 2, 0)), order='F'))
 
         num_objects = int(np.max(all_masks))
+        if self.max_det > 0 and num_objects > self.max_det:
+            raise Exception('Number of proposals (%i) for sequence %s exceeds number of maximum allowed proposal (%i).'
+                            % (num_objects, seq, self.max_det))
+        
         tmp = np.ones((num_objects, *all_masks.shape))
         tmp = tmp * np.arange(1, num_objects + 1)[:, None, None, None]
         masks = np.array(tmp == all_masks[None, ...]).astype(np.uint8)
-        masks_by_timestep = np.transpose(masks, (1, 0, 2, 3))
+        masks_encoded = {i: mask_utils.encode(np.array(
+            np.transpose(masks[i, :], (1, 2, 0)), order='F')) for i in range(masks.shape[0])}
 
         # Convert data to required format
         for t in range(num_timesteps):
-            if t in range(masks_by_timestep.shape[0]):
-                raw_data['dets'][t] = masks_by_timestep[t]
-                raw_data['ids'][t] = np.arange(0, num_objects).astype(int)
-            else:
-                raw_data['dets'][t] = np.empty((0, *mask0.shape))
-                raw_data['ids'][t] = np.empty(0).astype(int)
+            raw_data['dets'][t] = [masks[t] for masks in masks_encoded.values()]
+            raw_data['ids'][t] = np.atleast_1d(list(masks_encoded.keys())).astype(int)
 
         if is_gt:
             key_map = {'ids': 'gt_ids',
@@ -133,6 +139,7 @@ class DAVISChallengeMask(_BaseDataset):
         for k, v in key_map.items():
             raw_data[v] = raw_data.pop(k)
         raw_data["num_timesteps"] = num_timesteps
+        raw_data['mask_shape'] = masks.shape[2:]
         if is_gt:
             raw_data['num_gt_ids'] = num_objects
         else:
@@ -179,8 +186,8 @@ class DAVISChallengeMask(_BaseDataset):
         num_timesteps = raw_data['num_timesteps']
 
         for t in range(num_timesteps):
-            num_gt_dets += len(np.unique(raw_data['gt_dets'][t])) - 1
-            num_tracker_dets += len(np.unique(raw_data['tracker_dets'][t])) - 1
+            num_gt_dets += len([mask for mask in raw_data['gt_dets'][t] if mask_utils.area(mask)>0])
+            num_tracker_dets += len([mask for mask in raw_data['tracker_dets'][t] if mask_utils.area(mask)>0])
 
         data['gt_ids'] = raw_data['gt_ids']
         data['gt_dets'] = raw_data['gt_dets']
@@ -189,8 +196,17 @@ class DAVISChallengeMask(_BaseDataset):
 
         for t in range(num_timesteps):
             void_mask = raw_data['masks_void'][t]
-            for ind in range(raw_data['num_tracker_ids']):
-                raw_data['tracker_dets'][t][ind, void_mask] = 0
+            if mask_utils.area(void_mask) > 0:
+                void_mask_ious = np.atleast_1d(mask_utils.iou(raw_data['tracker_dets'][t], [void_mask],
+                                                              [False for _ in range(len(raw_data['tracker_dets'][t]))]))
+                if void_mask_ious.any():
+                    rows, columns = np.where(void_mask_ious > 0)
+                    for r in rows:
+                        det = mask_utils.decode(raw_data['tracker_dets'][t][r])
+                        void = mask_utils.decode(void_mask).astype(np.bool)
+                        det[void] = 0
+                        det = mask_utils.encode(np.array(det, order='F').astype(np.uint8))
+                        raw_data['tracker_dets'][t][r] = det
         data['tracker_dets'] = raw_data['tracker_dets']
 
         # Record overview statistics.
@@ -198,9 +214,10 @@ class DAVISChallengeMask(_BaseDataset):
         data['num_gt_dets'] = num_gt_dets
         data['num_tracker_ids'] = raw_data['num_tracker_ids']
         data['num_gt_ids'] = raw_data['num_gt_ids']
+        data['mask_shape'] = raw_data['mask_shape']
         data['num_timesteps'] = num_timesteps
         return data
 
     def _calculate_similarities(self, gt_dets_t, tracker_dets_t):
-        similarity_scores = self._calculate_mask_ious(gt_dets_t, tracker_dets_t, is_encoded=False, do_ioa=False)
+        similarity_scores = self._calculate_mask_ious(gt_dets_t, tracker_dets_t, is_encoded=True, do_ioa=False)
         return similarity_scores

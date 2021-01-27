@@ -24,22 +24,28 @@ class JAndF(_BaseMetric):
         """Returns counts for one sequence"""
         # Get results
 
-        tracker_masks = np.stack([det for det in data['tracker_dets']], axis=0)
-        gt_masks = np.stack([det for det in data['gt_dets']], axis=0).astype(np.uint8)
-        if data['num_tracker_ids'] < data['num_gt_ids']:
-            diff = data['num_gt_ids'] - data['num_tracker_ids']
-            zero_padding = np.zeros((tracker_masks.shape[0], diff, *tracker_masks.shape[2:]))
-            tracker_masks = np.concatenate((tracker_masks, zero_padding), axis=1).astype(np.uint8)
+        num_tracker_ids = data['num_tracker_ids']
+        num_gt_ids = data['num_gt_ids']
+        gt_dets = data['gt_dets']
+        tracker_dets = data['tracker_dets']
 
-        j = self._compute_j(gt_masks, tracker_masks)
+        if num_tracker_ids < num_gt_ids:
+            diff = num_gt_ids - num_tracker_ids
+            zero_padding = np.zeros((data['mask_shape']), order= 'F').astype(np.uint8)
+            padding_mask = mask_utils.encode(zero_padding)
+            for t in range(data['num_timesteps']):
+                tracker_dets[t] = tracker_dets[t] + [padding_mask for _ in range(diff)]
+            num_tracker_ids += diff
+
+        j = self._compute_j(gt_dets, tracker_dets, num_gt_ids, num_tracker_ids, data['num_timesteps'])
         bound_th = 0.008
 
         # perform matching
         if self.optim_type == 'J&F':
             f = np.zeros_like(j)
-            for k in range(tracker_masks.shape[1]):
-                for i in range(gt_masks.shape[1]):
-                    f[k, i, :] = self._compute_f(gt_masks, tracker_masks, k, i, bound_th)
+            for k in range(num_tracker_ids):
+                for i in range(num_gt_ids):
+                    f[k, i, :] = self._compute_f(gt_dets, tracker_dets, k, i, bound_th)
             optim_metrics = (np.mean(j, axis=2) + np.mean(f, axis=2)) / 2
             row_ind, col_ind = linear_sum_assignment(- optim_metrics)
             j_m = j[row_ind, col_ind, :]
@@ -50,7 +56,7 @@ class JAndF(_BaseMetric):
             j_m = j[row_ind, col_ind, :]
             f_m = np.zeros_like(j_m)
             for i, (tr_ind, gt_ind) in enumerate(zip(row_ind, col_ind)):
-                f_m[i] = self._compute_f(gt_masks, tracker_masks, tr_ind, gt_ind, bound_th)
+                f_m[i] = self._compute_f(gt_dets, tracker_dets, tr_ind, gt_ind, bound_th)
         else:
             raise Exception('Unsupported optimization type %s for J&F metric.' % self.optim_type)
 
@@ -154,15 +160,18 @@ class JAndF(_BaseMetric):
 
     @staticmethod
     def _compute_f(gt_data, tracker_data, tracker_data_id, gt_id, bound_th):
-        f = np.zeros(gt_data.shape[0])
+        f = np.zeros(len(gt_data))
 
         for t, (gt_masks, tracker_masks) in enumerate(zip(gt_data, tracker_data)):
+            curr_tracker_mask = mask_utils.decode(tracker_masks[tracker_data_id])
+            curr_gt_mask = mask_utils.decode(gt_masks[gt_id])
+            
             bound_pix = bound_th if bound_th >= 1 else \
-                np.ceil(bound_th * np.linalg.norm(tracker_masks[tracker_data_id].shape))
+                np.ceil(bound_th * np.linalg.norm(curr_tracker_mask.shape))
 
             # Get the pixel boundaries of both masks
-            fg_boundary = JAndF._seg2bmap(tracker_masks[tracker_data_id])
-            gt_boundary = JAndF._seg2bmap(gt_masks[gt_id])
+            fg_boundary = JAndF._seg2bmap(curr_tracker_mask)
+            gt_boundary = JAndF._seg2bmap(curr_gt_mask)
 
             # fg_dil = binary_dilation(fg_boundary, disk(bound_pix))
             fg_dil = cv2.dilate(fg_boundary.astype(np.uint8), disk(bound_pix).astype(np.uint8))
@@ -202,22 +211,20 @@ class JAndF(_BaseMetric):
         return f
 
     @staticmethod
-    def _compute_j(gt_data, tracker_data):
-        j = np.zeros((tracker_data.shape[1], gt_data.shape[1], gt_data.shape[0]))
+    def _compute_j(gt_data, tracker_data, num_gt_ids, num_tracker_ids, num_timesteps):
+        j = np.zeros((num_tracker_ids, num_gt_ids, num_timesteps))
 
         # J computation
         for t, (time_gt, time_data) in enumerate(zip(gt_data, tracker_data)):
             # run length encoded masks with pycocotools
-            gt_encoded = mask_utils.encode(np.array(np.transpose(time_gt, (1, 2, 0)), order='F'))
-            tr_encoded = mask_utils.encode(np.array(np.transpose(time_data, (1, 2, 0)), order='F'))
-            area_gt = mask_utils.area(gt_encoded)
-            area_tr = mask_utils.area(tr_encoded)
+            area_gt = mask_utils.area(time_gt)
+            area_tr = mask_utils.area(time_data)
 
             area_tr = np.repeat(area_tr[:, np.newaxis], len(area_gt), axis=1)
             area_gt = np.repeat(area_gt[np.newaxis, :], len(area_tr), axis=0)
 
             # mask iou computation with pycocotools
-            ious = mask_utils.iou(tr_encoded, gt_encoded, np.zeros([len(tr_encoded)]))
+            ious = mask_utils.iou(time_data, time_gt, np.zeros([len(time_data)]))
             # set iou to 1 if both masks are close to 0 (no ground truth and no predicted mask in timestep)
             ious[np.isclose(area_tr, 0) & np.isclose(area_gt, 0)] = 1
             assert (ious >= 0).all()
