@@ -209,10 +209,17 @@ class _BaseDataset(ABC):
     @staticmethod
     def _calculate_mask_ious(masks1, masks2, is_encoded=False, do_ioa=False):
         """ Calculates the IOU (intersection over union) between two arrays of segmentation masks.
-        If is_encoded a run length encoding with pycocotools is assumed as input format, otherwise the encoding is
-        performed.
+        If is_encoded a run length encoding with pycocotools is assumed as input format, otherwise an input of numpy
+        arrays of the shape (num_masks, height, width) is assumed and the encoding is performed.
         If do_ioa (intersection over area) , then calculates the intersection over the area of masks1 - this is commonly
         used to determine if detections are within crowd ignore region.
+        :param masks1:  first set of masks (numpy array of shape (num_masks, height, width) if not encoded,
+                        else pycocotools rle encoded format)
+        :param masks2:  second set of masks (numpy array of shape (num_masks, height, width) if not encoded,
+                        else pycocotools rle encoded format)
+        :param is_encoded: whether the input is in pycocotools rle encoded format
+        :param do_ioa: whether to perform IoA computation
+        :return: the IoU/IoA scores
         """
         # use pycocotools for run length encoding of masks
         if not is_encoded:

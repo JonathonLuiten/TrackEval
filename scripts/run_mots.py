@@ -21,12 +21,18 @@ Command Line Arguments: Defaults, # Comments
         'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
         'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
         'CLASSES_TO_EVAL': ['pedestrian'],  # Valid: ['pedestrian']
-        'BENCHMARK': 'MOTS',  # Valid: 'MOTS'
         'SPLIT_TO_EVAL': 'train',  # Valid: 'train', 'test'
         'INPUT_AS_ZIP': False,  # Whether tracker input files are zipped
         'PRINT_CONFIG': True,  # Whether to print current config
         'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
-        'OUTPUT_SUB_FOLDER': ''  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
+        'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
+        'SEQMAP_FOLDER': None,  # Where seqmaps are found (if None, GT_FOLDER/seqmaps)
+        'SEQMAP_FILE': None,  # Directly specify seqmap file (if none use seqmap_folder/MOTS-split_to_eval)
+        'SEQ_INFO': None,  # If not None, directly specify sequences to eval and their number of timesteps
+        'GT_LOC_FORMAT': '{gt_folder}/{seq}/gt/gt.txt',  # '{gt_folder}/{seq}/gt/gt.txt'
+        'SKIP_SPLIT_FOL': False,    # If False, data is in GT_FOLDER/MOTS-SPLIT_TO_EVAL/ and in
+                                    # TRACKERS_FOLDER/MOTS-SPLIT_TO_EVAL/tracker/
+                                    # If True, then the middle 'MOTS-split' folder is skipped for both.
     Metric arguments:
         'METRICS': ['Hota','Clear', 'ID', 'Count']
 """
@@ -40,7 +46,7 @@ import hota_metrics as hm  # noqa: E402
 
 # Command line interface:
 default_eval_config = hm.Evaluator.get_default_eval_config()
-default_dataset_config = hm.datasets.MotChallengeMask.get_default_dataset_config()
+default_dataset_config = hm.datasets.MOTChallengeMask.get_default_dataset_config()
 default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity']}
 config = {**default_eval_config, **default_dataset_config, **default_metrics_config}  # Merge default configs
 parser = argparse.ArgumentParser()
@@ -72,7 +78,7 @@ metrics_config = {k: v for k, v in config.items() if k in default_metrics_config
 
 # Run code
 evaluator = hm.Evaluator(eval_config)
-dataset_list = [hm.datasets.MotChallengeMask(dataset_config)]
+dataset_list = [hm.datasets.MOTChallengeMask(dataset_config)]
 metrics_list = []
 for metric in [hm.metrics.HOTA, hm.metrics.CLEAR, hm.metrics.Identity]:
     if metric.get_name() in metrics_config['METRICS']:
