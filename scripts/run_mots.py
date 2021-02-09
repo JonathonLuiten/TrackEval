@@ -47,7 +47,7 @@ import hota_metrics as hm  # noqa: E402
 
 if __name__ == '__main__':
     freeze_support()
-    
+
     # Command line interface:
     default_eval_config = hm.Evaluator.get_default_eval_config()
     default_dataset_config = hm.datasets.MOTChallengeMask.get_default_dataset_config()
