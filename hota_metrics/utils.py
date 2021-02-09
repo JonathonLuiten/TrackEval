@@ -30,13 +30,13 @@ def validate_metrics_list(metrics_list):
     metric_names = [metric.get_name() for metric in metrics_list]
     # check metric names are unique
     if len(metric_names) != len(set(metric_names)):
-        raise Exception('Code being run with multiple metrics of the same name')
+        raise TrackEvalException('Code being run with multiple metrics of the same name')
     fields = []
     for m in metrics_list:
         fields += m.fields
     # check metric fields are unique
     if len(fields) != len(set(fields)):
-        raise Exception('Code being run with multiple metrics with fields of the same name')
+        raise TrackEvalException('Code being run with multiple metrics with fields of the same name')
     return metric_names
 
 
@@ -66,3 +66,28 @@ def write_detailed_results(details, cls, output_folder):
                 continue
             writer.writerow([seq] + sum([list(s[seq].values()) for s in details], []))
         writer.writerow(['COMBINED'] + sum([list(s['COMBINED_SEQ'].values()) for s in details], []))
+
+
+def load_detail(file):
+    """Loads detailed data for a tracker."""
+    data = {}
+    with open(file) as f:
+        for i, row_text in enumerate(f):
+            row = row_text.replace('\r', '').replace('\n', '').split(',')
+            if i == 0:
+                keys = row[1:]
+                continue
+            current_values = row[1:]
+            seq = row[0]
+            if seq == 'COMBINED':
+                seq = 'COMBINED_SEQ'
+            if (len(current_values) == len(keys)) and seq is not '':
+                data[seq] = {}
+                for key, value in zip(keys, current_values):
+                    data[seq][key] = float(value)
+    return data
+
+
+class TrackEvalException(Exception):
+    """Custom exception for catching expected errors."""
+    ...

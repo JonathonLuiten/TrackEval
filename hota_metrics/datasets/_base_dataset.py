@@ -1,13 +1,14 @@
-
 import csv
 import io
 import zipfile
 import os
+import traceback
 import numpy as np
 from pycocotools import mask as mask_utils
 from copy import deepcopy
 from abc import ABC, abstractmethod
 from .. import _timing
+from ..utils import TrackEvalException
 
 
 class _BaseDataset(ABC):
@@ -132,65 +133,77 @@ class _BaseDataset(ABC):
         """
 
         if remove_negative_ids and id_col is None:
-            raise Exception('remove_negative_ids is True, but id_col is not given.')
+            raise TrackEvalException('remove_negative_ids is True, but id_col is not given.')
         if crowd_ignore_filter is None:
             crowd_ignore_filter = {}
         if convert_filter is None:
             convert_filter = {}
-        if is_zipped:  # Either open file directly or within a zip.
-            if zip_file is None:
-                raise Exception('is_zipped set to True, but no zip_file is given.')
-            archive = zipfile.ZipFile(os.path.join(zip_file), 'r')
-            fp = io.TextIOWrapper(archive.open(file, 'r'))
-        else:
-            fp = open(file)
-        read_data = {}
-        crowd_ignore_data = {}
-        fp.seek(0, os.SEEK_END)
-        # check if file is empty
-        if fp.tell():
-            fp.seek(0)
-            dialect = csv.Sniffer().sniff(fp.read(10240), delimiters=force_delimiters)  # Auto determine file structure.
-            dialect.skipinitialspace = True  # Deal with extra spaces between columns
-            fp.seek(0)
-            reader = csv.reader(fp, dialect)
-            for row in reader:
-                # Deal with extra trailing spaces at the end of rows
-                if row[-1] in '':
-                    row = row[:-1]
-                timestep = row[time_col]
-                # Read ignore regions separately.
-                is_ignored = False
-                for ignore_key, ignore_value in crowd_ignore_filter.items():
-                    if row[ignore_key].lower() in ignore_value:
+        try:
+            if is_zipped:  # Either open file directly or within a zip.
+                if zip_file is None:
+                    raise TrackEvalException('is_zipped set to True, but no zip_file is given.')
+                archive = zipfile.ZipFile(os.path.join(zip_file), 'r')
+                fp = io.TextIOWrapper(archive.open(file, 'r'))
+            else:
+                fp = open(file)
+            read_data = {}
+            crowd_ignore_data = {}
+            fp.seek(0, os.SEEK_END)
+            # check if file is empty
+            if fp.tell():
+                fp.seek(0)
+                dialect = csv.Sniffer().sniff(fp.read(10240), delimiters=force_delimiters)  # Auto determine structure.
+                dialect.skipinitialspace = True  # Deal with extra spaces between columns
+                fp.seek(0)
+                reader = csv.reader(fp, dialect)
+                for row in reader:
+                    try:
+                        # Deal with extra trailing spaces at the end of rows
+                        if row[-1] in '':
+                            row = row[:-1]
+                        timestep = row[time_col]
+                        # Read ignore regions separately.
+                        is_ignored = False
+                        for ignore_key, ignore_value in crowd_ignore_filter.items():
+                            if row[ignore_key].lower() in ignore_value:
+                                # Convert values in one column (e.g. string to id)
+                                for convert_key, convert_value in convert_filter.items():
+                                    row[convert_key] = convert_value[row[convert_key].lower()]
+                                # Save data separated by timestep.
+                                if timestep in crowd_ignore_data.keys():
+                                    crowd_ignore_data[timestep].append(row)
+                                else:
+                                    crowd_ignore_data[timestep] = [row]
+                                is_ignored = True
+                        if is_ignored:  # if det is an ignore region, it cannot be a normal det.
+                            continue
+                        # Exclude some dets if not valid.
+                        if valid_filter is not None:
+                            for key, value in valid_filter.items():
+                                if row[key].lower() not in value:
+                                    continue
+                        if remove_negative_ids:
+                            if int(float(row[id_col])) < 0:
+                                continue
                         # Convert values in one column (e.g. string to id)
                         for convert_key, convert_value in convert_filter.items():
                             row[convert_key] = convert_value[row[convert_key].lower()]
                         # Save data separated by timestep.
-                        if timestep in crowd_ignore_data.keys():
-                            crowd_ignore_data[timestep].append(row)
+                        if timestep in read_data.keys():
+                            read_data[timestep].append(row)
                         else:
-                            crowd_ignore_data[timestep] = [row]
-                        is_ignored = True
-                if is_ignored:  # if det is an ignore region, it cannot be a normal det.
-                    continue
-                # Exclude some dets if not valid.
-                if valid_filter is not None:
-                    for key, value in valid_filter.items():
-                        if row[key].lower() not in value:
-                            continue
-                if remove_negative_ids:
-                    if int(float(row[id_col])) < 0:
-                        continue
-                # Convert values in one column (e.g. string to id)
-                for convert_key, convert_value in convert_filter.items():
-                    row[convert_key] = convert_value[row[convert_key].lower()]
-                # Save data separated by timestep.
-                if timestep in read_data.keys():
-                    read_data[timestep].append(row)
-                else:
-                    read_data[timestep] = [row]
-        fp.close()
+                            read_data[timestep] = [row]
+                    except Exception:
+                        exc_str_init = 'In file %s the following line cannot be read correctly: \n'
+                        exc_str = ' '.join([exc_str_init]+row)
+                        raise TrackEvalException(exc_str)
+            fp.close()
+        except Exception:
+            print('Error loading file: %s, printing traceback.' % file)
+            traceback.print_exc()
+            raise TrackEvalException(
+                'File %s cannot be read because it is either not present or invalidly formatted' % os.path.basename(
+                    file))
         return read_data, crowd_ignore_data
 
     @staticmethod
@@ -232,7 +245,7 @@ class _BaseDataset(ABC):
             bboxes2[:, 2] = bboxes2[:, 0] + bboxes2[:, 2]
             bboxes2[:, 3] = bboxes2[:, 1] + bboxes2[:, 3]
         elif box_format not in 'x0y0x1y1':
-            raise (Exception('box_format %s is not implemented' % box_format))
+            raise (TrackEvalException('box_format %s is not implemented' % box_format))
 
         # layout: (x0, y0, x1, y1)
         min_ = np.minimum(bboxes1[:, np.newaxis, :], bboxes2[np.newaxis, :, :])
@@ -255,20 +268,30 @@ class _BaseDataset(ABC):
             return ious
 
     @staticmethod
-    def _check_unique_ids(data):
+    def _check_unique_ids(data, after_preproc=False):
         """Check the requirement that the tracker_ids and gt_ids are unique per timestep"""
         gt_ids = data['gt_ids']
         tracker_ids = data['tracker_ids']
         for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(gt_ids, tracker_ids)):
             if len(tracker_ids_t) > 0:
-                _, counts = np.unique(tracker_ids_t, return_counts=True)
+                unique_ids, counts = np.unique(tracker_ids_t, return_counts=True)
                 if np.max(counts) != 1:
-                    raise Exception(
-                        'Tracker predicts the same ID more than once in a single timestep (seq: %s, time: %i)' % (
-                            data['seq'], t))
+                    duplicate_ids = unique_ids[counts > 1]
+                    exc_str_init = 'Tracker predicts the same ID more than once in a single timestep ' \
+                                   '(seq: %s, frame: %i, ids:' % (data['seq'], t+1)
+                    exc_str = ' '.join([exc_str_init] + [str(d) for d in duplicate_ids]) + ')'
+                    if after_preproc:
+                        exc_str_init += '\n Note that this error occurred after preprocessing (but not before), ' \
+                                        'so ids may not be as in file, and something seems wrong with preproc.'
+                    raise TrackEvalException(exc_str)
             if len(gt_ids_t) > 0:
-                _, counts = np.unique(gt_ids_t, return_counts=True)
+                unique_ids, counts = np.unique(gt_ids_t, return_counts=True)
                 if np.max(counts) != 1:
-                    raise Exception(
-                        'Ground-truth has the same ID more than once in a single timestep (seq: %s, time: %i)' % (
-                            data['seq'], t))
+                    duplicate_ids = unique_ids[counts > 1]
+                    exc_str_init = 'Ground-truth has the same ID more than once in a single timestep ' \
+                                   '(seq: %s, frame: %i, ids:' % (data['seq'], t+1)
+                    exc_str = ' '.join([exc_str_init] + [str(d) for d in duplicate_ids]) + ')'
+                    if after_preproc:
+                        exc_str_init += '\n Note that this error occurred after preprocessing (but not before), ' \
+                                        'so ids may not be as in file, and something seems wrong with preproc.'
+                    raise TrackEvalException(exc_str)

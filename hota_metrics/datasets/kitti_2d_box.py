@@ -5,6 +5,7 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from ._base_dataset import _BaseDataset
 from .. import utils
+from ..utils import TrackEvalException
 from .. import _timing
 
 
@@ -28,7 +29,6 @@ class Kitti2DBox(_BaseDataset):
             'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
             'TRACKER_DISPLAY_NAMES': None,  # Names of trackers to display, if None: TRACKERS_TO_EVAL
         }
-        #todo: do tracker display name above, also set that if empty do not output 'summary' for that class
         return default_config
 
     def __init__(self, config=None):
@@ -57,7 +57,7 @@ class Kitti2DBox(_BaseDataset):
         self.class_list = [cls.lower() if cls.lower() in self.valid_classes else None
                            for cls in self.config['CLASSES_TO_EVAL']]
         if not all(self.class_list):
-            raise Exception('Attempted to evaluate an invalid class. Only classes [car, pedestrian] are valid.')
+            raise TrackEvalException('Attempted to evaluate an invalid class. Only classes [car, pedestrian] are valid.')
         self.class_name_to_class_id = {'car': 1, 'van': 2, 'truck': 3, 'pedestrian': 4, 'person': 5,  # person sitting
                                        'cyclist': 6, 'tram': 7, 'misc': 8, 'dontcare': 9, 'car_2': 1}
 
@@ -67,7 +67,7 @@ class Kitti2DBox(_BaseDataset):
         seqmap_name = 'evaluate_tracking.seqmap.' + self.config['SPLIT_TO_EVAL']
         seqmap_file = os.path.join(self.gt_fol, seqmap_name)
         if not os.path.isfile(seqmap_file):
-            raise Exception('no seqmap found: ' + os.path.basename(seqmap_file))
+            raise TrackEvalException('no seqmap found: ' + os.path.basename(seqmap_file))
         with open(seqmap_file) as fp:
             dialect = csv.Sniffer().sniff(fp.read(1024))
             fp.seek(0)
@@ -80,11 +80,11 @@ class Kitti2DBox(_BaseDataset):
                     if not self.data_is_zipped:
                         curr_file = os.path.join(self.gt_fol, 'label_02', seq + '.txt')
                         if not os.path.isfile(curr_file):
-                            raise Exception('GT file not found: ' + os.path.basename(curr_file))
+                            raise TrackEvalException('GT file not found: ' + os.path.basename(curr_file))
             if self.data_is_zipped:
                 curr_file = os.path.join(self.gt_fol, 'data.zip')
                 if not os.path.isfile(curr_file):
-                    raise Exception('GT file not found: ' + os.path.basename(curr_file))
+                    raise TrackEvalException('GT file not found: ' + os.path.basename(curr_file))
 
         # Get trackers to eval
         if self.config['TRACKERS_TO_EVAL'] is None:
@@ -98,18 +98,18 @@ class Kitti2DBox(_BaseDataset):
                 len(self.config['TRACKER_DISPLAY_NAMES']) == len(self.tracker_list)):
             self.tracker_to_disp = dict(zip(self.tracker_list, self.config['TRACKER_DISPLAY_NAMES']))
         else:
-            raise Exception('List of tracker files and tracker display names do not match.')
+            raise TrackEvalException('List of tracker files and tracker display names do not match.')
 
         for tracker in self.tracker_list:
             if self.data_is_zipped:
                 curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol + '.zip')
                 if not os.path.isfile(curr_file):
-                    raise Exception('Tracker file not found: ' + tracker + '/' + os.path.basename(curr_file))
+                    raise TrackEvalException('Tracker file not found: ' + tracker + '/' + os.path.basename(curr_file))
             else:
                 for seq in self.seq_list:
                     curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.txt')
                     if not os.path.isfile(curr_file):
-                        raise Exception(
+                        raise TrackEvalException(
                             'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol + '/' + os.path.basename(
                                 curr_file))
 
@@ -217,6 +217,7 @@ class Kitti2DBox(_BaseDataset):
         for k, v in key_map.items():
             raw_data[v] = raw_data.pop(k)
         raw_data['num_timesteps'] = num_timesteps
+        raw_data['seq'] = seq
         return raw_data
 
     @_timing.time
@@ -260,7 +261,7 @@ class Kitti2DBox(_BaseDataset):
         elif cls == 'car':
             distractor_classes = [self.class_name_to_class_id['van']]
         else:
-            raise (Exception('Class %s is not evaluatable' % cls))
+            raise (TrackEvalException('Class %s is not evaluatable' % cls))
         cls_id = self.class_name_to_class_id[cls]
 
         data_keys = ['gt_ids', 'tracker_ids', 'gt_dets', 'tracker_dets', 'tracker_confidences', 'similarity_scores']

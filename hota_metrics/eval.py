@@ -3,6 +3,7 @@ import traceback
 from multiprocessing.pool import Pool
 from functools import partial
 from . import utils
+from .utils import TrackEvalException
 from . import _timing
 from .metrics import Count
 
@@ -42,7 +43,7 @@ class Evaluator:
     def evaluate(self, dataset_list, metrics_list):
         """Evaluate a set of metrics on a set of datasets"""
         config = self.config
-        metrics_list.append(Count())  # Count metrics are always run
+        metrics_list = metrics_list + [Count()]  # Count metrics are always run
         metric_names = utils.validate_metrics_list(metrics_list)
         dataset_names = [dataset.get_name() for dataset in dataset_list]
         output_res = {}
@@ -126,8 +127,12 @@ class Evaluator:
 
                 except Exception as err:
                     output_res[dataset_name][tracker] = None
-                    output_msg[dataset_name][tracker] = err
-                    print('Tracker %s was unable to be evaluated. Error:' % tracker)
+                    if type(err) == TrackEvalException:
+                        output_msg[dataset_name][tracker] = str(err)
+                    else:
+                        output_msg[dataset_name][tracker] = "Unknown error occurred."
+                    print('Tracker %s was unable to be evaluated.' % tracker)
+                    print(err)
                     traceback.print_exc()
                     if config["BREAK_ON_ERROR"]:
                         raise err
