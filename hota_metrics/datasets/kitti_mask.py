@@ -21,7 +21,7 @@ class KittiMask(_BaseDataset):
                                                                                                 # trackers
             'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
-            'CLASSES_TO_EVAL': ['Cars', 'Pedestrians'],  # Valid: ['Cars', 'Pedestrians']
+            'CLASSES_TO_EVAL': ['cars', 'pedestrians'],  # Valid: ['Cars', 'Pedestrians']
             'SPLIT_TO_EVAL': 'val',  # Valid: 'training', 'val'
             'INPUT_AS_ZIP': False,  # Whether tracker input files are zipped
             'PRINT_CONFIG': True,  # Whether to print current config
