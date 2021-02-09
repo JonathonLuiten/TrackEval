@@ -6,7 +6,7 @@ from scipy.optimize import linear_sum_assignment
 from ._base_dataset import _BaseDataset
 from .. import utils
 from .. import _timing
-
+from ..utils import TrackEvalException
 
 class KittiMask(_BaseDataset):
     """Dataset class for KITTI Segmentation Mask tracking"""
@@ -16,8 +16,9 @@ class KittiMask(_BaseDataset):
         """Default class config values"""
         code_path = utils.get_code_path()
         default_config = {
-            'GT_FOLDER': os.path.join(code_path, 'data/gt/kitti_mots/'),  # Location of GT data
-            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/kitti_mots/'),  # Location of all trackers
+            'GT_FOLDER': os.path.join(code_path, 'data/gt/kitti/kitti_mots'),  # Location of GT data
+            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/kitti/kitti_mots_val'),   # Location of all
+                                                                                                # trackers
             'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
             'CLASSES_TO_EVAL': ['Cars', 'Pedestrians'],  # Valid: ['Cars', 'Pedestrians']
@@ -26,6 +27,10 @@ class KittiMask(_BaseDataset):
             'PRINT_CONFIG': True,  # Whether to print current config
             'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
             'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
+            'SEQMAP_FOLDER': None,  # Where seqmaps are found (if None, GT_FOLDER)
+            'SEQMAP_FILE': None,    # Directly specify seqmap file (if none use seqmap_folder/split_to_eval.seqmap)
+            'SEQ_INFO': None,  # If not None, directly specify sequences to eval and their number of timesteps
+            'GT_LOC_FORMAT': '{gt_folder}/instances_txt/{seq}.txt',  # format of gt localization
         }
         return default_config
 
@@ -35,7 +40,8 @@ class KittiMask(_BaseDataset):
         # Fill non-given config values with defaults
         self.config = utils.init_config(config, self.get_default_dataset_config(), self.get_name())
         self.gt_fol = self.config['GT_FOLDER']
-        self.tracker_fol = os.path.join(self.config['TRACKERS_FOLDER'], self.config['SPLIT_TO_EVAL'])
+        self.tracker_fol = self.config['TRACKERS_FOLDER']
+        self.split_to_eval = self.config['SPLIT_TO_EVAL']
         self.should_classes_combine = False
         self.data_is_zipped = self.config['INPUT_AS_ZIP']
 
@@ -50,31 +56,27 @@ class KittiMask(_BaseDataset):
         valid_classes = ['cars', 'pedestrians']
         self.class_list = [cls.lower() if cls.lower() in valid_classes else None
                            for cls in self.config['CLASSES_TO_EVAL']]
-        assert all(self.class_list), 'Only classes [cars, pedestrians] are valid.'
+        if not all(self.class_list):
+            raise TrackEvalException('Attempted to evaluate an invalid class. '
+                                     'Only classes [cars, pedestrians] are valid.')
         self.class_name_to_class_id = {'cars': '1', 'pedestrians': '2', 'ignore': '10'}
 
         # Get sequences to eval and check gt files exist
-        self.seq_list = []
-        self.seq_lengths = dict()
-        seqmap_name = self.config['SPLIT_TO_EVAL'] + ".seqmap"
-        seqmap_file = os.path.join(self.gt_fol, seqmap_name)
-        assert os.path.isfile(seqmap_file), 'no seqmap %s found in %s' % (seqmap_name, self.gt_fol)
+        self.seq_list, self.seq_lengths = self._get_seq_info()
+        if len(self.seq_list) < 1:
+            raise TrackEvalException('No sequences are selected to be evaluated.')
 
-        with open(seqmap_file, "r") as fp:
-            dialect = csv.Sniffer().sniff(fp.read(1024))
-            fp.seek(0)
-            reader = csv.reader(fp, dialect)
-            for row in reader:
-                if len(row) >= 4:
-                    seq = "%04d" % int(row[0])
-                    self.seq_list.append(seq)
-                    self.seq_lengths[seq] = int(row[3]) + 1
-                    if not self.data_is_zipped:
-                        assert os.path.isfile(os.path.join(self.gt_fol, 'instances_txt', seq + '.txt')), \
-                            'GT file %s.txt not found in %s' % (seq, os.path.join(self.gt_fol, 'instances_txt'))
-            if self.data_is_zipped:
-                assert os.path.isfile(os.path.join(self.gt_fol, 'data.zip')), \
-                    'GT file data.zip not found in %s' % self.gt_fol
+        # Check gt files exist
+        for seq in self.seq_list:
+            if not self.data_is_zipped:
+                curr_file = self.config["GT_LOC_FORMAT"].format(gt_folder=self.gt_fol, seq=seq)
+                if not os.path.isfile(curr_file):
+                    print('GT file not found ' + curr_file)
+                    raise TrackEvalException('GT file not found for sequence: ' + seq)
+        if self.data_is_zipped:
+            curr_file = os.path.join(self.gt_fol, 'data.zip')
+            if not os.path.isfile(curr_file):
+                raise TrackEvalException('GT file not found: ' + os.path.basename(curr_file))
 
         # Get trackers to eval
         if self.config['TRACKERS_TO_EVAL'] is None:
@@ -84,11 +86,44 @@ class KittiMask(_BaseDataset):
         for tracker in self.tracker_list:
             if self.data_is_zipped:
                 curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol + '.zip')
-                assert os.path.isfile(curr_file), 'Tracker file not found: ' + curr_file
+                if not os.path.isfile(curr_file):
+                    raise TrackEvalException('Tracker file not found: ' + tracker + '/' + os.path.basename(curr_file))
             else:
                 for seq in self.seq_list:
                     curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.txt')
-                    assert os.path.isfile(curr_file), 'Tracker file not found: ' + curr_file
+                    if not os.path.isfile(curr_file):
+                        raise TrackEvalException(
+                            'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol + '/' + os.path.basename(
+                                curr_file))
+
+    def _get_seq_info(self):
+        seq_list = []
+        seq_lengths = {}
+        if self.config["SEQ_INFO"]:
+            seq_list = list(self.config["SEQ_INFO"].keys())
+            seq_lengths = self.config["SEQ_INFO"]
+        else:
+            if self.config["SEQMAP_FILE"]:
+                seqmap_file = self.config["SEQMAP_FILE"]
+            else:
+                if self.config["SEQMAP_FOLDER"] is None:
+                    seqmap_file = os.path.join(self.config['GT_FOLDER'], self.split_to_eval + '.seqmap')
+                else:
+                    seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], self.split_to_eval + '.seqmap')
+            if not os.path.isfile(seqmap_file):
+                raise TrackEvalException('no seqmap found: ' + os.path.basename(seqmap_file))
+            with open(seqmap_file) as fp:
+                reader = csv.reader(fp)
+                for i, row in enumerate(reader):
+                    dialect = csv.Sniffer().sniff(fp.read(1024))
+                    fp.seek(0)
+                    reader = csv.reader(fp, dialect)
+                    for row in reader:
+                        if len(row) >= 4:
+                            seq = "%04d" % int(row[0])
+                            seq_list.append(seq)
+                            seq_lengths[seq] = int(row[3]) + 1
+        return seq_list, seq_lengths
 
     @_timing.time
     def get_preprocessed_seq_data(self, raw_data, cls):
@@ -118,11 +153,14 @@ class KittiMask(_BaseDataset):
         KITTI MOTS:
             In KITTI MOTS, the 4 preproc steps are as follow:
                 1) There are two classes (cars and pedestrians) which are evaluated separately.
-                2) There are no ground truth detections marked as to be removed. Therefore also no matched tracker
-                    detections are removed.
-                3) Ignore regions are used to remove unmatched detections.
+                2) There are no ground truth detections marked as to be removed/distractor classes.
+                    Therefore also no matched tracker detections are removed.
+                3) Ignore regions are used to remove unmatched detections (at least 50% overlap with ignore region).
                 4) There are no ground truth detections (e.g. those of distractor classes) to be removed.
         """
+        # Check that input data has unique ids
+        self._check_unique_ids(raw_data)
+
         cls_id = int(self.class_name_to_class_id[cls])
 
         data_keys = ['gt_ids', 'tracker_ids', 'gt_dets', 'tracker_dets', 'similarity_scores']
@@ -133,7 +171,7 @@ class KittiMask(_BaseDataset):
         num_tracker_dets = 0
         for t in range(raw_data['num_timesteps']):
 
-            # Only extract relevant dets for this class for preproc and eval (cls + distractor classes)
+            # Only extract relevant dets for this class for preproc and eval (cls)
             gt_class_mask = np.atleast_1d(raw_data['gt_classes'][t] == cls_id)
             gt_class_mask = gt_class_mask.astype(np.bool)
             gt_ids = raw_data['gt_ids'][t][gt_class_mask]
@@ -164,7 +202,7 @@ class KittiMask(_BaseDataset):
                                                                         is_encoded=True, do_ioa=True)
             is_within_ignore_region = np.any(intersection_with_ignore_region > 0.5, axis=1)
 
-            # Apply preprocessing to remove all unwanted tracker dets.
+            # Apply preprocessing to remove unwanted tracker dets.
             to_remove_tracker = unmatched_indices[is_within_ignore_region]
             data['tracker_ids'][t] = np.delete(tracker_ids, to_remove_tracker, axis=0)
             data['tracker_dets'][t] = np.delete(tracker_dets, to_remove_tracker, axis=0)
@@ -196,8 +234,6 @@ class KittiMask(_BaseDataset):
                 if len(data['tracker_ids'][t]) > 0:
                     data['tracker_ids'][t] = tracker_id_map[data['tracker_ids'][t]].astype(np.int)
 
-        # Ensure that ids are unique per timestep.
-        self._check_unique_ids(data)
 
         # Record overview statistics.
         data['num_tracker_dets'] = num_tracker_dets
@@ -205,6 +241,11 @@ class KittiMask(_BaseDataset):
         data['num_tracker_ids'] = len(unique_tracker_ids)
         data['num_gt_ids'] = len(unique_gt_ids)
         data['num_timesteps'] = raw_data['num_timesteps']
+        data['seq'] = raw_data['seq']
+
+        # Ensure again that ids are unique per timestep after preproc.
+        self._check_unique_ids(data, after_preproc=True)
+
         return data
 
     def _load_raw_file(self, tracker, seq, is_gt):
@@ -229,7 +270,7 @@ class KittiMask(_BaseDataset):
         else:
             zip_file = None
             if is_gt:
-                file = os.path.join(self.gt_fol, 'instances_txt', seq + '.txt')
+                file = self.config["GT_LOC_FORMAT"].format(gt_folder=self.gt_fol, seq=seq)
             else:
                 file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.txt')
 
@@ -239,13 +280,8 @@ class KittiMask(_BaseDataset):
         else:
             crowd_ignore_filter = None
 
-        # Valid classes
-        valid_filter = {2: [self.class_name_to_class_id[x] for x in self.class_list]}
-
         # Load raw data from text file
-        read_data, ignore_data = self._load_simple_text_file(file, time_col=0, id_col=1, remove_negative_ids=True,
-                                                             valid_filter=valid_filter,
-                                                             crowd_ignore_filter=crowd_ignore_filter,
+        read_data, ignore_data = self._load_simple_text_file(file, crowd_ignore_filter=crowd_ignore_filter,
                                                              is_zipped=self.data_is_zipped, zip_file=zip_file,
                                                              force_delimiters=' ')
 
@@ -260,22 +296,34 @@ class KittiMask(_BaseDataset):
             # list to collect all masks of a timestep to check for overlapping areas
             all_masks = []
             if time_key in read_data.keys():
-                raw_data['dets'][t] = [{'size': [int(region[3]), int(region[4])],
-                                        'counts': region[5].encode(encoding='UTF-8')} for region in read_data[time_key]]
-                raw_data['ids'][t] = np.atleast_1d([region[1] for region in read_data[time_key]]).astype(int)
-                raw_data['classes'][t] = np.atleast_1d([region[2] for region in read_data[time_key]]).astype(int)
-                all_masks += raw_data['dets'][t]
+                try:
+                    raw_data['dets'][t] = [{'size': [int(region[3]), int(region[4])],
+                                            'counts': region[5].encode(encoding='UTF-8')}
+                                           for region in read_data[time_key]]
+                    raw_data['ids'][t] = np.atleast_1d([region[1] for region in read_data[time_key]]).astype(int)
+                    raw_data['classes'][t] = np.atleast_1d([region[2] for region in read_data[time_key]]).astype(int)
+                    all_masks += raw_data['dets'][t]
+                except IndexError:
+                    self._raise_index_error(is_gt, tracker, seq)
+                except ValueError:
+                   self._raise_value_error(is_gt,tracker,seq)
             else:
                 raw_data['dets'][t] = []
                 raw_data['ids'][t] = np.empty(0).astype(int)
                 raw_data['classes'][t] = np.empty(0).astype(int)
             if is_gt:
                 if time_key in ignore_data.keys():
-                    time_ignore = [{'size': [int(region[3]), int(region[4])],
-                                    'counts': region[5].encode(encoding='UTF-8')}
-                                   for region in ignore_data[time_key]]
-                    raw_data['gt_ignore_region'][t] = mask_utils.merge([mask for mask in time_ignore], intersect=False)
-                    all_masks += [raw_data['gt_ignore_region'][t]]
+                    try:
+                        time_ignore = [{'size': [int(region[3]), int(region[4])],
+                                        'counts': region[5].encode(encoding='UTF-8')}
+                                       for region in ignore_data[time_key]]
+                        raw_data['gt_ignore_region'][t] = mask_utils.merge([mask for mask in time_ignore],
+                                                                           intersect=False)
+                        all_masks += [raw_data['gt_ignore_region'][t]]
+                    except IndexError:
+                        self._raise_index_error(is_gt, tracker, seq)
+                    except ValueError:
+                        self._raise_value_error(is_gt,tracker,seq)
                 else:
                     raw_data['gt_ignore_region'][t] = mask_utils.merge([], intersect=False)
             # check for overlapping masks
@@ -297,7 +345,43 @@ class KittiMask(_BaseDataset):
         for k, v in key_map.items():
             raw_data[v] = raw_data.pop(k)
         raw_data["num_timesteps"] = num_timesteps
+        raw_data['seq'] = seq
         return raw_data
+
+    @staticmethod
+    def _raise_index_error(is_gt, tracker, seq):
+        """
+        Auxiliary method to raise an evaluation error in case of an index error while reading files.
+        :param is_gt: whether gt or tracker data is read
+        :param tracker: the name of the tracker
+        :param seq: the name of the seq
+        :return: None
+        """
+        if is_gt:
+            err = 'Cannot load gt data from sequence %s, because there are not enough ' \
+                  'columns in the data.' % seq
+            raise TrackEvalException(err)
+        else:
+            err = 'Cannot load tracker data from tracker %s, sequence %s, because there are not enough ' \
+                  'columns in the data.' % (tracker, seq)
+            raise TrackEvalException(err)
+
+    @staticmethod
+    def _raise_value_error(is_gt, tracker, seq):
+        """
+        Auxiliary method to raise an evaluation error in case of an value error while reading files.
+        :param is_gt: whether gt or tracker data is read
+        :param tracker: the name of the tracker
+        :param seq: the name of the seq
+        :return: None
+        """
+        if is_gt:
+            raise TrackEvalException(
+                'GT data for sequence %s cannot be converted to the right format. Is data corrupted?' % seq)
+        else:
+            raise TrackEvalException(
+                'Tracking data from tracker %s, sequence %s cannot be converted to the right format. '
+                'Is data corrupted?' % (tracker, seq))
 
     def _calculate_similarities(self, gt_dets_t, tracker_dets_t):
         similarity_scores = self._calculate_mask_ious(gt_dets_t, tracker_dets_t, is_encoded=True, do_ioa=False)
