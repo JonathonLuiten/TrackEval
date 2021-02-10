@@ -162,4 +162,5 @@ class HOTA(_BaseMetric):
         out_file = os.path.join(output_folder, cls + '_plot.pdf')
         os.makedirs(os.path.dirname(out_file), exist_ok=True)
         plt.savefig(out_file)
+        plt.savefig(out_file.replace('.pdf', '.png'))
         plt.clf()
