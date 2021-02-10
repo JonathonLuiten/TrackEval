@@ -8,8 +8,9 @@ from .. import utils
 from .. import _timing
 from ..utils import TrackEvalException
 
-class KittiMask(_BaseDataset):
-    """Dataset class for KITTI Segmentation Mask tracking"""
+
+class KittiMOTS(_BaseDataset):
+    """Dataset class for KITTI MOTS tracking"""
 
     @staticmethod
     def get_default_dataset_config():

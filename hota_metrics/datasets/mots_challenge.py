@@ -10,8 +10,8 @@ from ..utils import TrackEvalException
 from .. import _timing
 
 
-class MOTChallengeMask(_BaseDataset):
-    """Dataset class for MOT Challenge Segmentation Mask tracking"""
+class MOTSChallenge(_BaseDataset):
+    """Dataset class for MOTS Challenge tracking"""
 
     @staticmethod
     def get_default_dataset_config():
@@ -137,7 +137,7 @@ class MOTChallengeMask(_BaseDataset):
         return seq_list, seq_lengths
 
     def _load_raw_file(self, tracker, seq, is_gt):
-        """Load a file (gt or tracker) in the MOTChallenge MOTS format
+        """Load a file (gt or tracker) in the MOTS Challenge format
 
         If is_gt, this returns a dict which contains the fields:
         [gt_ids, gt_classes] : list (for each timestep) of 1D NDArrays (for each det).
@@ -285,8 +285,8 @@ class MOTChallengeMask(_BaseDataset):
                 and unique track ids. It also relabels gt and tracker ids to be contiguous and checks that ids are
                 unique within each timestep.
 
-        MOTChallenge MOTS:
-            In MOTChallenge MOTS, the 4 preproc steps are as follow:
+        MOTS Challenge:
+            In MOTS Challenge, the 4 preproc steps are as follow:
                 1) There is only one class (pedestrians) to be evaluated.
                 2) There are no ground truth detections marked as to be removed/distractor classes.
                     Therefore also no matched tracker detections are removed.

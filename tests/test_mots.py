@@ -25,10 +25,10 @@ for dataset_config in tests:
 
     dataset_name = dataset_config.pop('DATASET')
     if dataset_name == 'MOTChallengeMask':
-        dataset_list = [hm.datasets.MOTChallengeMask(dataset_config)]
+        dataset_list = [hm.datasets.MOTSChallenge(dataset_config)]
         file_loc = os.path.join('mot_challenge', 'MOTS-' + dataset_config['SPLIT_TO_EVAL'])
     elif dataset_name == 'KittiMask':
-        dataset_list = [hm.datasets.KittiMask(dataset_config)]
+        dataset_list = [hm.datasets.KittiMOTS(dataset_config)]
         file_loc = os.path.join('kitti', 'kitti_mots_val')
     else:
         raise Exception('Dataset %s does not exist.' % dataset_name)
