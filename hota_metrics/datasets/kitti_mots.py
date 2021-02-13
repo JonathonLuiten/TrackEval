@@ -22,7 +22,7 @@ class KittiMOTS(_BaseDataset):
                                                                                                 # trackers
             'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
-            'CLASSES_TO_EVAL': ['cars', 'pedestrians'],  # Valid: ['Cars', 'Pedestrians']
+            'CLASSES_TO_EVAL': ['car', 'pedestrian'],  # Valid: ['car', 'pedestrian']
             'SPLIT_TO_EVAL': 'val',  # Valid: 'training', 'val'
             'INPUT_AS_ZIP': False,  # Whether tracker input files are zipped
             'PRINT_CONFIG': True,  # Whether to print current config
@@ -54,13 +54,13 @@ class KittiMOTS(_BaseDataset):
         self.output_sub_fol = self.config['OUTPUT_SUB_FOLDER']
 
         # Get classes to eval
-        valid_classes = ['cars', 'pedestrians']
+        valid_classes = ['car', 'pedestrian']
         self.class_list = [cls.lower() if cls.lower() in valid_classes else None
                            for cls in self.config['CLASSES_TO_EVAL']]
         if not all(self.class_list):
             raise TrackEvalException('Attempted to evaluate an invalid class. '
-                                     'Only classes [cars, pedestrians] are valid.')
-        self.class_name_to_class_id = {'cars': '1', 'pedestrians': '2', 'ignore': '10'}
+                                     'Only classes [car, pedestrian] are valid.')
+        self.class_name_to_class_id = {'car': '1', 'pedestrian': '2', 'ignore': '10'}
 
         # Get sequences to eval and check gt files exist
         self.seq_list, self.seq_lengths = self._get_seq_info()
@@ -155,7 +155,7 @@ class KittiMOTS(_BaseDataset):
 
         KITTI MOTS:
             In KITTI MOTS, the 4 preproc steps are as follow:
-                1) There are two classes (cars and pedestrians) which are evaluated separately.
+                1) There are two classes (car and pedestrian) which are evaluated separately.
                 2) There are no ground truth detections marked as to be removed/distractor classes.
                     Therefore also no matched tracker detections are removed.
                 3) Ignore regions are used to remove unmatched detections (at least 50% overlap with ignore region).
