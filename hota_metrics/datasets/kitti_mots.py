@@ -17,7 +17,7 @@ class KittiMOTS(_BaseDataset):
         """Default class config values"""
         code_path = utils.get_code_path()
         default_config = {
-            'GT_FOLDER': os.path.join(code_path, 'data/gt/kitti/kitti_mots'),  # Location of GT data
+            'GT_FOLDER': os.path.join(code_path, 'data/gt/kitti/kitti_mots_train'),  # Location of GT data
             'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/kitti/kitti_mots_val'),   # Location of all
                                                                                                 # trackers
             'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
@@ -31,7 +31,7 @@ class KittiMOTS(_BaseDataset):
             'SEQMAP_FOLDER': None,  # Where seqmaps are found (if None, GT_FOLDER)
             'SEQMAP_FILE': None,    # Directly specify seqmap file (if none use seqmap_folder/split_to_eval.seqmap)
             'SEQ_INFO': None,  # If not None, directly specify sequences to eval and their number of timesteps
-            'GT_LOC_FORMAT': '{gt_folder}/instances_txt/{seq}.txt',  # format of gt localization
+            'GT_LOC_FORMAT': '{gt_folder}/label_02/{seq}.txt',  # format of gt localization
         }
         return default_config
 
@@ -100,6 +100,8 @@ class KittiMOTS(_BaseDataset):
     def _get_seq_info(self):
         seq_list = []
         seq_lengths = {}
+        seqmap_name = 'evaluate_mots.seqmap.' + self.config['SPLIT_TO_EVAL']
+
         if self.config["SEQ_INFO"]:
             seq_list = list(self.config["SEQ_INFO"].keys())
             seq_lengths = self.config["SEQ_INFO"]
@@ -108,9 +110,9 @@ class KittiMOTS(_BaseDataset):
                 seqmap_file = self.config["SEQMAP_FILE"]
             else:
                 if self.config["SEQMAP_FOLDER"] is None:
-                    seqmap_file = os.path.join(self.config['GT_FOLDER'], self.split_to_eval + '.seqmap')
+                    seqmap_file = os.path.join(self.config['GT_FOLDER'], seqmap_name)
                 else:
-                    seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], self.split_to_eval + '.seqmap')
+                    seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], seqmap_name)
             if not os.path.isfile(seqmap_file):
                 raise TrackEvalException('no seqmap found: ' + os.path.basename(seqmap_file))
             with open(seqmap_file) as fp:
