@@ -12,10 +12,11 @@ class CLEAR(_BaseMetric):
         main_integer_fields = ['CLR_TP', 'CLR_FN', 'CLR_FP', 'IDSW', 'MT', 'PT', 'ML', 'Frag']
         extra_integer_fields = ['CLR_Frames']
         self.integer_fields = main_integer_fields + extra_integer_fields
-        main_float_fields = ['MOTA', 'MOTP', 'MODA', 'CLR_Re', 'CLR_Pr', 'MTR', 'PTR', 'MLR']
-        extra_float_fields = ['CLR_F1', 'FP_per_frame', 'MOTAL']
+        main_float_fields = ['MOTA', 'MOTP', 'MODA', 'CLR_Re', 'CLR_Pr', 'MTR', 'PTR', 'MLR', 'sMOTA']
+        extra_float_fields = ['CLR_F1', 'FP_per_frame', 'MOTAL', 'MOTP_sum']
         self.float_fields = main_float_fields + extra_float_fields
         self.fields = self.float_fields + self.integer_fields
+        self.summed_fields = self.integer_fields + ['MOTP_sum']
         self.summary_fields = main_float_fields + main_integer_fields
 
         self.threshold = 0.5
@@ -98,7 +99,7 @@ class CLEAR(_BaseMetric):
             res['CLR_FN'] += len(gt_ids_t) - num_matches
             res['CLR_FP'] += len(tracker_ids_t) - num_matches
             if num_matches > 0:
-                res['MOTP'] += sum(similarity[match_rows, match_cols])
+                res['MOTP_sum'] += sum(similarity[match_rows, match_cols])
 
         # Calculate MT/ML/PT/Frag/MOTP
         tracked_ratio = gt_matched_count[gt_id_count > 0] / gt_id_count[gt_id_count > 0]
@@ -106,7 +107,7 @@ class CLEAR(_BaseMetric):
         res['PT'] = np.sum(np.greater_equal(tracked_ratio, 0.2)) - res['MT']
         res['ML'] = num_gt_ids - res['MT'] - res['PT']
         res['Frag'] = np.sum(np.subtract(gt_frag_count[gt_frag_count > 0], 1))
-        res['MOTP'] = res['MOTP'] / np.maximum(1.0, res['CLR_TP'])
+        res['MOTP'] = res['MOTP_sum'] / np.maximum(1.0, res['CLR_TP'])
 
         res['CLR_Frames'] = data['num_timesteps']
 
@@ -117,9 +118,8 @@ class CLEAR(_BaseMetric):
     def combine_sequences(self, all_res):
         """Combines metrics across all sequences"""
         res = {}
-        for field in self.integer_fields:
+        for field in self.summed_fields:
             res[field] = self._combine_sum(all_res, field)
-        res['MOTP'] = self._combine_weighted_av(all_res, 'MOTP', res, weight_field='CLR_TP')
         res = self._compute_final_fields(res)
         return res
 
@@ -136,6 +136,8 @@ class CLEAR(_BaseMetric):
         res['CLR_Pr'] = res['CLR_TP'] / np.maximum(1.0, res['CLR_TP'] + res['CLR_FP'])
         res['MODA'] = (res['CLR_TP'] - res['CLR_FP']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
         res['MOTA'] = (res['CLR_TP'] - res['CLR_FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
+        res['MOTP'] = res['MOTP_sum'] / np.maximum(1.0, res['CLR_TP'])
+        res['sMOTA'] = (res['MOTP_sum'] - res['CLR_FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
 
         res['CLR_F1'] = res['CLR_TP'] / np.maximum(1.0, res['CLR_TP'] + 0.5*res['CLR_FN'] + 0.5*res['CLR_FP'])
         res['FP_per_frame'] = res['CLR_FP'] / np.maximum(1.0, res['CLR_Frames'])
