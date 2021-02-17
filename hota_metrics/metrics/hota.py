@@ -13,7 +13,7 @@ class HOTA(_BaseMetric):
     def __init__(self):
         super().__init__()
         self.plottable = True
-        self.array_labels = np.arange(0.0, 1.01, 0.05)
+        self.array_labels = np.arange(0.05, 0.99, 0.05)
         self.integer_array_fields = ['HOTA_TP', 'HOTA_FN', 'HOTA_FP']
         self.float_array_fields = ['HOTA', 'DetA', 'AssA', 'DetRe', 'DetPr', 'AssRe', 'AssPr', 'LocA', 'RHOTA']
         self.float_fields = ['HOTA(0)', 'LocA(0)', 'HOTALocA(0)']
@@ -162,4 +162,5 @@ class HOTA(_BaseMetric):
         out_file = os.path.join(output_folder, cls + '_plot.pdf')
         os.makedirs(os.path.dirname(out_file), exist_ok=True)
         plt.savefig(out_file)
+        plt.savefig(out_file.replace('.pdf', '.png'))
         plt.clf()

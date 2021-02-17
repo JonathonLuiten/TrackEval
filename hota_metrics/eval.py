@@ -2,6 +2,7 @@ import time
 import traceback
 from multiprocessing.pool import Pool
 from functools import partial
+import os
 from . import utils
 from .utils import TrackEvalException
 from . import _timing
@@ -14,11 +15,13 @@ class Evaluator:
     @staticmethod
     def get_default_eval_config():
         """Returns the default config values for evaluation"""
+        code_path = utils.get_code_path()
         default_config = {
             'USE_PARALLEL': False,
             'NUM_PARALLEL_CORES': 8,
             'BREAK_ON_ERROR': True,  # Raises exception and exits with error
-            'RETURN_ON_ERROR': False,  # if not BREAK_ON_ERROR, then returns from function on error\
+            'RETURN_ON_ERROR': False,  # if not BREAK_ON_ERROR, then returns from function on error
+            'LOG_ON_ERROR': os.path.join(code_path, 'error_log.txt'),  # if not None, save any errors into a log file.
 
             'PRINT_RESULTS': True,
             'PRINT_ONLY_COMBINED': False,
@@ -130,13 +133,19 @@ class Evaluator:
                     if type(err) == TrackEvalException:
                         output_msg[dataset_name][tracker] = str(err)
                     else:
-                        output_msg[dataset_name][tracker] = "Unknown error occurred."
+                        output_msg[dataset_name][tracker] = 'Unknown error occurred.'
                     print('Tracker %s was unable to be evaluated.' % tracker)
                     print(err)
                     traceback.print_exc()
-                    if config["BREAK_ON_ERROR"]:
+                    if config['LOG_ON_ERROR'] is not None:
+                        with open(config['LOG_ON_ERROR'], 'a') as f:
+                            print(dataset_name, file=f)
+                            print(tracker, file=f)
+                            print(traceback.format_exc(), file=f)
+                            print('\n\n\n', file=f)
+                    if config['BREAK_ON_ERROR']:
                         raise err
-                    elif config["RETURN_ON_ERROR"]:
+                    elif config['RETURN_ON_ERROR']:
                         return output_res, output_msg
 
         return output_res, output_msg

@@ -22,7 +22,7 @@ Command Line Arguments: Defaults, # Comments
                                                                                             # trackers
         'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
         'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
-        'CLASSES_TO_EVAL': ['Cars', 'Pedestrians'],  # Valid: ['Cars', 'Pedestrians']
+        'CLASSES_TO_EVAL': ['car', 'pedestrian'],  # Valid: ['car', 'pedestrian']
         'SPLIT_TO_EVAL': 'val',  # Valid: 'training', 'val'
         'INPUT_AS_ZIP': False,  # Whether tracker input files are zipped
         'PRINT_CONFIG': True,  # Whether to print current config
