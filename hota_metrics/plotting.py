@@ -27,6 +27,7 @@ def get_default_plots_list():
         ['AssPr', 'AssRe', 'HOTA', 'AssA', 'jaccard'],
         ['DetPr', 'DetRe', 'HOTA', 'DetA', 'jaccard'],
         ['HOTA(0)', 'LocA(0)', 'HOTA', 'HOTALocA(0)', 'multiplication'],
+        ['HOTA', 'LocA', 'HOTA', None, None],
 
         ['HOTA', 'MOTA', 'HOTA', None, None],
         ['HOTA', 'IDF1', 'HOTA', None, None],
