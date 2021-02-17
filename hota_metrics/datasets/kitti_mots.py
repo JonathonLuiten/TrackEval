@@ -18,8 +18,7 @@ class KittiMOTS(_BaseDataset):
         code_path = utils.get_code_path()
         default_config = {
             'GT_FOLDER': os.path.join(code_path, 'data/gt/kitti/kitti_mots_train'),  # Location of GT data
-            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/kitti/kitti_mots_val'),   # Location of all
-                                                                                                # trackers
+            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/kitti/kitti_mots_val'),  # Trackers location
             'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
             'CLASSES_TO_EVAL': ['car', 'pedestrian'],  # Valid: ['car', 'pedestrian']
@@ -28,6 +27,7 @@ class KittiMOTS(_BaseDataset):
             'PRINT_CONFIG': True,  # Whether to print current config
             'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
             'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
+            'TRACKER_DISPLAY_NAMES': None,  # Names of trackers to display, if None: TRACKERS_TO_EVAL
             'SEQMAP_FOLDER': None,  # Where seqmaps are found (if None, GT_FOLDER)
             'SEQMAP_FILE': None,    # Directly specify seqmap file (if none use seqmap_folder/split_to_eval.seqmap)
             'SEQ_INFO': None,  # If not None, directly specify sequences to eval and their number of timesteps
@@ -84,6 +84,15 @@ class KittiMOTS(_BaseDataset):
             self.tracker_list = os.listdir(self.tracker_fol)
         else:
             self.tracker_list = self.config['TRACKERS_TO_EVAL']
+
+        if self.config['TRACKER_DISPLAY_NAMES'] is None:
+            self.tracker_to_disp = dict(zip(self.tracker_list, self.tracker_list))
+        elif (self.config['TRACKERS_TO_EVAL'] is not None) and (
+                len(self.config['TRACKER_DISPLAY_NAMES']) == len(self.tracker_list)):
+            self.tracker_to_disp = dict(zip(self.tracker_list, self.config['TRACKER_DISPLAY_NAMES']))
+        else:
+            raise TrackEvalException('List of tracker files and tracker display names do not match.')
+
         for tracker in self.tracker_list:
             if self.data_is_zipped:
                 curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol + '.zip')
@@ -96,6 +105,9 @@ class KittiMOTS(_BaseDataset):
                         raise TrackEvalException(
                             'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol + '/' + os.path.basename(
                                 curr_file))
+
+    def get_display_name(self, tracker):
+        return self.tracker_to_disp[tracker]
 
     def _get_seq_info(self):
         seq_list = []
