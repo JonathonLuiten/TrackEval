@@ -17,17 +17,17 @@ evaluator = hm.Evaluator(eval_config)
 metrics_list = [hm.metrics.HOTA(), hm.metrics.CLEAR(), hm.metrics.Identity()]
 
 tests = [
-    {'DATASET': 'KittiMask', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['trackrcnn']},
-    {'DATASET': 'MOTChallengeMask', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['TrackRCNN']}
+    {'DATASET': 'KittiMOTS', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['trackrcnn']},
+    {'DATASET': 'MOTSChallenge', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['TrackRCNN']}
 ]
 
 for dataset_config in tests:
 
     dataset_name = dataset_config.pop('DATASET')
-    if dataset_name == 'MOTChallengeMask':
+    if dataset_name == 'MOTSChallenge':
         dataset_list = [hm.datasets.MOTSChallenge(dataset_config)]
         file_loc = os.path.join('mot_challenge', 'MOTS-' + dataset_config['SPLIT_TO_EVAL'])
-    elif dataset_name == 'KittiMask':
+    elif dataset_name == 'KittiMOTS':
         dataset_list = [hm.datasets.KittiMOTS(dataset_config)]
         file_loc = os.path.join('kitti', 'kitti_mots_val')
     else:
@@ -60,8 +60,6 @@ for dataset_config in tests:
             res_dict = dict(zip(res_fields, res_values))
 
             for field in test_data[seq].keys():
-                print(res_dict[field])
-                print(test_data[seq][field])
                 assert np.isclose(res_dict[field], test_data[seq][field]), seq + ': ' + cls + ': ' + field
 
     print('Tracker %s tests passed' % tracker)
