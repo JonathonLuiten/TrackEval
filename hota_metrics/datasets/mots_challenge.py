@@ -181,6 +181,8 @@ class MOTSChallenge(_BaseDataset):
         raw_data = {key: [None] * num_timesteps for key in data_keys}
         for t in range(num_timesteps):
             time_key = str(t)
+            # list to collect all masks of a timestep to check for overlapping areas
+            all_masks = []
             if time_key in read_data.keys():
                 try:
                     raw_data['dets'][t] = [{'size': [int(region[3]), int(region[4])],
@@ -188,6 +190,7 @@ class MOTSChallenge(_BaseDataset):
                                            for region in read_data[time_key]]
                     raw_data['ids'][t] = np.atleast_1d([region[1] for region in read_data[time_key]]).astype(int)
                     raw_data['classes'][t] = np.atleast_1d([region[2] for region in read_data[time_key]]).astype(int)
+                    all_masks += raw_data['dets'][t]
                 except IndexError:
                     self._raise_index_error(is_gt, tracker, seq)
                 except ValueError:
@@ -204,12 +207,23 @@ class MOTSChallenge(_BaseDataset):
                                        for region in ignore_data[time_key]]
                         raw_data['gt_ignore_region'][t] = mask_utils.merge([mask for mask in time_ignore],
                                                                            intersect=False)
+                        all_masks += [raw_data['gt_ignore_region'][t]]
                     except IndexError:
                         self._raise_index_error(is_gt, tracker, seq)
                     except ValueError:
                         self._raise_value_error(is_gt,tracker,seq)
                 else:
                     raw_data['gt_ignore_region'][t] = mask_utils.merge([], intersect=False)
+
+            # check for overlapping masks
+            if all_masks:
+                masks_merged = all_masks[0]
+                for mask in all_masks[1:]:
+                    if mask_utils.area(mask_utils.merge([masks_merged, mask], intersect=True)) != 0.0:
+                        raise TrackEvalException(
+                            'Tracker has overlapping masks. Tracker: ' + tracker + ' Seq: ' + seq + ' Timestep: ' + str(
+                                t))
+                    masks_merged = mask_utils.merge([masks_merged, mask], intersect=False)
 
         if is_gt:
             key_map = {'ids': 'gt_ids',
