@@ -27,6 +27,7 @@ This code is also the official reference implementation for the HOTA metrics:
 HOTA is a novel set of MOT evaluation metrics which enable better understanding of tracking behaviour than previous metrics.
 
 For more information check out the following links:
+ - [Short blog post on HOTA](https://jonathonluiten.medium.com/how-to-evaluate-tracking-with-the-hota-metrics-754036d183e1) - **HIGHLY RECOMMENDED**
  - [IJCV version of paper](https://link.springer.com/article/10.1007/s11263-020-01375-2) (Open Access)
  - [ArXiv version of paper](https://arxiv.org/abs/2009.07736)
  - [Code](trackeval/metrics/hota.py)
