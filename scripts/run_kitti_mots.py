@@ -42,14 +42,14 @@ import argparse
 from multiprocessing import freeze_support
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import hota_metrics as hm  # noqa: E402
+import trackeval  # noqa: E402
 
 if __name__ == '__main__':
     freeze_support()
 
     # Command line interface:
-    default_eval_config = hm.Evaluator.get_default_eval_config()
-    default_dataset_config = hm.datasets.KittiMOTS.get_default_dataset_config()
+    default_eval_config = trackeval.Evaluator.get_default_eval_config()
+    default_dataset_config = trackeval.datasets.KittiMOTS.get_default_dataset_config()
     default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity']}
     config = {**default_eval_config, **default_dataset_config, **default_metrics_config}  # Merge default configs
     parser = argparse.ArgumentParser()
@@ -80,10 +80,10 @@ if __name__ == '__main__':
     metrics_config = {k: v for k, v in config.items() if k in default_metrics_config.keys()}
 
     # Run code
-    evaluator = hm.Evaluator(eval_config)
-    dataset_list = [hm.datasets.KittiMOTS(dataset_config)]
+    evaluator = trackeval.Evaluator(eval_config)
+    dataset_list = [trackeval.datasets.KittiMOTS(dataset_config)]
     metrics_list = []
-    for metric in [hm.metrics.HOTA, hm.metrics.CLEAR, hm.metrics.Identity]:
+    for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity]:
         if metric.get_name() in metrics_config['METRICS']:
             metrics_list.append(metric())
     if len(metrics_list) == 0:
