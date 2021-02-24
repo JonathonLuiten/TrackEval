@@ -27,7 +27,7 @@ This code is also the official reference implementation for the HOTA metrics:
 HOTA is a novel set of MOT evaluation metrics which enable better understanding of tracking behaviour than previous metrics.
 
 For more information check out the following links:
- - [Short blog post on HOTA](https://jonathonluiten.medium.com/how-to-evaluate-tracking-with-the-hota-metrics-754036d183e1) - **HIGHLY RECOMMENDED**
+ - [Short blog post on HOTA](https://jonathonluiten.medium.com/how-to-evaluate-tracking-with-the-hota-metrics-754036d183e1) - **HIGHLY RECOMMENDED READING**
  - [IJCV version of paper](https://link.springer.com/article/10.1007/s11263-020-01375-2) (Open Access)
  - [ArXiv version of paper](https://arxiv.org/abs/2009.07736)
  - [Code](trackeval/metrics/hota.py)
@@ -60,7 +60,7 @@ Num Cores|TrackEval|MOTChallenge|Speedup vs MOTChallenge|py-motmetrics|Speedup v
 4|3.01|29.42|9.77x| |33.11x*
 8|1.62|29.51|18.22x| |61.51x*
 
-*using a different number of cores at py-motmetrics doesn't allow multiprocessing.
+*using a different number of cores as py-motmetrics doesn't allow multiprocessing.
 				
 ```
 python scripts/run_mot_challenge.py --BENCHMARK MOT17 --TRACKERS_TO_EVAL Lif_T --METRICS Clear ID --USE_PARALLEL False --NUM_PARALLEL_CORES 1  
