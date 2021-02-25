@@ -128,7 +128,6 @@ class CLEAR(_BaseMetric):
         res = {}
         for field in self.summed_fields:
             res[field] = self._combine_sum(all_res, field)
-        #res['MOTP'] = self._combine_weighted_av(all_res, 'MOTP', res, weight_field='CLR_TP')
         res = self._compute_final_fields(res)
         return res
 
