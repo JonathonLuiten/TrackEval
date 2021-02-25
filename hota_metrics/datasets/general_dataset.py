@@ -33,16 +33,17 @@ class General(_BaseDataset):
 
     @staticmethod
     def _get_subpath(config, benchmark):
-        return {'MOT15': os.path.join(config['GT_FOLDER'], 'mot_challenge', 'mot_challenge_2d_box'),
-                'MOT16': os.path.join(config['GT_FOLDER'], 'mot_challenge', 'mot_challenge_2d_box'),
-                'MOT17': os.path.join(config['GT_FOLDER'], 'mot_challenge', 'mot_challenge_2d_box'),
-                'MOT20': os.path.join(config['GT_FOLDER'], 'mot_challenge', 'mot_challenge_2d_box'),
-                'MOTS': os.path.join(config['GT_FOLDER'], 'mot_challenge', 'mots_challenge'),
-                'Kitti2DBox': os.path.join(config['GT_FOLDER'], 'kitti', 'kitti_2d_box'),
-                'KittiMots': os.path.join(config['GT_FOLDER'], 'kitti', 'kitti_mots'),
-                'BDD100K': os.path.join(config['GT_FOLDER'], 'bdd100k'),
-                'TAO': os.path.join(config['GT_FOLDER'], 'tao'),
-                'YouTubeVIS': os.path.join(config['GT_FOLDER'], 'youtube_vis'),
+        return {'MOT15': os.path.join('mot_challenge', 'mot_challenge_2d_box'),
+                'MOT16': os.path.join('mot_challenge', 'mot_challenge_2d_box'),
+                'MOT17': os.path.join('mot_challenge', 'mot_challenge_2d_box'),
+                'MOT20': os.path.join('mot_challenge', 'mot_challenge_2d_box'),
+                'MOTS': os.path.join('mot_challenge', 'mots_challenge'),
+                'Kitti2DBox': os.path.join('kitti', 'kitti_2d_box'),
+                'KittiMots': os.path.join('kitti', 'kitti_mots'),
+                'DAVIS': 'davis',
+                'BDD100K': 'bdd100k',
+                'TAO': 'tao',
+                'YouTubeVIS': 'youtube_vis'
                 }[benchmark]
 
     def __init__(self, config=None):
@@ -76,7 +77,17 @@ class General(_BaseDataset):
         self._get_seq_info()
 
         if self.benchmark == 'TAO':
-            self.class_list = list(set([cat for seq, cats in self.pos_categories.items() for cat in cats]))
+            pos_cat_id_list = list(set([cat for seq, cats in self.pos_categories.items() for cat in cats]))
+            self.class_list = [cls for cls in self.class_name_to_class_id.keys() if self.class_name_to_class_id[cls]
+                               in pos_cat_id_list]
+        elif self.benchmark in ['Kitti2DBox', 'KittiMOTS']:
+            self.class_list = ['car', 'pedestrian']
+        elif self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20', 'MOTS']:
+            self.class_list = ['pedestrian']
+        elif self.benchmark in ['DAVIS']:
+            self.class_list = ['general']
+        elif self.benchmark == ['BDD100K']:
+            self.class_list = ['pedestrian', 'rider', 'car', 'bus', 'truck', 'train', 'motorcycle', 'bicycle']
         else:
             self.class_list = self.class_name_to_class_id.keys()
 
@@ -129,6 +140,9 @@ class General(_BaseDataset):
                         raise TrackEvalException(
                             'Tracker file not found: ' + tracker + '/data/' + os.path.basename(curr_file))
 
+    def get_display_name(self, tracker):
+        return self.tracker_to_disp[tracker]
+
     def _get_seq_info(self):
         self.seq_list = []
         self.seq_lengths = {}
@@ -152,8 +166,9 @@ class General(_BaseDataset):
                     self.seq_sizes[seq] = (int(row[2]), int(row[3]))
                 if len(row) >= 7:
                     self.pos_categories[seq] = [int(cat) for cat in row[4].split(',')]
-                    self.neg_categories[seq] = [int(cat) for cat in row[5].split(',')]
-                    self.not_exhaustively_labeled[seq] = [int(cat) for cat in row[6].split(',')]
+                    self.neg_categories[seq] = [int(cat) for cat in row[5].split(',')] if len(row[5]) > 0 else []
+                    self.not_exhaustively_labeled[seq] = [int(cat) for cat in row[6].split(',')] \
+                        if len(row[6]) > 0 else []
 
     def _get_cls_info(self):
         self.class_name_to_class_id = {}
@@ -167,12 +182,18 @@ class General(_BaseDataset):
             fp.seek(0)
             reader = csv.reader(fp, dialect)
             for i, row in enumerate(reader):
-                if len(row) >= 2:
+                if len(row) == 2:
                     cls = row[0]
                     self.class_name_to_class_id[cls] = int(row[1])
-                if len(row) >= 3:
-                    if row[2] != row[3]:
-                        self.merge_map[int(row[2])] = int(row[3])
+                else:
+                    if self.benchmark == 'TAO':
+                        cls = ' '.join([entry for entry in row[:-2]])
+                        self.class_name_to_class_id[cls] = int(row[-2])
+                        if row[-2] != row[-1]:
+                            self.merge_map[int(row[-2])] = int(row[-1])
+                    else:
+                        cls = ' '.join([entry for entry in row[:-1]])
+                        self.class_name_to_class_id[cls] = int(row[-1])
 
     def _load_raw_file(self, tracker, seq, is_gt):
         """Load a file (gt or tracker) in the MOT Challenge 2D box format
@@ -223,7 +244,7 @@ class General(_BaseDataset):
         num_timesteps = self.seq_lengths[seq]
         data_keys = ['ids', 'classes', 'dets']
         if is_gt:
-            data_keys += ['gt_crowd_ignore_regions', 'gt_extras']
+            data_keys += ['gt_ignore_regions', 'gt_extras']
         else:
             data_keys += ['tracker_confidences']
         raw_data = {key: [None] * num_timesteps for key in data_keys}
@@ -243,39 +264,36 @@ class General(_BaseDataset):
                     else:
                         raw_data['dets'][t] = np.atleast_2d([det[6:10] for det in read_data[time_key]]).astype(float)
                     if is_gt:
-                        gt_extras_dict = {'is_crowd': np.atleast_1d([det[10] for det
-                                                                     in read_data[time_key]]).astype(int),
-                                          'is_truncated': np.atleast_1d([det[11] for det
-                                                                         in read_data[time_key]]).astype(int),
-                                          'is_occluded': np.atleast_1d([det[12] for det
-                                                                        in read_data[time_key]]).astype(int),
+                        gt_extras_dict = {'crowd': np.atleast_1d([det[10] for det in read_data[time_key]]).astype(int),
+                                          'truncation': np.atleast_1d([det[11] for det
+                                                                       in read_data[time_key]]).astype(int),
+                                          'occlusion': np.atleast_1d([det[12] for det
+                                                                      in read_data[time_key]]).astype(int),
                                           'zero_marked': np.atleast_1d([det[13] for det
                                                                         in read_data[time_key]]).astype(int)}
                         raw_data['gt_extras'][t] = gt_extras_dict
                     else:
                         raw_data['tracker_confidences'][t] = np.atleast_1d([det[10] for det
-                                                                            in read_data[time_key]]).astype(int)
+                                                                            in read_data[time_key]]).astype(float)
                 except IndexError:
                     self._raise_index_error(is_gt, tracker, seq)
                 except ValueError:
-                    self._raise_value_error(is_gt,tracker,seq)
+                    self._raise_value_error(is_gt, tracker, seq)
             else:
                 if self.benchmark in ['DAVIS', 'YouTubeVIS', 'MOTS', 'KittiMOTS']:
                     raw_data['dets'][t] = []
                 else:
-                    raw_data['dets'][t] = np.empty((0, 4))
-                raw_data['ids'][t] = np.empty(0)
-                raw_data['classes'][t] = np.empty(0)
+                    raw_data['dets'][t] = np.empty((0, 4)).astype(float)
+                raw_data['ids'][t] = np.empty(0).astype(int)
+                raw_data['classes'][t] = np.empty(0).astype(int)
                 if is_gt:
-                    gt_extras_dict = {'is_crowd': np.empty(0),
-                                      'is_truncated': np.empty(0),
-                                      'is_occluded': np.empty(0),
-                                      'zero_marked': np.empty(0)}
+                    gt_extras_dict = {'crowd': np.empty(0).astype(int),
+                                      'truncation': np.empty(0).astype(int),
+                                      'occlusion': np.empty(0).astype(int),
+                                      'zero_marked': np.empty(0).astype(int)}
                     raw_data['gt_extras'][t] = gt_extras_dict
                 else:
-                    raw_data['tracker_confidences'][t] = np.empty(0)
-            if is_gt:
-                raw_data['gt_crowd_ignore_regions'][t] = np.empty((0, 4))
+                    raw_data['tracker_confidences'][t] = np.empty(0).astype(float)
 
             if is_gt:
                 if time_key in ignore_data.keys():
@@ -284,18 +302,21 @@ class General(_BaseDataset):
                             time_ignore = [{'size': [int(region[3]), int(region[4])],
                                             'counts': region[5].encode(encoding='UTF-8')}
                                            for region in ignore_data[time_key]]
-                            raw_data['gt_ignore_region'][t] = mask_utils.merge([mask for mask in time_ignore],
-                                                                               intersect=False)
+                            raw_data['gt_ignore_regions'][t] = mask_utils.merge([mask for mask in time_ignore],
+                                                                                intersect=False)
                             all_masks += time_ignore
                         else:
-                            raw_data['gt_ignore_region'][t] = np.atleast_2d([det[6:10] for det
-                                                                             in read_data[time_key]]).astype(float)
+                            raw_data['gt_ignore_regions'][t] = np.atleast_2d([det[6:10] for det
+                                                                              in ignore_data[time_key]]).astype(float)
                     except IndexError:
                         self._raise_index_error(is_gt, tracker, seq)
                     except ValueError:
-                        self._raise_value_error(is_gt,tracker,seq)
+                        self._raise_value_error(is_gt, tracker, seq)
                 else:
-                    raw_data['gt_ignore_region'][t] = mask_utils.merge([], intersect=False)
+                    if self.benchmark in ['DAVIS', 'YouTubeVIS', 'MOTS', 'KittiMOTS']:
+                        raw_data['gt_ignore_regions'][t] = mask_utils.merge([], intersect=False)
+                    else:
+                        raw_data['gt_ignore_regions'][t] = np.empty((0, 4)).astype(float)
 
             # check for overlapping masks
             if all_masks:
@@ -395,7 +416,187 @@ class General(_BaseDataset):
 
     @_timing.time
     def get_preprocessed_seq_data(self, raw_data, cls):
-        pass
+
+        if self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20']:
+            distractor_class_names = ['person_on_vehicle', 'static_person', 'distractor', 'reflection']
+            if self.benchmark == ['MOT20']:
+                distractor_class_names.append('non_mot_vehicle')
+        elif self.benchmark == 'Kitti2DBox':
+            if cls == 'pedestrian':
+                distractor_class_names = ['person']
+            elif cls == 'car':
+                distractor_class_names = ['van']
+            else:
+                raise (TrackEvalException('Class %s is not evaluatable' % cls))
+        elif self.benchmark == 'BDD100K':
+            distractor_class_names = ['other person', 'trailer', 'other vehicle']
+        else:
+            distractor_class_names = []
+        distractor_classes = [self.class_name_to_class_id[x] for x in distractor_class_names]
+        cls_id = self.class_name_to_class_id[cls]
+
+        data_keys = ['gt_ids', 'tracker_ids', 'gt_dets', 'tracker_dets', 'tracker_confidences', 'similarity_scores']
+        data = {key: [None] * raw_data['num_timesteps'] for key in data_keys}
+        unique_gt_ids = []
+        unique_tracker_ids = []
+        num_gt_dets = 0
+        num_tracker_dets = 0
+
+        print(raw_data['classes_to_gt_tracks'])
+        exit()
+
+        if self.benchmark in ['TAO', 'YouTubeVIS']:
+            data['gt_track_ids'] = raw_data['classes_to_gt_tracks'][cls_id].keys()
+            data['gt_tracks'] = [raw_data['classes_to_gt_tracks'][cls_id][tid] for tid in data['gt_track_ids']]
+            data['gt_track_lengths'] = [len(track.keys()) for track in data['gt_tracks']]
+            data['dt_track_ids'] = raw_data['classes_to_dt_tracks'][cls_id].keys()
+            data['dt_tracks'] = [raw_data['classes_to_dt_tracks'][cls_id][tid] for tid in data['dt_track_ids']]
+            data['dt_track_lengths'] = [len(track.keys()) for track in data['dt_tracks']]
+            data['dt_track_scores'] = np.array([np.mean(raw_data['classes_to_track_scores'][cls_id][tid]) for tid
+                                                in data['dt_track_ids']])
+            if self.benchmark == 'TAO':
+                data['gt_track_areas'] = []
+                for tid in data['gt_track_ids']:
+                    track = raw_data['classes_to_gt_tracks'][cls_id][tid]
+                    if track:
+                        data['gt_track_areas'].append(sum([(ann[2] - ann[0]) * (ann[3] - ann[1]) for ann in track])
+                                                      / len(track))
+                    else:
+                        data['gt_track_areas'].append(0)
+                data['dt_track_areas'] = []
+                for tid in data['dt_track_ids']:
+                    track = raw_data['classes_to_dt_tracks'][cls_id][tid]
+                    if track:
+                        data['dt_track_areas'].append(sum([(ann[2] - ann[0]) * (ann[3] - ann[1]) for ann in track])
+                                                      / len(track))
+                    else:
+                        data['dt_track_areas'].append(0)
+            else:
+                data['gt_track_areas'] = []
+                for tid in data['gt_track_ids']:
+                    track = raw_data['classes_to_gt_tracks'][cls_id][tid]
+                    if track:
+                        data['gt_track_areas'].append(np.mean([mask_utils.area(ann) for ann in track]))
+                    else:
+                        data['gt_track_areas'].append(0)
+                data['dt_track_areas'] = []
+                for tid in data['dt_track_ids']:
+                    track = raw_data['classes_to_dt_tracks'][cls_id][tid]
+                    if track:
+                        data['dt_track_areas'].append(np.mean([mask_utils.area(ann) for ann in track]))
+                    else:
+                        data['dt_track_areas'].append(0)
+
+            if data['dt_tracks']:
+                idx = np.argsort([-score for score in data['dt_track_scores']], kind="mergesort")
+                data['dt_track_scores'] = [data['dt_track_scores'][i] for i in idx]
+                data['dt_tracks'] = [data['dt_tracks'][i] for i in idx]
+                data['dt_track_ids'] = [data['dt_track_ids'][i] for i in idx]
+                data['dt_track_areas'] = [data['dt_track_areas'][i] for i in idx]
+        print(raw_data['classes_to_gt_tracks'][cls_id])
+        exit()
+
+        for t in range(raw_data['num_timesteps']):
+
+            # Only extract relevant dets for this class for preproc and eval (cls + distractor classes)
+            gt_class_mask = np.sum([raw_data['gt_classes'][t] == c for c in [cls_id] + distractor_classes], axis=0)
+            gt_class_mask = gt_class_mask.astype(np.bool)
+            gt_ids = raw_data['gt_ids'][t][gt_class_mask]
+            gt_dets = raw_data['gt_dets'][t][gt_class_mask]
+            gt_classes = raw_data['gt_classes'][t][gt_class_mask]
+            if self.benchmark == 'Kitti2DBox':
+                gt_occlusion = raw_data['gt_extras'][t]['occlusion'][gt_class_mask]
+                gt_truncation = raw_data['gt_extras'][t]['truncation'][gt_class_mask]
+            elif self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20']:
+                gt_zero_marked = raw_data['gt_extras'][t]['zero_marked'][gt_class_mask]
+
+            tracker_class_mask = np.atleast_1d(raw_data['tracker_classes'][t] == cls_id)
+            tracker_class_mask = tracker_class_mask.astype(np.bool)
+            tracker_ids = raw_data['tracker_ids'][t][tracker_class_mask]
+            tracker_dets = raw_data['tracker_dets'][t][tracker_class_mask]
+            tracker_confidences = raw_data['tracker_confidences'][t][tracker_class_mask]
+            similarity_scores = raw_data['similarity_scores'][t][gt_class_mask, :][:, tracker_class_mask]
+
+            # Match tracker and gt dets (with hungarian algorithm) and remove tracker dets which match with gt dets
+            # which are labeled as truncated, occluded, or belonging to a distractor class.
+            to_remove_matched = np.array([], np.int)
+            unmatched_indices = np.arange(tracker_ids.shape[0])
+            if gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
+                matching_scores = similarity_scores.copy()
+                matching_scores[matching_scores < 0.5] = 0
+                match_rows, match_cols = linear_sum_assignment(-matching_scores)
+                actually_matched_mask = matching_scores[match_rows, match_cols] > 0
+                match_rows = match_rows[actually_matched_mask]
+                match_cols = match_cols[actually_matched_mask]
+
+                is_distractor_class = np.isin(gt_classes[match_rows], distractor_classes)
+                is_occluded_or_truncated = np.logical_or(gt_occlusion[match_rows] > self.max_occlusion,
+                                                         gt_truncation[match_rows] > self.max_truncation)
+                to_remove_matched = np.logical_or(is_distractor_class, is_occluded_or_truncated)
+                to_remove_matched = match_cols[to_remove_matched]
+                unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
+
+            # For unmatched tracker dets, also remove those smaller than a minimum height.
+            unmatched_tracker_dets = tracker_dets[unmatched_indices, :]
+            unmatched_heights = unmatched_tracker_dets[:, 3] - unmatched_tracker_dets[:, 1]
+            is_too_small = unmatched_heights <= self.min_height
+
+            # For unmatched tracker dets, also remove those that are greater than 50% within a crowd ignore region.
+            crowd_ignore_regions = raw_data['gt_ignore_regions'][t]
+            intersection_with_ignore_region = self._calculate_box_ious(unmatched_tracker_dets, crowd_ignore_regions,
+                                                                       box_format='x0y0x1y1', do_ioa=True)
+            is_within_crowd_ignore_region = np.any(intersection_with_ignore_region > 0.5, axis=1)
+
+            # Apply preprocessing to remove all unwanted tracker dets.
+            to_remove_unmatched = unmatched_indices[np.logical_or(is_too_small, is_within_crowd_ignore_region)]
+            to_remove_tracker = np.concatenate((to_remove_matched, to_remove_unmatched), axis=0)
+            data['tracker_ids'][t] = np.delete(tracker_ids, to_remove_tracker, axis=0)
+            data['tracker_dets'][t] = np.delete(tracker_dets, to_remove_tracker, axis=0)
+            data['tracker_confidences'][t] = np.delete(tracker_confidences, to_remove_tracker, axis=0)
+            similarity_scores = np.delete(similarity_scores, to_remove_tracker, axis=1)
+
+            # Also remove gt dets that were only useful for preprocessing and are not needed for evaluation.
+            # These are those that are occluded, truncated and from distractor objects.
+            gt_to_keep_mask = (np.less_equal(gt_occlusion, self.max_occlusion)) & \
+                              (np.less_equal(gt_truncation, self.max_truncation)) & \
+                              (np.equal(gt_classes, cls_id))
+            data['gt_ids'][t] = gt_ids[gt_to_keep_mask]
+            data['gt_dets'][t] = gt_dets[gt_to_keep_mask, :]
+            data['similarity_scores'][t] = similarity_scores[gt_to_keep_mask]
+
+            unique_gt_ids += list(np.unique(data['gt_ids'][t]))
+            unique_tracker_ids += list(np.unique(data['tracker_ids'][t]))
+            num_tracker_dets += len(data['tracker_ids'][t])
+            num_gt_dets += len(data['gt_ids'][t])
+
+        # Re-label IDs such that there are no empty IDs
+        if len(unique_gt_ids) > 0:
+            unique_gt_ids = np.unique(unique_gt_ids)
+            gt_id_map = np.nan * np.ones((np.max(unique_gt_ids) + 1))
+            gt_id_map[unique_gt_ids] = np.arange(len(unique_gt_ids))
+            for t in range(raw_data['num_timesteps']):
+                if len(data['gt_ids'][t]) > 0:
+                    data['gt_ids'][t] = gt_id_map[data['gt_ids'][t]].astype(np.int)
+        if len(unique_tracker_ids) > 0:
+            unique_tracker_ids = np.unique(unique_tracker_ids)
+            tracker_id_map = np.nan * np.ones((np.max(unique_tracker_ids) + 1))
+            tracker_id_map[unique_tracker_ids] = np.arange(len(unique_tracker_ids))
+            for t in range(raw_data['num_timesteps']):
+                if len(data['tracker_ids'][t]) > 0:
+                    data['tracker_ids'][t] = tracker_id_map[data['tracker_ids'][t]].astype(np.int)
+
+        # Record overview statistics.
+        data['num_tracker_dets'] = num_tracker_dets
+        data['num_gt_dets'] = num_gt_dets
+        data['num_tracker_ids'] = len(unique_tracker_ids)
+        data['num_gt_ids'] = len(unique_gt_ids)
+        data['num_timesteps'] = raw_data['num_timesteps']
+        data['seq'] = raw_data['seq']
+
+        # Ensure that ids are unique per timestep.
+        self._check_unique_ids(data)
+
+        return data
 
     def _calculate_similarities(self, gt_dets_t, tracker_dets_t):
         if self.benchmark in ['DAVIS', 'YouTubeVIS', 'MOTS', 'KittiMOTS']:
