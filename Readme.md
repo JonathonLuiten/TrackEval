@@ -14,9 +14,9 @@ The following metrics are currently implemented:
 
 ## Currently implemented benchmarks:
 
- - [MOTChallenge](https://motchallenge.net/) (MOT15/16/17/20) ([code](trackeval/datasets/mot_challenge_2d_box.py))
- - [KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php) ([code](trackeval/datasets/kitti_2d_box.py))
- - [MOTS](https://www.vision.rwth-aachen.de/page/mots) ([KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php) and [MOTS Challenge](https://motchallenge.net/results/MOTS/)) ([code](trackeval/datasets/mots_challenge.py) and [code](trackeval/datasets/kitti_mots.py))
+ - [MOTChallenge](https://motchallenge.net/) (MOT15/16/17/20) ([code](trackeval/datasets/mot_challenge_2d_box.py), [format](docs/MOTChallenge-format.txt))
+ - [KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php) ([code](trackeval/datasets/kitti_2d_box.py), [format](docs/KITTI-format.txt))
+ - [MOTS](https://www.vision.rwth-aachen.de/page/mots) ([KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php) and [MOTS Challenge](https://motchallenge.net/results/MOTS/)) ([code](trackeval/datasets/mots_challenge.py) and [code](trackeval/datasets/kitti_mots.py), [format](docs/MOTS-format.txt))
 
 ## HOTA metrics
 
@@ -27,7 +27,7 @@ This code is also the official reference implementation for the HOTA metrics:
 HOTA is a novel set of MOT evaluation metrics which enable better understanding of tracking behaviour than previous metrics.
 
 For more information check out the following links:
- - [Short blog post on HOTA](https://jonathonluiten.medium.com/how-to-evaluate-tracking-with-the-hota-metrics-754036d183e1) - **HIGHLY RECOMMENDED**
+ - [Short blog post on HOTA](https://jonathonluiten.medium.com/how-to-evaluate-tracking-with-the-hota-metrics-754036d183e1) - **HIGHLY RECOMMENDED READING**
  - [IJCV version of paper](https://link.springer.com/article/10.1007/s11263-020-01375-2) (Open Access)
  - [ArXiv version of paper](https://arxiv.org/abs/2009.07736)
  - [Code](trackeval/metrics/hota.py)
@@ -51,6 +51,29 @@ The code can be run in one of two ways:
  - From the terminal via one of the scripts [here](scripts/). See each script for instructions and arguments, hopefully this is self-explanatory.
  - Directly by importing this package into your code, see the same scripts above for how. 
 
+## Quickly evaluate on supported benchmarks
+
+To enable you to use TrackEval for evaluation as quickly and easily as possible, we provide ground-truth data, meta-data and example trackers for all currently supported benchmarks.
+You can download this here: [data.zip](https://omnomnom.vision.rwth-aachen.de/data/TrackEval/data.zip) (~60mb).
+
+The easiest way to begin is to extract this zip into the repository root folder such that the file paths look like: TrackEval/data/gt/...
+
+This then corresponds to the default paths in the code. You can now run each of the scripts [here](scripts/) without providing any arguments and they will by default evaluate all trackers present in the supplied file structure. To evaluate your own tracking results, simply copy your files as a new tracker folder into the file structure at the same level as the example trackers (MPNTrack, CIWT, track_rcnn), ensuring the same file structure for your trackers as in the example.
+
+Of course, if your ground-truth and tracker files are located somewhere else you can simply use the script arguments to point the code toward your data.
+
+To ensure your tracker outputs data in the correct format, check out our format guides for each of the supported benchmarks [here](docs), or check out the example trackers provided.
+
+## Evaluate on your own custom benchmark
+
+To evaluate on your own data, you have two options:
+ - Write custom dataset code (more effort, rarely worth it).
+ - Convert your current dataset and trackers to the same format of an already implemented benchmark.
+
+To convert formats, check out the format specifications defined [here](docs).
+
+By default, we would recommend the MOTChallenge format, although any implemented format should work. Note that for many cases you will want to use the argument ```--DO_PREPROC False``` unless you want to run preprocessing to remove distractor objects.
+
 ## Timing analysis
 
 Evaluating CLEAR + ID metrics on Lift_T tracker on MOT17-train (seconds) on a i7-9700K CPU with 8 physical cores (median of 3 runs):		
@@ -60,7 +83,7 @@ Num Cores|TrackEval|MOTChallenge|Speedup vs MOTChallenge|py-motmetrics|Speedup v
 4|3.01|29.42|9.77x| |33.11x*
 8|1.62|29.51|18.22x| |61.51x*
 
-*using a different number of cores at py-motmetrics doesn't allow multiprocessing.
+*using a different number of cores as py-motmetrics doesn't allow multiprocessing.
 				
 ```
 python scripts/run_mot_challenge.py --BENCHMARK MOT17 --TRACKERS_TO_EVAL Lif_T --METRICS Clear ID --USE_PARALLEL False --NUM_PARALLEL_CORES 1  
@@ -82,6 +105,15 @@ TrackEval is released under the [MIT License](LICENSE).
 ## Contact
 
 If you encounter any problems with the code, please contact [Jonathon Luiten](https://www.vision.rwth-aachen.de/person/216/) (luiten at vision dot rwth-aachen dot de).
+If anything is unclear, or hard to use, please leave a comment either via email or as an issue and I would love to help.
+
+## Dedication
+
+This codebase was built for you, in order to make your life easier! For anyone doing research on tracking or using trackers, please don't hesitate to reach out with any comments or suggestions on how things could be improved.
+
+## Contributing
+
+We welcome contributions of new metrics and new supported benchmarks. Also any other new features or code improvements. Send a PR, an email, or open an issue detailing what you'd like to add/change to begin a conversation.
 
 ## Citing TrackEval
 
