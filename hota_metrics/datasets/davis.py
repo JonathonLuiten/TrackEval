@@ -4,14 +4,13 @@ import numpy as np
 from glob import glob
 from PIL import Image
 from pycocotools import mask as mask_utils
-from scipy.optimize import linear_sum_assignment
 from ._base_dataset import _BaseDataset
 from .. import utils
 from .. import _timing
 
 
-class DAVISChallengeMask(_BaseDataset):
-    """Dataset class for DAVIS Challenge Segmentation Mask tracking"""
+class DAVIS(_BaseDataset):
+    """Dataset class for DAVIS tracking"""
 
     @staticmethod
     def get_default_dataset_config():
@@ -19,13 +18,18 @@ class DAVISChallengeMask(_BaseDataset):
         code_path = utils.get_code_path()
         default_config = {
             'GT_FOLDER': os.path.join(code_path, 'data/gt/davis/'),  # Location of GT data
-            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/davis/'),  # Trackers location
+            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/davis/davis_val'),  # Trackers location
             'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
             'SPLIT_TO_EVAL': 'val',  # Valid: 'val', 'train'
             'PRINT_CONFIG': True,  # Whether to print current config
             'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
             'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
+            'TRACKER_DISPLAY_NAMES': None,  # Names of trackers to display, if None: TRACKERS_TO_EVAL
+            'SEQMAP_FOLDER': None,  # Where seqmaps are found (if None, GT_FOLDER/ImageSets/2017)
+            'SEQMAP_FILE': None,  # Directly specify seqmap file (if none use seqmap_folder/split-to-eval.txt)
+            'SEQ_INFO': None,  # If not None, directly specify sequences to eval and their number of timesteps
+            'GT_LOC_FORMAT': '{gt_folder}/Annotations_unsupervised/480p/{seq}',  # '{gt_folder}/{seq}/gt/gt.txt'
             'MAX_DETECTIONS': 0 # Maximum number of allowed detections per sequence (0 for no threshold)
         }
         return default_config
@@ -35,11 +39,12 @@ class DAVISChallengeMask(_BaseDataset):
         super().__init__()
         # Fill non-given config values with defaults
         self.config = utils.init_config(config, self.get_default_dataset_config(), self.get_name())
+        # defining a default class since there are no classes in DAVIS
         self.class_list = ['general']
         self.should_classes_combine = False
 
-        self.gt_fol = os.path.join(self.config['GT_FOLDER'], 'Annotations_unsupervised/480p')
-        self.tracker_fol = os.path.join(self.config['TRACKERS_FOLDER'], self.config['SPLIT_TO_EVAL'])
+        self.gt_fol = self.config['GT_FOLDER']
+        self.tracker_fol = self.config['TRACKERS_FOLDER']
 
         self.output_sub_fol = self.config['OUTPUT_SUB_FOLDER']
         self.tracker_sub_fol = self.config['TRACKER_SUB_FOLDER']
@@ -53,19 +58,31 @@ class DAVISChallengeMask(_BaseDataset):
         # Get sequences to eval and check gt files exist
         self.seq_list = []
         self.seq_lengths = {}
-        seqmap_file = os.path.join(self.config['GT_FOLDER'], 'ImageSets/2017', self.config['SPLIT_TO_EVAL'] + '.txt')
-        assert os.path.isfile(seqmap_file), 'no seqmap found: ' + seqmap_file
-        with open(seqmap_file) as fp:
-            reader = csv.reader(fp)
-            for i, row in enumerate(reader):
-                if row[0] == '':
-                    continue
-                seq = row[0]
-                self.seq_list.append(seq)
-                curr_dir = os.path.join(self.gt_fol, seq)
-                assert os.path.isdir(curr_dir), 'GT directory not found: ' + curr_dir
-                curr_timesteps = len(glob(os.path.join(curr_dir, '*.png')))
-                self.seq_lengths[seq] = curr_timesteps
+        if self.config["SEQ_INFO"]:
+            self.seq_list = list(self.config["SEQ_INFO"].keys())
+            self.seq_lengths = self.config["SEQ_INFO"]
+        else:
+            if self.config["SEQMAP_FILE"]:
+                seqmap_file = self.config["SEQMAP_FILE"]
+            else:
+                if self.config["SEQMAP_FOLDER"] is None:
+                    seqmap_file = os.path.join(self.config['GT_FOLDER'], 'ImageSets/2017',
+                                               self.config['SPLIT_TO_EVAL'] + '.txt')
+                else:
+                    seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], self.config['SPLIT_TO_EVAL'] + '.txt')
+            if not os.path.isfile(seqmap_file):
+                raise Exception('no seqmap found: ' + os.path.basename(seqmap_file))
+            with open(seqmap_file) as fp:
+                reader = csv.reader(fp)
+                for i, row in enumerate(reader):
+                    if row[0] == '':
+                        continue
+                    seq = row[0]
+                    self.seq_list.append(seq)
+                    curr_dir = self.config["GT_LOC_FORMAT"].format(gt_folder=self.gt_fol, seq=seq)
+                    assert os.path.isdir(curr_dir), 'GT directory not found: ' + curr_dir
+                    curr_timesteps = len(glob(os.path.join(curr_dir, '*.png')))
+                    self.seq_lengths[seq] = curr_timesteps
 
         # Get trackers to eval
         if self.config['TRACKERS_TO_EVAL'] is None:
@@ -81,21 +98,29 @@ class DAVISChallengeMask(_BaseDataset):
                                                               'timesteps for tracker %s and sequence %s' \
                                                               % (tracker, seq)
 
+        if self.config['TRACKER_DISPLAY_NAMES'] is None:
+            self.tracker_to_disp = dict(zip(self.tracker_list, self.tracker_list))
+        elif (self.config['TRACKERS_TO_EVAL'] is not None) and (
+                len(self.config['TRACKER_DISPLAY_NAMES']) == len(self.tracker_list)):
+            self.tracker_to_disp = dict(zip(self.tracker_list, self.config['TRACKER_DISPLAY_NAMES']))
+        else:
+            raise Exception('List of tracker files and tracker display names do not match.')
+
     def _load_raw_file(self, tracker, seq, is_gt):
-        """Load a file (gt or tracker) in the MOTChallenge MOTS format
+        """Load a file (gt or tracker) in the DAVIS format
 
         If is_gt, this returns a dict which contains the fields:
-        [gt_ids, gt_classes] : list (for each timestep) of 1D NDArrays (for each det).
+        [gt_ids] : list (for each timestep) of 1D NDArrays (for each det).
         [gt_dets]: list (for each timestep) of lists of detections.
-        [gt_ignore_region]: list (for each timestep) of masks for the ignore regions
+        [masks_void]: list of masks with void pixels (pixels to be ignored during evaluation)
 
         if not is_gt, this returns a dict which contains the fields:
-        [tracker_ids, tracker_classes] : list (for each timestep) of 1D NDArrays (for each det).
+        [tracker_ids] : list (for each timestep) of 1D NDArrays (for each det).
         [tracker_dets]: list (for each timestep) of lists of detections.
         """
         # File location
         if is_gt:
-            seq_dir = os.path.join(self.gt_fol, seq)
+            seq_dir = self.config["GT_LOC_FORMAT"].format(gt_folder=self.gt_fol, seq=seq)
         else:
             seq_dir = os.path.join(self.tracker_fol, tracker, 'data', seq)
 
@@ -103,14 +128,17 @@ class DAVISChallengeMask(_BaseDataset):
         data_keys = ['ids', 'dets']
         raw_data = {key: [None] * num_timesteps for key in data_keys}
 
+        # read frames
         frames = np.sort(glob(os.path.join(seq_dir, '*.png')))
         mask0 = np.array(Image.open(frames[0]))
         all_masks = np.zeros((len(frames), *mask0.shape))
         for i, t in enumerate(frames):
             all_masks[i, ...] = np.array(Image.open(t))
+        # extract void pixels
         if is_gt:
             masks_void = all_masks == 255
             all_masks[masks_void] = 0
+            # encode masks with pycocotools
             raw_data['masks_void'] = mask_utils.encode(np.array(
                 np.transpose(masks_void.astype(np.uint8), (1, 2, 0)), order='F'))
 
@@ -119,9 +147,11 @@ class DAVISChallengeMask(_BaseDataset):
             raise Exception('Number of proposals (%i) for sequence %s exceeds number of maximum allowed proposal (%i).'
                             % (num_objects, seq, self.max_det))
 
+        # split frames into masks for different detections
         tmp = np.ones((num_objects, *all_masks.shape))
         tmp = tmp * np.arange(1, num_objects + 1)[:, None, None, None]
         masks = np.array(tmp == all_masks[None, ...]).astype(np.uint8)
+        # encode masks with pycocotools
         masks_encoded = {i: mask_utils.encode(np.array(
             np.transpose(masks[i, :], (1, 2, 0)), order='F')) for i in range(masks.shape[0])}
 
@@ -171,13 +201,14 @@ class DAVISChallengeMask(_BaseDataset):
                 and unique track ids. It also relabels gt and tracker ids to be contiguous and checks that ids are
                 unique within each timestep.
 
-        MOTChallenge MOTS:
-            In MOTChallenge MOTS, the 4 preproc steps are as follow:
-                1) There are two classes (cars and pedestrians) which are evaluated separately.
-                2) There are no ground truth detections marked as to be removed. Therefore also no matched tracker
-                    detections are removed.
-                3) Ignore regions are used to remove unmatched detections.
+        DAVIS:
+            In DAVIS, the 4 preproc steps are as follow:
+                1) There are no classes, all detections are evaluated jointly
+                2) No matched tracker detections are removed.
+                3) No unmatched tracker detections are removed.
                 4) There are no ground truth detections (e.g. those of distractor classes) to be removed.
+            Preprocessing special to DAVIS: Pixels which are marked as void in the ground truth are set to zero in the
+                tracker detections since they are not considered during evaluation.
         """
         data_keys = ['gt_ids', 'tracker_ids', 'gt_dets', 'tracker_dets', 'similarity_scores']
         data = {key: [None] * raw_data['num_timesteps'] for key in data_keys}
@@ -185,6 +216,7 @@ class DAVISChallengeMask(_BaseDataset):
         num_tracker_dets = 0
         num_timesteps = raw_data['num_timesteps']
 
+        # count detections
         for t in range(num_timesteps):
             num_gt_dets += len([mask for mask in raw_data['gt_dets'][t] if mask_utils.area(mask)>0])
             num_tracker_dets += len([mask for mask in raw_data['tracker_dets'][t] if mask_utils.area(mask)>0])
@@ -194,6 +226,7 @@ class DAVISChallengeMask(_BaseDataset):
         data['similarity_scores'] = raw_data['similarity_scores']
         data['tracker_ids'] = raw_data['tracker_ids']
 
+        # set void pixels in tracker detections to zero
         for t in range(num_timesteps):
             void_mask = raw_data['masks_void'][t]
             if mask_utils.area(void_mask) > 0:

@@ -39,7 +39,7 @@ import hota_metrics as hm  # noqa: E402
 
 # Command line interface:
 default_eval_config = hm.Evaluator.get_default_eval_config()
-default_dataset_config = hm.datasets.DAVISChallengeMask.get_default_dataset_config()
+default_dataset_config = hm.datasets.DAVIS.get_default_dataset_config()
 default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity', 'JAndF']}
 config = {**default_eval_config, **default_dataset_config, **default_metrics_config}  # Merge default configs
 parser = argparse.ArgumentParser()
@@ -71,7 +71,7 @@ metrics_config = {k: v for k, v in config.items() if k in default_metrics_config
 
 # Run code
 evaluator = hm.Evaluator(eval_config)
-dataset_list = [hm.datasets.DAVISChallengeMask(dataset_config)]
+dataset_list = [hm.datasets.DAVIS(dataset_config)]
 metrics_list = []
 for metric in [hm.metrics.JAndF]:
     if metric.get_name() in metrics_config['METRICS']:

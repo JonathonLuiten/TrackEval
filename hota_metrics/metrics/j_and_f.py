@@ -10,7 +10,7 @@ from .. import _timing
 
 
 class JAndF(_BaseMetric):
-    """Class which simply counts the number of tracker and gt detections and ids."""
+    """Class which implements the J&F metrics"""
     def __init__(self):
         super().__init__()
         self.integer_fields = ['num_gt_tracks']
@@ -21,14 +21,13 @@ class JAndF(_BaseMetric):
 
     @_timing.time
     def eval_sequence(self, data):
-        """Returns counts for one sequence"""
-        # Get results
-
+        """Returns J&F metrics for one sequence"""
         num_tracker_ids = data['num_tracker_ids']
         num_gt_ids = data['num_gt_ids']
         gt_dets = data['gt_dets']
         tracker_dets = data['tracker_dets']
 
+        # pad with all zero masks if num_tracker_ids < num_gt_ids
         if num_tracker_ids < num_gt_ids:
             diff = num_gt_ids - num_tracker_ids
             zero_padding = np.zeros((data['mask_shape']), order= 'F').astype(np.uint8)
@@ -38,6 +37,8 @@ class JAndF(_BaseMetric):
             num_tracker_ids += diff
 
         j = self._compute_j(gt_dets, tracker_dets, num_gt_ids, num_tracker_ids, data['num_timesteps'])
+
+        # boundary threshold for F computation
         bound_th = 0.008
 
         # perform matching
@@ -160,6 +161,16 @@ class JAndF(_BaseMetric):
 
     @staticmethod
     def _compute_f(gt_data, tracker_data, tracker_data_id, gt_id, bound_th):
+        """
+        Perform F computation for a given gt and a given tracker ID. Adapted from
+        https://github.com/davisvideochallenge/davis2017-evaluation
+        :param gt_data: the encoded gt masks
+        :param tracker_data: the encoded tracker masks
+        :param tracker_data_id: the tracker ID
+        :param gt_id: the ground truth ID
+        :param bound_th: boundary threshold parameter
+        :return: the F value for the given tracker and gt ID
+        """
         f = np.zeros(len(gt_data))
 
         for t, (gt_masks, tracker_masks) in enumerate(zip(gt_data, tracker_data)):
@@ -212,9 +223,18 @@ class JAndF(_BaseMetric):
 
     @staticmethod
     def _compute_j(gt_data, tracker_data, num_gt_ids, num_tracker_ids, num_timesteps):
+        """
+        Computation of J value for all ground truth IDs and all tracker IDs in the given sequence. Adapted from
+        https://github.com/davisvideochallenge/davis2017-evaluation
+        :param gt_data: the ground truth masks
+        :param tracker_data: the tracker masks
+        :param num_gt_ids: the number of ground truth IDs
+        :param num_tracker_ids: the number of tracker IDs
+        :param num_timesteps: the number of timesteps
+        :return: the J values
+        """
         j = np.zeros((num_tracker_ids, num_gt_ids, num_timesteps))
 
-        # J computation
         for t, (time_gt, time_data) in enumerate(zip(gt_data, tracker_data)):
             # run length encoded masks with pycocotools
             area_gt = mask_utils.area(time_gt)
