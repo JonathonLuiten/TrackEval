@@ -9,8 +9,8 @@ from .. import _timing
 from glob import glob
 
 
-class BDD100K2DBox(_BaseDataset):
-    """Dataset class for KITTI 2D bounding box tracking"""
+class BDD100K(_BaseDataset):
+    """Dataset class for BDD100K tracking"""
 
     @staticmethod
     def get_default_dataset_config():
@@ -30,7 +30,6 @@ class BDD100K2DBox(_BaseDataset):
             'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
             'TRACKER_DISPLAY_NAMES': None,  # Names of trackers to display, if None: TRACKERS_TO_EVAL
         }
-        # todo: do tracker display name above, also set that if empty do not output 'summary' for that class
         return default_config
 
     def __init__(self, config=None):

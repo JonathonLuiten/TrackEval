@@ -45,7 +45,7 @@ if __name__ == '__main__':
     # Command line interface:
     default_eval_config = hm.Evaluator.get_default_eval_config()
     default_eval_config['PRINT_ONLY_COMBINED'] = True
-    default_dataset_config = hm.datasets.BDD100K2DBox.get_default_dataset_config()
+    default_dataset_config = hm.datasets.BDD100K.get_default_dataset_config()
     default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity']}
     config = {**default_eval_config, **default_dataset_config, **default_metrics_config}  # Merge default configs
     parser = argparse.ArgumentParser()
@@ -77,7 +77,7 @@ if __name__ == '__main__':
 
     # Run code
     evaluator = hm.Evaluator(eval_config)
-    dataset_list = [hm.datasets.BDD100K2DBox(dataset_config)]
+    dataset_list = [hm.datasets.BDD100K(dataset_config)]
     metrics_list = []
     for metric in [hm.metrics.HOTA, hm.metrics.CLEAR, hm.metrics.Identity]:
         if metric.get_name() in metrics_config['METRICS']:
