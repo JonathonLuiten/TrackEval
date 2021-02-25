@@ -200,9 +200,9 @@ class TrackMAP(_BaseMetric):
 
                 dt_idx = np.argsort(-dt_scores, kind="mergesort")
 
-                dt_m = np.concatenate([e["dt_matches"][:,0:self.maxDet] for e in ig_idx_results],
+                dt_m = np.concatenate([e["dt_matches"][:, 0:self.maxDet] for e in ig_idx_results],
                                       axis=1)[:, dt_idx]
-                dt_ig = np.concatenate([e["dt_ignore"][:,0:self.maxDet] for e in ig_idx_results],
+                dt_ig = np.concatenate([e["dt_ignore"][:, 0:self.maxDet] for e in ig_idx_results],
                                        axis=1)[:, dt_idx]
             else:
                 raise Exception("Number of maximum detections must be >= 0, but is set to %i" % self.maxDet)
