@@ -3,3 +3,4 @@ from .kitti_mots import KittiMOTS
 from .mot_challenge_2d_box import MotChallenge2DBox
 from .mots_challenge import MOTSChallenge
 from .bdd100k import BDD100K
+from .davis import DAVIS
