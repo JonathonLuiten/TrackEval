@@ -128,7 +128,7 @@ class HOTA(_BaseMetric):
         return res
 
     def combine_classes_class_averaged(self, all_res):
-        """Combines metrics across all sequences"""
+        """Combines metrics across all classes by averaging over the class values"""
         res = {}
         for field in self.integer_array_fields:
             res[field] = self._combine_sum(
@@ -142,7 +142,7 @@ class HOTA(_BaseMetric):
         return res
 
     def combine_classes_det_averaged(self, all_res):
-        """Combines metrics across all sequences"""
+        """Combines metrics across all classes by averaging over the detection values"""
         res = {}
         for field in self.integer_array_fields:
             res[field] = self._combine_sum(all_res, field)

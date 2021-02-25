@@ -3,6 +3,7 @@ import os
 import json
 import numpy as np
 from scipy.optimize import linear_sum_assignment
+from ..utils import TrackEvalException
 from ._base_dataset import _BaseDataset
 from .. import utils
 from .. import _timing
@@ -17,8 +18,8 @@ class BDD100K(_BaseDataset):
         """Default class config values"""
         code_path = utils.get_code_path()
         default_config = {
-            'GT_FOLDER': os.path.join(code_path, 'data/gt/bdd100k'),  # Location of GT data
-            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/bdd100k'),  # Trackers location
+            'GT_FOLDER': os.path.join(code_path, 'data/gt/bdd100k/bdd100k_val'),  # Location of GT data
+            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/bdd100k/bdd100k_val'),  # Trackers location
             'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
             'CLASSES_TO_EVAL': ['pedestrian', 'rider', 'car', 'bus', 'truck', 'train', 'motorcycle', 'bicycle'],
@@ -37,8 +38,8 @@ class BDD100K(_BaseDataset):
         super().__init__()
         # Fill non-given config values with defaults
         self.config = utils.init_config(config, self.get_default_dataset_config(), self.get_name())
-        self.gt_fol = os.path.join(self.config['GT_FOLDER'], self.config['SPLIT_TO_EVAL'])
-        self.tracker_fol = os.path.join(self.config['TRACKERS_FOLDER'], self.config['SPLIT_TO_EVAL'])
+        self.gt_fol = self.config['GT_FOLDER']
+        self.tracker_fol = self.config['TRACKERS_FOLDER']
         self.should_classes_combine = True
         self.use_super_categories = True
 
@@ -54,7 +55,8 @@ class BDD100K(_BaseDataset):
         self.class_list = [cls.lower() if cls.lower() in self.valid_classes else None
                            for cls in self.config['CLASSES_TO_EVAL']]
         if not all(self.class_list):
-            raise Exception('Attempted to evaluate an invalid class. Only classes [car, pedestrian] are valid.')
+            raise TrackEvalException('Attempted to evaluate an invalid class. Only classes [pedestrian, rider, car, '
+                                     'bus, truck, train, motorcycle, bicycle] are valid.')
         self.super_categories = {"HUMAN": [cls for cls in ["pedestrian", "rider"] if cls in self.class_list],
                                  "VEHICLE": [cls for cls in ["car", "truck", "bus", "train"] if cls in self.class_list],
                                  "BIKE": [cls for cls in ["motorcycle", "bicycle"] if cls in self.class_list]}
@@ -62,7 +64,7 @@ class BDD100K(_BaseDataset):
         self.class_name_to_class_id = {'pedestrian': 1, 'rider': 2, 'other person': 3, 'car': 4, 'bus': 5, 'truck': 6,
                                        'train': 7, 'trailer': 8, 'other vehicle': 9, 'motorcycle': 10, 'bicycle': 11}
 
-        # Get sequences to eval and check gt files exist
+        # Get sequences to eval
         self.seq_list = []
         self.seq_lengths = {}
 
@@ -81,13 +83,13 @@ class BDD100K(_BaseDataset):
                 len(self.config['TRACKER_DISPLAY_NAMES']) == len(self.tracker_list)):
             self.tracker_to_disp = dict(zip(self.tracker_list, self.config['TRACKER_DISPLAY_NAMES']))
         else:
-            raise Exception('List of tracker files and tracker display names do not match.')
+            raise TrackEvalException('List of tracker files and tracker display names do not match.')
 
         for tracker in self.tracker_list:
             for seq in self.seq_list:
                 curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.json')
                 if not os.path.isfile(curr_file):
-                    raise Exception(
+                    raise TrackEvalException(
                         'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol + '/' + os.path.basename(
                             curr_file))
 
@@ -95,12 +97,11 @@ class BDD100K(_BaseDataset):
         return self.tracker_to_disp[tracker]
 
     def _load_raw_file(self, tracker, seq, is_gt):
-        """Load a file (gt or tracker) in the kitti 2D box format
+        """Load a file (gt or tracker) in the BDD100K format
 
         If is_gt, this returns a dict which contains the fields:
         [gt_ids, gt_classes] : list (for each timestep) of 1D NDArrays (for each det).
         [gt_dets, gt_crowd_ignore_regions]: list (for each timestep) of lists of detections.
-        [gt_extras] : list (for each timestep) of dicts (for each extra) of 1D NDArrays (for each det).
 
         if not is_gt, this returns a dict which contains the fields:
         [tracker_ids, tracker_classes, tracker_confidences] : list (for each timestep) of 1D NDArrays (for each det).
@@ -115,15 +116,18 @@ class BDD100K(_BaseDataset):
         with open(file) as f:
             data = json.load(f)
 
+        # sort data by frame index
         data = sorted(data, key=lambda x: x['index'])
 
+        # check sequence length
         if is_gt:
             self.seq_lengths[seq] = len(data)
             num_timesteps = len(data)
         else:
             num_timesteps = self.seq_lengths[seq]
-            assert num_timesteps == len(data), 'Number of ground truth and tracker timesteps do not match for ' \
-                                               'sequence %s' % seq
+            if num_timesteps != len(data):
+                raise TrackEvalException('Number of ground truth and tracker timesteps do not match for ' \
+                                         'sequence %s' % seq)
 
         # Convert data to required format
         data_keys = ['ids', 'classes', 'dets']
@@ -203,16 +207,13 @@ class BDD100K(_BaseDataset):
                 and unique track ids. It also relabels gt and tracker ids to be contiguous and checks that ids are
                 unique within each timestep.
 
-        KITTI:
-            In KITTI, the 4 preproc steps are as follow:
-                1) There are two classes (pedestrian and car) which are evaluated separately.
-                2) For the pedestrian class, the 'person' class is distractor objects (people sitting).
-                    For the car class, the 'van' class are distractor objects.
-                    GT boxes marked as having occlusion level > 2 or truncation level > 0 are also treated as
-                        distractors.
-                3) Crowd ignore regions are used to remove unmatched detections. Also unmatched detections with
-                    height <= 25 pixels are removed.
-                4) Distractor gt dets (including truncated and occluded) are removed.
+        BDD100K:
+            In BDD100K, the 4 preproc steps are as follow:
+                1) There are eight classes (pedestrian, rider, car, bus, truck, train, motorcycle, bicycle)
+                    which are evaluated separately.
+                2) For BDD100K there is no removal of matched tracker dets.
+                3) Crowd ignore regions are used to remove unmatched detections.
+                4) No removal of gt dets.
         """
         cls_id = self.class_name_to_class_id[cls]
 
@@ -224,7 +225,7 @@ class BDD100K(_BaseDataset):
         num_tracker_dets = 0
         for t in range(raw_data['num_timesteps']):
 
-            # Only extract relevant dets for this class for preproc and eval (cls + distractor classes)
+            # Only extract relevant dets for this class for preproc and eval (cls)
             gt_class_mask = np.atleast_1d(raw_data['gt_classes'][t] == cls_id)
             gt_class_mask = gt_class_mask.astype(np.bool)
             gt_ids = raw_data['gt_ids'][t][gt_class_mask]
@@ -236,8 +237,7 @@ class BDD100K(_BaseDataset):
             tracker_dets = raw_data['tracker_dets'][t][tracker_class_mask]
             similarity_scores = raw_data['similarity_scores'][t][gt_class_mask, :][:, tracker_class_mask]
 
-            # Match tracker and gt dets (with hungarian algorithm) and remove tracker dets which match with gt dets
-            # which are labeled as truncated, occluded, or belonging to a distractor class.
+            # Match tracker and gt dets (with hungarian algorithm)
             unmatched_indices = np.arange(tracker_ids.shape[0])
             if gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
                 matching_scores = similarity_scores.copy()
@@ -254,7 +254,7 @@ class BDD100K(_BaseDataset):
                                                                        box_format='x0y0x1y1', do_ioa=True)
             is_within_crowd_ignore_region = np.any(intersection_with_ignore_region > 0.5, axis=1)
 
-            # Apply preprocessing to remove all unwanted tracker dets.
+            # Apply preprocessing to remove unwanted tracker dets.
             to_remove_tracker = unmatched_indices[is_within_crowd_ignore_region]
             data['tracker_ids'][t] = np.delete(tracker_ids, to_remove_tracker, axis=0)
             data['tracker_dets'][t] = np.delete(tracker_dets, to_remove_tracker, axis=0)

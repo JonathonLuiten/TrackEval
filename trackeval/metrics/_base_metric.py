@@ -30,6 +30,14 @@ class _BaseMetric(ABC):
     def combine_sequences(self, all_res):
         ...
 
+    @abstractmethod
+    def combine_classes_class_averaged(self, all_res):
+        ...
+
+    @ abstractmethod
+    def combine_classes_det_averaged(self, all_res):
+        ...
+
     def plot_single_tracker_results(self, all_res, tracker, output_folder, cls):
         """Plot results of metrics, only valid for metrics with self.plottable"""
         if self.plottable:

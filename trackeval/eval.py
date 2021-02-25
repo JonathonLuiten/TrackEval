@@ -84,14 +84,18 @@ class Evaluator:
                                                           metric_names)
 
                     # Combine results over all sequences and then over all classes
+
+                    # collecting combined cls keys (cls averaged, det averaged, super classes)
                     combined_cls_keys = []
                     res['COMBINED_SEQ'] = {}
+                    # combine sequences for each class
                     for c_cls in class_list:
                         res['COMBINED_SEQ'][c_cls] = {}
                         for metric, metric_name in zip(metrics_list, metric_names):
                             curr_res = {seq_key: seq_value[c_cls][metric_name] for seq_key, seq_value in res.items() if
                                         seq_key is not 'COMBINED_SEQ'}
                             res['COMBINED_SEQ'][c_cls][metric_name] = metric.combine_sequences(curr_res)
+                    # combine classes
                     if dataset.should_classes_combine:
                         combined_cls_keys += ['cls_comb_cls_av', 'cls_comb_det_av']
                         res['COMBINED_SEQ']['cls_comb_cls_av'] = {}
@@ -103,6 +107,7 @@ class Evaluator:
                                 metric.combine_classes_class_averaged(cls_res)
                             res['COMBINED_SEQ']['cls_comb_det_av'][metric_name] = \
                                 metric.combine_classes_det_averaged(cls_res)
+                    # combine classes to super classes
                     if dataset.use_super_categories:
                         for cat, sub_cats in dataset.super_categories.items():
                             combined_cls_keys.append(cat)
@@ -117,27 +122,13 @@ class Evaluator:
                         print('\nAll sequences for %s finished in %.2f seconds' % (tracker, time.time() - time_start))
                     output_fol = dataset.get_output_fol(tracker)
                     tracker_display_name = dataset.get_display_name(tracker)
-                # if 'COMBINED_CLS_CLS_AVERAGED' in res['COMBINED_SEQ']:
-                #     for metric, metric_name in zip(metrics_list, metric_names):
-                #         metric.print_table({'COMBINED_SEQ':
-                #                             res['COMBINED_SEQ']['COMBINED_CLS_CLS_AVERAGED'][metric_name]},
-                #                            tracker_display_name, 'cls_comb_cls_av')
-                # if 'COMBINED_CLS_DET_AVERAGED' in res['COMBINED_SEQ']:
-                #     for metric, metric_name in zip(metrics_list, metric_names):
-                #         metric.print_table({'COMBINED_SEQ':
-                #                             res['COMBINED_SEQ']['COMBINED_CLS_DET_AVERAGED'][metric_name]},
-                #                            tracker_display_name, 'cls_comb_det_av')
-                # if dataset.use_super_categories:
-                #     for cat in dataset.super_categories.keys():
-                #         for metric, metric_name in zip(metrics_list, metric_names):
-                #             metric.print_table({'COMBINED_SEQ': res['COMBINED_SEQ'][cat][metric_name]},
-                #                                tracker_display_name, cat)
-                    for c_cls in res['COMBINED_SEQ'].keys():  # class_list + 'COMBINED_CLS' if calculated
+                    for c_cls in res['COMBINED_SEQ'].keys():  # class_list + combined classes if calculated
                         summaries = []
                         details = []
                         num_dets = res['COMBINED_SEQ'][c_cls]['Count']['Dets']
                         if config['OUTPUT_EMPTY_CLASSES'] or num_dets > 0:
                             for metric, metric_name in zip(metrics_list, metric_names):
+                                # for combined classes there is no per sequence evaluation
                                 if c_cls in combined_cls_keys:
                                     table_res = {'COMBINED_SEQ': res['COMBINED_SEQ'][c_cls][metric_name]}
                                 else:
