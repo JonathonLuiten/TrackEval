@@ -44,6 +44,7 @@ class KittiMOTS(_BaseDataset):
         self.tracker_fol = self.config['TRACKERS_FOLDER']
         self.split_to_eval = self.config['SPLIT_TO_EVAL']
         self.should_classes_combine = False
+        self.use_super_categories = False
         self.data_is_zipped = self.config['INPUT_AS_ZIP']
 
         self.output_fol = self.config['OUTPUT_FOLDER']
