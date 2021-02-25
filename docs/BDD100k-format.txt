@@ -1,7 +1,7 @@
 Taken from: https://bdd-data.berkeley.edu/wad-2020.html
 
 BDD100K MOT Dataset
-animated
+
 To advance the study on multiple object tracking, we introduce BDD100K MOT Dataset. We provide 1,400 video sequences for training, 200 video sequences for validation and 400 video sequences for testing. Each video sequence is about 40 seconds long with 5 FPS resulting in approximately 200 frames per video.
 
 BDD100K MOT Dataset is not only diverse in visual scale among and within tracks, but in the temporal range of each track. Objects in the BDD100K MOT dataset also present complicated occlusion and reappearing patterns. An object may be fully occluded or move out of the frame, and then reappear later. BDD100K MOT Dataset shows real challenges of object re-identification for tracking in autonomous driving. Details about the MOT dataset can be found in the BDD100K paper (https://arxiv.org/abs/1805.04687). Access the BDD100K data website (https://bdd-data.berkeley.edu/) to download the data.
