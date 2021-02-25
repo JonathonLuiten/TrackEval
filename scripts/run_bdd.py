@@ -1,6 +1,5 @@
 
 """ run_bdd.py
-""" run_kitti.py
 
 Run example:
 run_bdd.py --USE_PARALLEL False --METRICS Hota --TRACKERS_TO_EVAL qdtrack
