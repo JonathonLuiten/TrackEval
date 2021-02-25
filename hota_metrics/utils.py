@@ -3,7 +3,7 @@ import os
 import csv
 
 
-def init_config(config, default_config, name):
+def init_config(config, default_config, name=None):
     """Initialise non-given config values with defaults"""
     if config is None:
         config = default_config
@@ -11,12 +11,11 @@ def init_config(config, default_config, name):
         for k in default_config.keys():
             if k not in config.keys():
                 config[k] = default_config[k]
-    if config['PRINT_CONFIG']:
+    if name and config['PRINT_CONFIG']:
         print('\n%s Config:' % name)
         for c in config.keys():
             print('%-20s : %-30s' % (c, config[c]))
     return config
-
 
 def get_code_path():
     """Get base path where code is"""

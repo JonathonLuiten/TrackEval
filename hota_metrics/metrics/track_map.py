@@ -3,33 +3,56 @@ import numpy as np
 from ._base_metric import _BaseMetric
 from .. import _timing
 from functools import partial
+from .. import utils
+from pycocotools import mask as mask_utils
 
 
 class TrackMAP(_BaseMetric):
     """Class which implements the CLEAR metrics"""
-    def __init__(self):
+
+    @staticmethod
+    def get_default_metric_config():
+        """Default class config values"""
+        default_config = {
+            'USE_AREA_RANGES': True,
+            'AREA_RANGES': [[0 ** 2, 32 ** 2],
+                            [32 ** 2, 96 ** 2],
+                            [96 ** 2, 1e5 ** 2]],
+            'AREA_RANGE_LABELS': ["area_s", "area_m", "area_l"],
+            'USE_TIME_RANGES': True,
+            'TIME_RANGES': [[0, 3], [3, 10], [10, 1e5]],
+            'TIME_RANGE_LABELS': ["time_s", "time_m", "time_l"],
+            'IOU_THRESHOLDS': np.arange(0.5, 0.96, 0.05),
+            'RECALL_THRESHOLDS': np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01) + 1), endpoint=True),
+            'MAX_DETECTIONS': 0,
+            'PRINT_CONFIG': True
+        }
+        return default_config
+
+    def __init__(self, config=None):
         super().__init__()
-        # main_integer_fields = ['CLR_TP', 'CLR_FN', 'CLR_FP', 'IDSW', 'MT', 'PT', 'ML', 'Frag']
-        # extra_integer_fields = ['CLR_Frames']
-        # self.integer_fields = main_integer_fields + extra_integer_fields
-        # main_float_fields = ['MOTA', 'MOTP', 'MODA', 'CLR_Re', 'CLR_Pr', 'MTR', 'PTR', 'MLR']
-        # extra_float_fields = ['CLR_F1', 'FP_per_frame', 'Frag_per_Re', 'IDSW_per_Re', 'MOTAL']
-        # self.float_fields = main_float_fields + extra_float_fields
-        # self.fields = self.float_fields + self.integer_fields
-        # self.summary_fields = main_float_fields + main_integer_fields
+        self.config = utils.init_config(config, self.get_default_metric_config(), self.get_name())
 
-        self.area_rngs = [[0 ** 2, 32 ** 2],
-                          [32 ** 2, 96 ** 2],
-                          [96 ** 2, 1e5 ** 2]]
-        self.area_rng_lbls = ["area_s", "area_m", "area_l"]
-        self.time_rngs = [[0, 3], [3, 10], [10, 1e5]]
-        self.time_rng_lbls = ["time_s", "time_m", "time_l"]
-        self.num_ig_masks = 1 + len(self.area_rng_lbls) + len(self.time_rng_lbls)
-        self.lbls = ['all'] + self.area_rng_lbls + self.time_rng_lbls
+        self.num_ig_masks = 1
+        self.lbls = ['all']
+        self.use_area_rngs = self.config['USE_AREA_RANGES']
+        if self.use_area_rngs:
+            self.area_rngs = self.config['AREA_RANGES']
+            self.area_rng_lbls = self.config['AREA_RANGE_LABELS']
+            self.num_ig_masks += len(self.area_rng_lbls)
+            self.lbls += self.area_rng_lbls
 
-        self.array_labels = np.arange(0.0, 1.01, 0.05)
-        self.rec_thrs = np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01) + 1), endpoint=True)
+        self.use_time_rngs = self.config['USE_TIME_RANGES']
+        if self.use_time_rngs:
+            self.time_rngs = self.config['TIME_RANGES']
+            self.time_rng_lbls = self.config['TIME_RANGE_LABELS']
+            self.num_ig_masks += len(self.time_rng_lbls)
+            self.lbls += self.time_rng_lbls
 
+        self.array_labels = self.config['IOU_THRESHOLDS']
+        self.rec_thrs = self.config['RECALL_THRESHOLDS']
+
+        self.maxDet = self.config['MAX_DETECTIONS']
         self.float_array_fields = ['AP_' + lbl for lbl in self.lbls] + ['AR_' + lbl for lbl in self.lbls]
         self.fields = self.float_array_fields
         self.summary_fields = self.float_array_fields
@@ -49,19 +72,24 @@ class TrackMAP(_BaseMetric):
                 res[idx] = None
             return res
 
-        gt_ig_masks = self._compute_track_ig_masks(track_lengths=data['gt_track_lengths'],
-                                                   track_areas=data['gt_track_areas'])
-        dt_ig_masks = self._compute_track_ig_masks(track_lengths=data['dt_track_lengths'],
-                                                   track_areas=data['dt_track_areas'],
-                                                   is_not_exhaustively_labeled=data['not_exhaustively_labeled'],
-                                                   is_gt=False)
+        gt_tr_areas = data.get('gt_track_areas', None) if self.use_area_rngs else None
+        gt_tr_lengths = data.get('gt_track_lengths', None) if self.use_time_rngs else None
+        gt_tr_iscrowd = data.get('gt_track_iscrowd', None)
+        dt_tr_areas = data.get('dt_track_areas', None) if self.use_area_rngs else None
+        dt_tr_lengths = data.get('dt_track_lengths', None) if self.use_time_rngs else None
+        is_nel = data.get('not_exhaustively_labeled', False)
 
-        assert len(gt_ig_masks) == self.num_ig_masks, \
-            'gt data does not have the correct number of ignore masks to consider'
-        assert len(dt_ig_masks) == self.num_ig_masks, \
-            'tracker data does not have the correct number of ignore masks to consider'
+        gt_ig_masks = self._compute_track_ig_masks(len(gt_ids), track_lengths=gt_tr_lengths, track_areas=gt_tr_areas,
+                                                   iscrowd=gt_tr_iscrowd)
+        dt_ig_masks = self._compute_track_ig_masks(len(dt_ids), track_lengths=dt_tr_lengths, track_areas=dt_tr_areas,
+                                                   is_not_exhaustively_labeled=is_nel, is_gt=False)
 
-        ious = self._compute_track_ious(data['dt_tracks'], data['gt_tracks'], iou_function='bbox')
+        # assert len(gt_ig_masks) == self.num_ig_masks, \
+        #     'gt data does not have the correct number of ignore masks to consider'
+        # assert len(dt_ig_masks) == self.num_ig_masks, \
+        #     'tracker data does not have the correct number of ignore masks to consider'
+
+        ious = self._compute_track_ious(data['dt_tracks'], data['gt_tracks'], iou_function=data['iou_type'])
 
         for mask_idx in range(self.num_ig_masks):
             gt_ig_mask = gt_ig_masks[mask_idx]
@@ -158,14 +186,26 @@ class TrackMAP(_BaseMetric):
                 continue
 
             # Append all scores: shape (N,)
-            dt_scores = np.concatenate([res["dt_scores"] for res in ig_idx_results], axis=0)
+            if self.maxDet == 0:
+                dt_scores = np.concatenate([res["dt_scores"] for res in ig_idx_results], axis=0)
 
-            dt_idx = np.argsort(-dt_scores, kind="mergesort")
+                dt_idx = np.argsort(-dt_scores, kind="mergesort")
 
-            dt_m = np.concatenate([e["dt_matches"] for e in ig_idx_results],
-                                  axis=1)[:, dt_idx]
-            dt_ig = np.concatenate([e["dt_ignore"] for e in ig_idx_results],
-                                   axis=1)[:, dt_idx]
+                dt_m = np.concatenate([e["dt_matches"] for e in ig_idx_results],
+                                      axis=1)[:, dt_idx]
+                dt_ig = np.concatenate([e["dt_ignore"] for e in ig_idx_results],
+                                       axis=1)[:, dt_idx]
+            elif self.maxDet > 0:
+                dt_scores = np.concatenate([res["dt_scores"][0:self.maxDet] for res in ig_idx_results], axis=0)
+
+                dt_idx = np.argsort(-dt_scores, kind="mergesort")
+
+                dt_m = np.concatenate([e["dt_matches"][:,0:self.maxDet] for e in ig_idx_results],
+                                      axis=1)[:, dt_idx]
+                dt_ig = np.concatenate([e["dt_ignore"][:,0:self.maxDet] for e in ig_idx_results],
+                                       axis=1)[:, dt_idx]
+            else:
+                raise Exception("Number of maximum detections must be >= 0, but is set to %i" % self.maxDet)
 
             gt_ig = np.concatenate([res["gt_ignore"] for res in ig_idx_results])
             # num gt anns to consider
@@ -275,23 +315,26 @@ class TrackMAP(_BaseMetric):
 
         return res
 
-    def _compute_track_ig_masks(self, track_lengths=None, track_areas=None,
+    def _compute_track_ig_masks(self, track_length, track_lengths=None, track_areas=None, iscrowd=None,
                                 is_not_exhaustively_labeled=False, is_gt=True):
         if not is_gt and is_not_exhaustively_labeled:
-            track_ig_masks = [[1 for _ in track_lengths] for i in range(self.num_ig_masks)]
+            track_ig_masks = [[1 for _ in range(track_length)] for i in range(self.num_ig_masks)]
         else:
             # consider all tracks
-            track_ig_masks = [[0 for _ in track_lengths]]
+            track_ig_masks = [[0 for _ in range(track_length)]]
 
             # consider tracks with certain area
-            if self.area_rngs:
+            if self.use_area_rngs:
                 for rng in self.area_rngs:
                     track_ig_masks.append([0 if rng[0] <= area <= rng[1] else 1 for area in track_areas])
 
             # consider tracks with certain duration
-            if self.time_rngs:
+            if self.use_time_rngs:
                 for rng in self.time_rngs:
                     track_ig_masks.append([0 if rng[0] <= length <= rng[1] else 1 for length in track_lengths])
+
+        if is_gt and iscrowd:
+            track_ig_masks = [np.logical_or(mask, iscrowd) for mask in track_ig_masks]
 
         return track_ig_masks
 
@@ -324,8 +367,20 @@ class TrackMAP(_BaseMetric):
 
     @staticmethod
     def _compute_mask_track_iou(dt_track, gt_track):
-        #TODO implement mask track iou computation
-        pass
+        intersect = .0
+        union = .0
+        for d, g in zip(dt_track.values(), gt_track.values()):
+            if d and g:
+                intersect += mask_utils.area(mask_utils.merge([d, g], True))
+                union += mask_utils.area(mask_utils.merge([d, g], False))
+            elif not d and g:
+                union += mask_utils.area(g)
+            elif d and not g:
+                union += mask_utils.area(d)
+        assert union > .0
+        assert intersect <= union
+        iou = intersect / union if union > .0 else .0
+        return iou
 
     @staticmethod
     def _compute_track_ious(dt, gt, iou_function='bbox', boxformat='xywh'):
