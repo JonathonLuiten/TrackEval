@@ -1,7 +1,7 @@
-""" run_kitti.py
+""" run_davis.py
 
 Run example:
-run_kitti.py --USE_PARALLEL False --METRICS Hota --TRACKERS_TO_EVAL CIWT
+run_davis.py --USE_PARALLEL False --METRICS HOTA --TRACKERS_TO_EVAL ags
 
 Command Line Arguments: Defaults, # Comments
     Eval arguments:
