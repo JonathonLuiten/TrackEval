@@ -103,6 +103,25 @@ class Identity(_BaseMetric):
         res = self._compute_final_fields(res)
         return res
 
+    def combine_classes_class_averaged(self, all_res):
+        """Combines metrics across all sequences"""
+        res = {}
+        for field in self.integer_fields:
+            res[field] = self._combine_sum(
+                {k: v for k, v in all_res.items() if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0}, field)
+        for field in self.float_fields:
+            res[field] = np.mean([v[field] for v in all_res.values() if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0],
+                                 axis=0)
+        return res
+
+    def combine_classes_det_averaged(self, all_res):
+        """Combines metrics across all sequences"""
+        res = {}
+        for field in self.integer_fields:
+            res[field] = self._combine_sum(all_res, field)
+        res = self._compute_final_fields(res)
+        return res
+
     @staticmethod
     def _compute_final_fields(res):
         """Calculate sub-metric ('field') values which only depend on other sub-metric values.
