@@ -126,8 +126,8 @@ class BDD100K(_BaseDataset):
         else:
             num_timesteps = self.seq_lengths[seq]
             if num_timesteps != len(data):
-                raise TrackEvalException('Number of ground truth and tracker timesteps do not match for ' \
-                                         'sequence %s' % seq)
+                raise TrackEvalException('Number of ground truth and tracker timesteps do not match for sequence %s'
+                                         % seq)
 
         # Convert data to required format
         data_keys = ['ids', 'classes', 'dets']
