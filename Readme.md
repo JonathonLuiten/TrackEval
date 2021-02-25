@@ -11,6 +11,7 @@ The following metrics are currently implemented:
  - [HOTA metrics](https://link.springer.com/article/10.1007/s11263-020-01375-2) - **Recommended tracking metric** ([code](trackeval/metrics/hota.py))
  - [CLEARMOT metrics](https://link.springer.com/article/10.1155/2008/246309) (MOTA / MOTP / etc.) ([code](trackeval/metrics/clear.py))
  - [Identity metrics](https://arxiv.org/abs/1609.01775) (IDF1 / IDP / IDR / etc.) ([code](trackeval/metrics/identity.py))
+ - [J & F metrics](https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Perazzi_A_Benchmark_Dataset_CVPR_2016_paper.pdf) ([code](trackeval/metrics/j_and_f.py))
 
 ## Currently implemented benchmarks
 
@@ -19,6 +20,8 @@ The following benchmarks are currently implemented:
  - [MOTChallenge](https://motchallenge.net/) (MOT15/16/17/20) ([code](trackeval/datasets/mot_challenge_2d_box.py), [format](docs/MOTChallenge-format.txt))
  - [KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php) ([code](trackeval/datasets/kitti_2d_box.py), [format](docs/KITTI-format.txt))
  - [MOTS](https://www.vision.rwth-aachen.de/page/mots) ([KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php) and [MOTS Challenge](https://motchallenge.net/results/MOTS/)) ([code](trackeval/datasets/mots_challenge.py) and [code](trackeval/datasets/kitti_mots.py), [format](docs/MOTS-format.txt))
+ - [BDD-100k](https://bdd-data.berkeley.edu/) ([code](trackeval/datasets/bdd100k.py), [format](docs/BDD100k-format.txt))
+ - [DAVIS](https://davischallenge.org/) ([code](trackeval/datasets/davis.py))
 
 ## Benchmarks which use TrackEval as their official evaluation code
 
@@ -65,7 +68,7 @@ The code can be run in one of two ways:
 ## Quickly evaluate on supported benchmarks
 
 To enable you to use TrackEval for evaluation as quickly and easily as possible, we provide ground-truth data, meta-data and example trackers for all currently supported benchmarks.
-You can download this here: [data.zip](https://omnomnom.vision.rwth-aachen.de/data/TrackEval/data.zip) (~60mb).
+You can download this here: [data.zip](https://omnomnom.vision.rwth-aachen.de/data/TrackEval/data.zip) (~120mb).
 
 The easiest way to begin is to extract this zip into the repository root folder such that the file paths look like: TrackEval/data/gt/...
 
