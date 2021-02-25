@@ -321,7 +321,7 @@ class KittiMOTS(_BaseDataset):
                 except IndexError:
                     self._raise_index_error(is_gt, tracker, seq)
                 except ValueError:
-                   self._raise_value_error(is_gt,tracker,seq)
+                   self._raise_value_error(is_gt, tracker, seq)
             else:
                 raw_data['dets'][t] = []
                 raw_data['ids'][t] = np.empty(0).astype(int)
@@ -341,12 +341,13 @@ class KittiMOTS(_BaseDataset):
                         self._raise_value_error(is_gt,tracker,seq)
                 else:
                     raw_data['gt_ignore_region'][t] = mask_utils.merge([], intersect=False)
+
             # check for overlapping masks
             if all_masks:
                 masks_merged = all_masks[0]
                 for mask in all_masks[1:]:
-                    assert mask_utils.area(mask_utils.merge([masks_merged, mask], intersect=True)) == 0.0, \
-                        "Objects with overlapping masks in frame " + str(t)
+                    if mask_utils.area(mask_utils.merge([masks_merged, mask], intersect=True)) != 0.0:
+                        raise TrackEvalException('Tracker has overlapping masks. Tracker: ' + tracker + ' Seq: ' + seq + ' Timestep: ' + str(t))
                     masks_merged = mask_utils.merge([masks_merged, mask], intersect=False)
 
         if is_gt:

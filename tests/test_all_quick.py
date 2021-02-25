@@ -9,7 +9,7 @@ import numpy as np
 from multiprocessing import freeze_support
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import hota_metrics as hm  # noqa: E402
+import trackeval  # noqa: E402
 
 # Fixes multiprocessing on windows, does nothing otherwise
 if __name__ == '__main__':
@@ -18,8 +18,8 @@ if __name__ == '__main__':
 eval_config = {'USE_PARALLEL': False,
                'NUM_PARALLEL_CORES': 8,
                }
-evaluator = hm.Evaluator(eval_config)
-metrics_list = [hm.metrics.HOTA(), hm.metrics.CLEAR(), hm.metrics.Identity()]
+evaluator = trackeval.Evaluator(eval_config)
+metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity()]
 
 tests = [
     {'DATASET': 'Kitti2DBox', 'SPLIT_TO_EVAL': 'training', 'TRACKERS_TO_EVAL': ['CIWT']},
@@ -33,10 +33,10 @@ for dataset_config in tests:
 
     dataset_name = dataset_config.pop('DATASET')
     if dataset_name == 'MotChallenge2DBox':
-        dataset_list = [hm.datasets.MotChallenge2DBox(dataset_config)]
+        dataset_list = [trackeval.datasets.MotChallenge2DBox(dataset_config)]
         file_loc = os.path.join('mot_challenge', dataset_config['BENCHMARK'] + '-' + dataset_config['SPLIT_TO_EVAL'])
     elif dataset_name == 'Kitti2DBox':
-        dataset_list = [hm.datasets.Kitti2DBox(dataset_config)]
+        dataset_list = [trackeval.datasets.Kitti2DBox(dataset_config)]
         file_loc = os.path.join('kitti', 'kitti_2d_box_train')
     else:
         raise Exception('Dataset %s does not exist.' % dataset_name)
@@ -49,11 +49,11 @@ for dataset_config in tests:
 
     for cls in classes:
         results = {seq: raw_results[dataset_name][tracker][seq][cls] for seq in raw_results[dataset_name][tracker].keys()}
-        current_metrics_list = metrics_list + [hm.metrics.Count()]
-        metric_names = hm.utils.validate_metrics_list(current_metrics_list)
+        current_metrics_list = metrics_list + [trackeval.metrics.Count()]
+        metric_names = trackeval.utils.validate_metrics_list(current_metrics_list)
 
         # Load expected results:
-        test_data = hm.utils.load_detail(os.path.join(test_data_loc, tracker, cls + '_detailed.csv'))
+        test_data = trackeval.utils.load_detail(os.path.join(test_data_loc, tracker, cls + '_detailed.csv'))
 
         # Do checks
         for seq in test_data.keys():
