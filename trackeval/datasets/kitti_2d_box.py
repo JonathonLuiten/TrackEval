@@ -39,6 +39,7 @@ class Kitti2DBox(_BaseDataset):
         self.gt_fol = self.config['GT_FOLDER']
         self.tracker_fol = self.config['TRACKERS_FOLDER']
         self.should_classes_combine = False
+        self.use_super_categories = False
         self.data_is_zipped = self.config['INPUT_AS_ZIP']
 
         self.output_fol = self.config['OUTPUT_FOLDER']
