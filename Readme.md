@@ -4,7 +4,7 @@
 
 This codebase provides code for a number of different tracking evaluation metrics (including the [HOTA metrics](https://link.springer.com/article/10.1007/s11263-020-01375-2)), as well as supporting running all of these metrics on a number of different tracking benchmarks. Plus plotting of results and other things one may want to do for tracking evaluation.
 
-## Currently implemented metrics:
+## Currently implemented metrics
 
 The following metrics are currently implemented:
 
@@ -12,11 +12,22 @@ The following metrics are currently implemented:
  - [CLEARMOT metrics](https://link.springer.com/article/10.1155/2008/246309) (MOTA / MOTP / etc.) ([code](trackeval/metrics/clear.py))
  - [Identity metrics](https://arxiv.org/abs/1609.01775) (IDF1 / IDP / IDR / etc.) ([code](trackeval/metrics/identity.py))
 
-## Currently implemented benchmarks:
+## Currently implemented benchmarks
+
+The following benchmarks are currently implemented:
 
  - [MOTChallenge](https://motchallenge.net/) (MOT15/16/17/20) ([code](trackeval/datasets/mot_challenge_2d_box.py), [format](docs/MOTChallenge-format.txt))
  - [KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php) ([code](trackeval/datasets/kitti_2d_box.py), [format](docs/KITTI-format.txt))
  - [MOTS](https://www.vision.rwth-aachen.de/page/mots) ([KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php) and [MOTS Challenge](https://motchallenge.net/results/MOTS/)) ([code](trackeval/datasets/mots_challenge.py) and [code](trackeval/datasets/kitti_mots.py), [format](docs/MOTS-format.txt))
+
+## Benchmarks which use TrackEval as their official evaluation code
+
+The following benchmarks use TrackEval as their official evaluation code, check out the links to see TrackEval in action:
+
+ - [KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)
+ - [KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php)
+
+If you run a tracking benchmark and want to use TrackEval as your official evaluation code, please contact Jonathon (contact details below).
 
 ## HOTA metrics
 
@@ -104,7 +115,7 @@ TrackEval is released under the [MIT License](LICENSE).
 
 ## Contact
 
-If you encounter any problems with the code, please contact [Jonathon Luiten](https://www.vision.rwth-aachen.de/person/216/) (luiten at vision dot rwth-aachen dot de).
+If you encounter any problems with the code, please contact [Jonathon Luiten](https://www.vision.rwth-aachen.de/person/216/) ([luiten@vision.rwth-aachen.de](mailto:luiten@vision.rwth-aachen.de)).
 If anything is unclear, or hard to use, please leave a comment either via email or as an issue and I would love to help.
 
 ## Dedication
@@ -117,18 +128,18 @@ We welcome contributions of new metrics and new supported benchmarks. Also any o
 
 ## Citing TrackEval
 
-If you use this code in your research, please use the following BibTeX entry.
+If you use this code in your research, please use the following BibTeX entry:
 
 ```BibTeX
 @misc{luiten2020trackeval,
-  author =       {Jonathon Luiten},
+  author =       {Jonathon Luiten, Arne Hoffhues},
   title =        {TrackEval},
   howpublished = {\url{https://github.com/JonathonLuiten/TrackEval}},
   year =         {2020}
 }
 ```
 
-Furthermore, if you use the HOTA metrics, please cite the following paper
+Furthermore, if you use the HOTA metrics, please cite the following paper:
 
 ```
 @article{luiten2020hota,
