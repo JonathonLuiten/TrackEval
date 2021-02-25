@@ -5,6 +5,7 @@ import cv2
 from scipy.optimize import linear_sum_assignment
 from pycocotools import mask as mask_utils
 from skimage.morphology import disk
+from ..utils import TrackEvalException
 from ._base_metric import _BaseMetric
 from .. import _timing
 
@@ -59,7 +60,7 @@ class JAndF(_BaseMetric):
             for i, (tr_ind, gt_ind) in enumerate(zip(row_ind, col_ind)):
                 f_m[i] = self._compute_f(gt_dets, tracker_dets, tr_ind, gt_ind, bound_th)
         else:
-            raise Exception('Unsupported optimization type %s for J&F metric.' % self.optim_type)
+            raise TrackEvalException('Unsupported optimization type %s for J&F metric.' % self.optim_type)
 
         # append zeros for false negatives
         if j_m.shape[0] < data['num_gt_ids']:
@@ -87,6 +88,7 @@ class JAndF(_BaseMetric):
             d_bins_f = [f_m[k][ids[i]:ids[i + 1] + 1] for i in range(0, n_bins)]
             res['F-Decay'].append(np.nanmean(d_bins_f[0]) - np.nanmean(d_bins_f[3]))
 
+        # count number of tracks for weighting of the result
         res['num_gt_tracks'] = len(res['J-Mean'])
         for field in ['J-Mean', 'J-Recall', 'J-Decay', 'F-Mean', 'F-Recall', 'F-Decay']:
             res[field] = np.mean(res[field])
@@ -98,6 +100,20 @@ class JAndF(_BaseMetric):
         res = {'num_gt_tracks': self._combine_sum(all_res, 'num_gt_tracks')}
         for field in self.summary_fields:
             res[field] = self._combine_weighted_av(all_res, field, res, weight_field='num_gt_tracks')
+        return res
+
+    def combine_classes_class_averaged(self, all_res):
+        """Combines metrics across all classes by averaging over the class values"""
+        res = {'num_gt_tracks': self._combine_sum(all_res, 'num_gt_tracks')}
+        for field in self.float_fields:
+            res[field] = np.mean([v[field] for v in all_res.values()])
+        return res
+
+    def combine_classes_det_averaged(self, all_res):
+        """Combines metrics across all classes by averaging over the detection values"""
+        res = {'num_gt_tracks': self._combine_sum(all_res, 'num_gt_tracks')}
+        for field in self.float_fields:
+            res[field] = np.mean([v[field] for v in all_res.values()])
         return res
 
     @staticmethod
