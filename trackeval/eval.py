@@ -27,6 +27,7 @@ class Evaluator:
             'PRINT_ONLY_COMBINED': False,
             'PRINT_CONFIG': True,
             'TIME_PROGRESS': True,
+            'DISPLAY_LESS_PROGRESS': True,
 
             'OUTPUT_SUMMARY': True,
             'OUTPUT_EMPTY_CLASSES': True,  # If False, summary files are not output for classes with no detections
@@ -41,6 +42,8 @@ class Evaluator:
         # Only run timing analysis if not run in parallel.
         if self.config['TIME_PROGRESS'] and not self.config['USE_PARALLEL']:
             _timing.DO_TIMING = True
+            if self.config['DISPLAY_LESS_PROGRESS']:
+                _timing.DISPLAY_LESS_PROGRESS = True
 
     @_timing.time
     def evaluate(self, dataset_list, metrics_list):
