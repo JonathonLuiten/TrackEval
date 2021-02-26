@@ -1,4 +1,3 @@
-
 import os
 import csv
 import configparser
@@ -6,8 +5,8 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from ._base_dataset import _BaseDataset
 from .. import utils
-from ..utils import TrackEvalException
 from .. import _timing
+from ..utils import TrackEvalException
 
 
 class MotChallenge2DBox(_BaseDataset):
@@ -30,6 +29,7 @@ class MotChallenge2DBox(_BaseDataset):
             'DO_PREPROC': True,  # Whether to perform preprocessing (never done for MOT15)
             'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
             'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
+            'TRACKER_DISPLAY_NAMES': None,  # Names of trackers to display, if None: TRACKERS_TO_EVAL
             'SEQMAP_FOLDER': None,  # Where seqmaps are found (if None, GT_FOLDER/seqmaps)
             'SEQMAP_FILE': None,  # Directly specify seqmap file (if none use seqmap_folder/benchmark-split_to_eval)
             'SEQ_INFO': None,  # If not None, directly specify sequences to eval and their number of timesteps
@@ -85,7 +85,6 @@ class MotChallenge2DBox(_BaseDataset):
         # Check gt files exist
         for seq in self.seq_list:
             if not self.data_is_zipped:
-                # curr_file = os.path.join(self.gt_fol, seq, 'gt', 'gt.txt')
                 curr_file = self.config["GT_LOC_FORMAT"].format(gt_folder=self.gt_fol, seq=seq)
                 if not os.path.isfile(curr_file):
                     print('GT file not found ' + curr_file)
@@ -101,10 +100,20 @@ class MotChallenge2DBox(_BaseDataset):
             self.tracker_list = os.listdir(self.tracker_fol)
         else:
             self.tracker_list = self.config['TRACKERS_TO_EVAL']
+
+        if self.config['TRACKER_DISPLAY_NAMES'] is None:
+            self.tracker_to_disp = dict(zip(self.tracker_list, self.tracker_list))
+        elif (self.config['TRACKERS_TO_EVAL'] is not None) and (
+                len(self.config['TRACKER_DISPLAY_NAMES']) == len(self.tracker_list)):
+            self.tracker_to_disp = dict(zip(self.tracker_list, self.config['TRACKER_DISPLAY_NAMES']))
+        else:
+            raise TrackEvalException('List of tracker files and tracker display names do not match.')
+
         for tracker in self.tracker_list:
             if self.data_is_zipped:
                 curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol + '.zip')
                 if not os.path.isfile(curr_file):
+                    print('Tracker file not found: ' + curr_file)
                     raise TrackEvalException('Tracker file not found: ' + tracker + '/' + os.path.basename(curr_file))
             else:
                 for seq in self.seq_list:
@@ -114,6 +123,9 @@ class MotChallenge2DBox(_BaseDataset):
                         raise TrackEvalException(
                             'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol + '/' + os.path.basename(
                                 curr_file))
+
+    def get_display_name(self, tracker):
+        return self.tracker_to_disp[tracker]
 
     def _get_seq_info(self):
         seq_list = []
@@ -130,6 +142,7 @@ class MotChallenge2DBox(_BaseDataset):
                 else:
                     seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], self.gt_set + '.txt')
             if not os.path.isfile(seqmap_file):
+                print('no seqmap found: ' + seqmap_file)
                 raise TrackEvalException('no seqmap found: ' + os.path.basename(seqmap_file))
             with open(seqmap_file) as fp:
                 reader = csv.reader(fp)
@@ -168,7 +181,6 @@ class MotChallenge2DBox(_BaseDataset):
         else:
             zip_file = None
             if is_gt:
-                # file = os.path.join(self.gt_fol, seq, 'gt', 'gt.txt')
                 file = self.config["GT_LOC_FORMAT"].format(gt_folder=self.gt_fol, seq=seq)
             else:
                 file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.txt')

@@ -54,8 +54,8 @@ class KittiMOTS(_BaseDataset):
         self.output_sub_fol = self.config['OUTPUT_SUB_FOLDER']
 
         # Get classes to eval
-        valid_classes = ['car', 'pedestrian']
-        self.class_list = [cls.lower() if cls.lower() in valid_classes else None
+        self.valid_classes = ['car', 'pedestrian']
+        self.class_list = [cls.lower() if cls.lower() in self.valid_classes else None
                            for cls in self.config['CLASSES_TO_EVAL']]
         if not all(self.class_list):
             raise TrackEvalException('Attempted to evaluate an invalid class. '
@@ -97,11 +97,13 @@ class KittiMOTS(_BaseDataset):
             if self.data_is_zipped:
                 curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol + '.zip')
                 if not os.path.isfile(curr_file):
+                    print('Tracker file not found: ' + curr_file)
                     raise TrackEvalException('Tracker file not found: ' + tracker + '/' + os.path.basename(curr_file))
             else:
                 for seq in self.seq_list:
                     curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.txt')
                     if not os.path.isfile(curr_file):
+                        print('Tracker file not found: ' + curr_file)
                         raise TrackEvalException(
                             'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol + '/' + os.path.basename(
                                 curr_file))
@@ -126,10 +128,11 @@ class KittiMOTS(_BaseDataset):
                 else:
                     seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], seqmap_name)
             if not os.path.isfile(seqmap_file):
+                print('no seqmap found: ' + seqmap_file)
                 raise TrackEvalException('no seqmap found: ' + os.path.basename(seqmap_file))
             with open(seqmap_file) as fp:
                 reader = csv.reader(fp)
-                for i, row in enumerate(reader):
+                for i, _ in enumerate(reader):
                     dialect = csv.Sniffer().sniff(fp.read(1024))
                     fp.seek(0)
                     reader = csv.reader(fp, dialect)
@@ -139,6 +142,113 @@ class KittiMOTS(_BaseDataset):
                             seq_list.append(seq)
                             seq_lengths[seq] = int(row[3]) + 1
         return seq_list, seq_lengths
+
+    def _load_raw_file(self, tracker, seq, is_gt):
+        """Load a file (gt or tracker) in the KITTI MOTS format
+
+        If is_gt, this returns a dict which contains the fields:
+        [gt_ids, gt_classes] : list (for each timestep) of 1D NDArrays (for each det).
+        [gt_dets]: list (for each timestep) of lists of detections.
+        [gt_ignore_region]: list (for each timestep) of masks for the ignore regions
+
+        if not is_gt, this returns a dict which contains the fields:
+        [tracker_ids, tracker_classes] : list (for each timestep) of 1D NDArrays (for each det).
+        [tracker_dets]: list (for each timestep) of lists of detections.
+        """
+
+        # Only loaded when run to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+
+        # File location
+        if self.data_is_zipped:
+            if is_gt:
+                zip_file = os.path.join(self.gt_fol, 'data.zip')
+            else:
+                zip_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol + '.zip')
+            file = seq + '.txt'
+        else:
+            zip_file = None
+            if is_gt:
+                file = self.config["GT_LOC_FORMAT"].format(gt_folder=self.gt_fol, seq=seq)
+            else:
+                file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.txt')
+
+        # Ignore regions
+        if is_gt:
+            crowd_ignore_filter = {2: ['10']}
+        else:
+            crowd_ignore_filter = None
+
+        # Load raw data from text file
+        read_data, ignore_data = self._load_simple_text_file(file, crowd_ignore_filter=crowd_ignore_filter,
+                                                             is_zipped=self.data_is_zipped, zip_file=zip_file,
+                                                             force_delimiters=' ')
+
+        # Convert data to required format
+        num_timesteps = self.seq_lengths[seq]
+        data_keys = ['ids', 'classes', 'dets']
+        if is_gt:
+            data_keys += ['gt_ignore_region']
+        raw_data = {key: [None] * num_timesteps for key in data_keys}
+        for t in range(num_timesteps):
+            time_key = str(t)
+            # list to collect all masks of a timestep to check for overlapping areas
+            all_masks = []
+            if time_key in read_data.keys():
+                try:
+                    raw_data['dets'][t] = [{'size': [int(region[3]), int(region[4])],
+                                            'counts': region[5].encode(encoding='UTF-8')}
+                                           for region in read_data[time_key]]
+                    raw_data['ids'][t] = np.atleast_1d([region[1] for region in read_data[time_key]]).astype(int)
+                    raw_data['classes'][t] = np.atleast_1d([region[2] for region in read_data[time_key]]).astype(int)
+                    all_masks += raw_data['dets'][t]
+                except IndexError:
+                    self._raise_index_error(is_gt, tracker, seq)
+                except ValueError:
+                    self._raise_value_error(is_gt, tracker, seq)
+            else:
+                raw_data['dets'][t] = []
+                raw_data['ids'][t] = np.empty(0).astype(int)
+                raw_data['classes'][t] = np.empty(0).astype(int)
+            if is_gt:
+                if time_key in ignore_data.keys():
+                    try:
+                        time_ignore = [{'size': [int(region[3]), int(region[4])],
+                                        'counts': region[5].encode(encoding='UTF-8')}
+                                       for region in ignore_data[time_key]]
+                        raw_data['gt_ignore_region'][t] = mask_utils.merge([mask for mask in time_ignore],
+                                                                           intersect=False)
+                        all_masks += [raw_data['gt_ignore_region'][t]]
+                    except IndexError:
+                        self._raise_index_error(is_gt, tracker, seq)
+                    except ValueError:
+                        self._raise_value_error(is_gt, tracker, seq)
+                else:
+                    raw_data['gt_ignore_region'][t] = mask_utils.merge([], intersect=False)
+
+            # check for overlapping masks
+            if all_masks:
+                masks_merged = all_masks[0]
+                for mask in all_masks[1:]:
+                    if mask_utils.area(mask_utils.merge([masks_merged, mask], intersect=True)) != 0.0:
+                        raise TrackEvalException(
+                            'Tracker has overlapping masks. Tracker: ' + tracker + ' Seq: ' + seq + ' Timestep: ' + str(
+                                t))
+                    masks_merged = mask_utils.merge([masks_merged, mask], intersect=False)
+
+        if is_gt:
+            key_map = {'ids': 'gt_ids',
+                       'classes': 'gt_classes',
+                       'dets': 'gt_dets'}
+        else:
+            key_map = {'ids': 'tracker_ids',
+                       'classes': 'tracker_classes',
+                       'dets': 'tracker_dets'}
+        for k, v in key_map.items():
+            raw_data[v] = raw_data.pop(k)
+        raw_data["num_timesteps"] = num_timesteps
+        raw_data['seq'] = seq
+        return raw_data
 
     @_timing.time
     def get_preprocessed_seq_data(self, raw_data, cls):
@@ -249,7 +359,6 @@ class KittiMOTS(_BaseDataset):
                 if len(data['tracker_ids'][t]) > 0:
                     data['tracker_ids'][t] = tracker_id_map[data['tracker_ids'][t]].astype(np.int)
 
-
         # Record overview statistics.
         data['num_tracker_dets'] = num_tracker_dets
         data['num_gt_dets'] = num_gt_dets
@@ -263,110 +372,9 @@ class KittiMOTS(_BaseDataset):
 
         return data
 
-    def _load_raw_file(self, tracker, seq, is_gt):
-        """Load a file (gt or tracker) in the KITTI MOTS format
-
-        If is_gt, this returns a dict which contains the fields:
-        [gt_ids, gt_classes] : list (for each timestep) of 1D NDArrays (for each det).
-        [gt_dets]: list (for each timestep) of lists of detections.
-        [gt_ignore_region]: list (for each timestep) of masks for the ignore regions
-
-        if not is_gt, this returns a dict which contains the fields:
-        [tracker_ids, tracker_classes] : list (for each timestep) of 1D NDArrays (for each det).
-        [tracker_dets]: list (for each timestep) of lists of detections.
-        """
-
-        # Only loaded when run to reduce minimum requirements
-        from pycocotools import mask as mask_utils
-
-        # File location
-        if self.data_is_zipped:
-            if is_gt:
-                zip_file = os.path.join(self.gt_fol, 'data.zip')
-            else:
-                zip_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol + '.zip')
-            file = seq + '.txt'
-        else:
-            zip_file = None
-            if is_gt:
-                file = self.config["GT_LOC_FORMAT"].format(gt_folder=self.gt_fol, seq=seq)
-            else:
-                file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.txt')
-
-        # Ignore regions
-        if is_gt:
-            crowd_ignore_filter = {2: ['10']}
-        else:
-            crowd_ignore_filter = None
-
-        # Load raw data from text file
-        read_data, ignore_data = self._load_simple_text_file(file, crowd_ignore_filter=crowd_ignore_filter,
-                                                             is_zipped=self.data_is_zipped, zip_file=zip_file,
-                                                             force_delimiters=' ')
-
-        # Convert data to required format
-        num_timesteps = self.seq_lengths[seq]
-        data_keys = ['ids', 'classes', 'dets']
-        if is_gt:
-            data_keys += ['gt_ignore_region']
-        raw_data = {key: [None] * num_timesteps for key in data_keys}
-        for t in range(num_timesteps):
-            time_key = str(t)
-            # list to collect all masks of a timestep to check for overlapping areas
-            all_masks = []
-            if time_key in read_data.keys():
-                try:
-                    raw_data['dets'][t] = [{'size': [int(region[3]), int(region[4])],
-                                            'counts': region[5].encode(encoding='UTF-8')}
-                                           for region in read_data[time_key]]
-                    raw_data['ids'][t] = np.atleast_1d([region[1] for region in read_data[time_key]]).astype(int)
-                    raw_data['classes'][t] = np.atleast_1d([region[2] for region in read_data[time_key]]).astype(int)
-                    all_masks += raw_data['dets'][t]
-                except IndexError:
-                    self._raise_index_error(is_gt, tracker, seq)
-                except ValueError:
-                   self._raise_value_error(is_gt, tracker, seq)
-            else:
-                raw_data['dets'][t] = []
-                raw_data['ids'][t] = np.empty(0).astype(int)
-                raw_data['classes'][t] = np.empty(0).astype(int)
-            if is_gt:
-                if time_key in ignore_data.keys():
-                    try:
-                        time_ignore = [{'size': [int(region[3]), int(region[4])],
-                                        'counts': region[5].encode(encoding='UTF-8')}
-                                       for region in ignore_data[time_key]]
-                        raw_data['gt_ignore_region'][t] = mask_utils.merge([mask for mask in time_ignore],
-                                                                           intersect=False)
-                        all_masks += [raw_data['gt_ignore_region'][t]]
-                    except IndexError:
-                        self._raise_index_error(is_gt, tracker, seq)
-                    except ValueError:
-                        self._raise_value_error(is_gt,tracker,seq)
-                else:
-                    raw_data['gt_ignore_region'][t] = mask_utils.merge([], intersect=False)
-
-            # check for overlapping masks
-            if all_masks:
-                masks_merged = all_masks[0]
-                for mask in all_masks[1:]:
-                    if mask_utils.area(mask_utils.merge([masks_merged, mask], intersect=True)) != 0.0:
-                        raise TrackEvalException('Tracker has overlapping masks. Tracker: ' + tracker + ' Seq: ' + seq + ' Timestep: ' + str(t))
-                    masks_merged = mask_utils.merge([masks_merged, mask], intersect=False)
-
-        if is_gt:
-            key_map = {'ids': 'gt_ids',
-                       'classes': 'gt_classes',
-                       'dets': 'gt_dets'}
-        else:
-            key_map = {'ids': 'tracker_ids',
-                       'classes': 'tracker_classes',
-                       'dets': 'tracker_dets'}
-        for k, v in key_map.items():
-            raw_data[v] = raw_data.pop(k)
-        raw_data["num_timesteps"] = num_timesteps
-        raw_data['seq'] = seq
-        return raw_data
+    def _calculate_similarities(self, gt_dets_t, tracker_dets_t):
+        similarity_scores = self._calculate_mask_ious(gt_dets_t, tracker_dets_t, is_encoded=True, do_ioa=False)
+        return similarity_scores
 
     @staticmethod
     def _raise_index_error(is_gt, tracker, seq):
@@ -402,7 +410,3 @@ class KittiMOTS(_BaseDataset):
             raise TrackEvalException(
                 'Tracking data from tracker %s, sequence %s cannot be converted to the right format. '
                 'Is data corrupted?' % (tracker, seq))
-
-    def _calculate_similarities(self, gt_dets_t, tracker_dets_t):
-        similarity_scores = self._calculate_mask_ious(gt_dets_t, tracker_dets_t, is_encoded=True, do_ioa=False)
-        return similarity_scores

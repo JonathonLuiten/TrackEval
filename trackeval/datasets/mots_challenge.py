@@ -5,8 +5,8 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from ._base_dataset import _BaseDataset
 from .. import utils
-from ..utils import TrackEvalException
 from .. import _timing
+from ..utils import TrackEvalException
 
 
 class MOTSChallenge(_BaseDataset):
@@ -27,13 +27,14 @@ class MOTSChallenge(_BaseDataset):
             'PRINT_CONFIG': True,  # Whether to print current config
             'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
             'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
+            'TRACKER_DISPLAY_NAMES': None,  # Names of trackers to display, if None: TRACKERS_TO_EVAL
             'SEQMAP_FOLDER': None,  # Where seqmaps are found (if None, GT_FOLDER/seqmaps)
             'SEQMAP_FILE': None,  # Directly specify seqmap file (if none use seqmap_folder/MOTS-split_to_eval)
             'SEQ_INFO': None,  # If not None, directly specify sequences to eval and their number of timesteps
             'GT_LOC_FORMAT': '{gt_folder}/{seq}/gt/gt.txt',  # '{gt_folder}/{seq}/gt/gt.txt'
-            'SKIP_SPLIT_FOL': False,    # If False, data is in GT_FOLDER/MOTS-SPLIT_TO_EVAL/ and in
-                                        # TRACKERS_FOLDER/MOTS-SPLIT_TO_EVAL/tracker/
-                                        # If True, then the middle 'MOTS-split' folder is skipped for both.
+            'SKIP_SPLIT_FOL': False,  # If False, data is in GT_FOLDER/MOTS-SPLIT_TO_EVAL/ and in
+                                      # TRACKERS_FOLDER/MOTS-SPLIT_TO_EVAL/tracker/
+                                      # If True, then the middle 'MOTS-split' folder is skipped for both.
         }
         return default_config
 
@@ -85,6 +86,7 @@ class MOTSChallenge(_BaseDataset):
         if self.data_is_zipped:
             curr_file = os.path.join(self.gt_fol, 'data.zip')
             if not os.path.isfile(curr_file):
+                print('GT file not found ' + curr_file)
                 raise TrackEvalException('GT file not found: ' + os.path.basename(curr_file))
 
         # Get trackers to eval
@@ -92,6 +94,15 @@ class MOTSChallenge(_BaseDataset):
             self.tracker_list = os.listdir(self.tracker_fol)
         else:
             self.tracker_list = self.config['TRACKERS_TO_EVAL']
+
+        if self.config['TRACKER_DISPLAY_NAMES'] is None:
+            self.tracker_to_disp = dict(zip(self.tracker_list, self.tracker_list))
+        elif (self.config['TRACKERS_TO_EVAL'] is not None) and (
+                len(self.config['TRACKER_DISPLAY_NAMES']) == len(self.tracker_list)):
+            self.tracker_to_disp = dict(zip(self.tracker_list, self.config['TRACKER_DISPLAY_NAMES']))
+        else:
+            raise TrackEvalException('List of tracker files and tracker display names do not match.')
+
         for tracker in self.tracker_list:
             if self.data_is_zipped:
                 curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol + '.zip')
@@ -106,6 +117,9 @@ class MOTSChallenge(_BaseDataset):
                         raise TrackEvalException(
                             'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol + '/' + os.path.basename(
                                 curr_file))
+
+    def get_display_name(self, tracker):
+        return self.tracker_to_disp[tracker]
 
     def _get_seq_info(self):
         seq_list = []
@@ -242,44 +256,9 @@ class MOTSChallenge(_BaseDataset):
                        'dets': 'tracker_dets'}
         for k, v in key_map.items():
             raw_data[v] = raw_data.pop(k)
-        raw_data["num_timesteps"] = num_timesteps
+        raw_data['num_timesteps'] = num_timesteps
         raw_data['seq'] = seq
         return raw_data
-
-    @staticmethod
-    def _raise_index_error(is_gt, tracker, seq):
-        """
-        Auxiliary method to raise an evaluation error in case of an index error while reading files.
-        :param is_gt: whether gt or tracker data is read
-        :param tracker: the name of the tracker
-        :param seq: the name of the seq
-        :return: None
-        """
-        if is_gt:
-            err = 'Cannot load gt data from sequence %s, because there are not enough ' \
-                  'columns in the data.' % seq
-            raise TrackEvalException(err)
-        else:
-            err = 'Cannot load tracker data from tracker %s, sequence %s, because there are not enough ' \
-                  'columns in the data.' % (tracker, seq)
-            raise TrackEvalException(err)
-
-    @staticmethod
-    def _raise_value_error(is_gt, tracker, seq):
-        """
-        Auxiliary method to raise an evaluation error in case of an value error while reading files.
-        :param is_gt: whether gt or tracker data is read
-        :param tracker: the name of the tracker
-        :param seq: the name of the seq
-        :return: None
-        """
-        if is_gt:
-            raise TrackEvalException(
-                'GT data for sequence %s cannot be converted to the right format. Is data corrupted?' % seq)
-        else:
-            raise TrackEvalException(
-                'Tracking data from tracker %s, sequence %s cannot be converted to the right format. '
-                'Is data corrupted?' % (tracker, seq))
 
     @_timing.time
     def get_preprocessed_seq_data(self, raw_data, cls):
@@ -406,3 +385,38 @@ class MOTSChallenge(_BaseDataset):
     def _calculate_similarities(self, gt_dets_t, tracker_dets_t):
         similarity_scores = self._calculate_mask_ious(gt_dets_t, tracker_dets_t, is_encoded=True, do_ioa=False)
         return similarity_scores
+
+    @staticmethod
+    def _raise_index_error(is_gt, tracker, seq):
+        """
+        Auxiliary method to raise an evaluation error in case of an index error while reading files.
+        :param is_gt: whether gt or tracker data is read
+        :param tracker: the name of the tracker
+        :param seq: the name of the seq
+        :return: None
+        """
+        if is_gt:
+            err = 'Cannot load gt data from sequence %s, because there are not enough ' \
+                  'columns in the data.' % seq
+            raise TrackEvalException(err)
+        else:
+            err = 'Cannot load tracker data from tracker %s, sequence %s, because there are not enough ' \
+                  'columns in the data.' % (tracker, seq)
+            raise TrackEvalException(err)
+
+    @staticmethod
+    def _raise_value_error(is_gt, tracker, seq):
+        """
+        Auxiliary method to raise an evaluation error in case of an value error while reading files.
+        :param is_gt: whether gt or tracker data is read
+        :param tracker: the name of the tracker
+        :param seq: the name of the seq
+        :return: None
+        """
+        if is_gt:
+            raise TrackEvalException(
+                'GT data for sequence %s cannot be converted to the right format. Is data corrupted?' % seq)
+        else:
+            raise TrackEvalException(
+                'Tracking data from tracker %s, sequence %s cannot be converted to the right format. '
+                'Is data corrupted?' % (tracker, seq))
