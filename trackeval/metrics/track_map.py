@@ -4,27 +4,29 @@ from ._base_metric import _BaseMetric
 from .. import _timing
 from functools import partial
 from .. import utils
-from pycocotools import mask as mask_utils
+from ..utils import TrackEvalException
 
 
 class TrackMAP(_BaseMetric):
-    """Class which implements the CLEAR metrics"""
+    """Class which implements the TrackMAP metrics"""
 
     @staticmethod
     def get_default_metric_config():
         """Default class config values"""
         default_config = {
-            'USE_AREA_RANGES': True,
-            'AREA_RANGES': [[0 ** 2, 32 ** 2],
-                            [32 ** 2, 96 ** 2],
-                            [96 ** 2, 1e5 ** 2]],
-            'AREA_RANGE_LABELS': ["area_s", "area_m", "area_l"],
-            'USE_TIME_RANGES': True,
-            'TIME_RANGES': [[0, 3], [3, 10], [10, 1e5]],
-            'TIME_RANGE_LABELS': ["time_s", "time_m", "time_l"],
-            'IOU_THRESHOLDS': np.arange(0.5, 0.96, 0.05),
+            'USE_AREA_RANGES': True,  # whether to evaluate for certain area ranges
+            'AREA_RANGES': [[0 ** 2, 32 ** 2],      # additional area range sets for which TrackMAP is evaluated
+                            [32 ** 2, 96 ** 2],     # (all area range always included), default values for TAO
+                            [96 ** 2, 1e5 ** 2]],   # evaluation
+            'AREA_RANGE_LABELS': ["area_s", "area_m", "area_l"],  # the labels for the area ranges
+            'USE_TIME_RANGES': True,  # whether to evaluate for certain time ranges (length of tracks)
+            'TIME_RANGES': [[0, 3], [3, 10], [10, 1e5]],  # additional time range sets for which TrackMAP is evaluated
+            # (all time range always included) , default values for TAO evaluation
+            'TIME_RANGE_LABELS': ["time_s", "time_m", "time_l"],  # the labels for the time ranges
+            'IOU_THRESHOLDS': np.arange(0.5, 0.96, 0.05),  # the IoU thresholds
             'RECALL_THRESHOLDS': np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01) + 1), endpoint=True),
-            'MAX_DETECTIONS': 0,
+            # recall thresholds at which precision is evaluated
+            'MAX_DETECTIONS': 0,  # limit the maximum number of considered tracks per sequence (0 for unlimited)
             'PRINT_CONFIG': True
         }
         return default_config
@@ -59,11 +61,13 @@ class TrackMAP(_BaseMetric):
 
     @_timing.time
     def eval_sequence(self, data):
-        """Calculates CLEAR metrics for one sequence"""
-        # Initialise results
+        """Calculates GT and Tracker matches for one sequence for TrackMAP metrics. Adapted from
+        https://github.com/TAO-Dataset/"""
+
+        # Initialise results to zero for each sequence as the fields are only defined over the set of all sequences
         res = {}
         for field in self.fields:
-            res[field] = 0
+            res[field] = [0 for _ in self.array_labels]
 
         gt_ids, dt_ids = data['gt_track_ids'], data['dt_track_ids']
 
@@ -72,6 +76,7 @@ class TrackMAP(_BaseMetric):
                 res[idx] = None
             return res
 
+        # get track data
         gt_tr_areas = data.get('gt_track_areas', None) if self.use_area_rngs else None
         gt_tr_lengths = data.get('gt_track_lengths', None) if self.use_time_rngs else None
         gt_tr_iscrowd = data.get('gt_track_iscrowd', None)
@@ -79,15 +84,11 @@ class TrackMAP(_BaseMetric):
         dt_tr_lengths = data.get('dt_track_lengths', None) if self.use_time_rngs else None
         is_nel = data.get('not_exhaustively_labeled', False)
 
+        # compute ignore masks for different track sets to eval
         gt_ig_masks = self._compute_track_ig_masks(len(gt_ids), track_lengths=gt_tr_lengths, track_areas=gt_tr_areas,
                                                    iscrowd=gt_tr_iscrowd)
         dt_ig_masks = self._compute_track_ig_masks(len(dt_ids), track_lengths=dt_tr_lengths, track_areas=dt_tr_areas,
                                                    is_not_exhaustively_labeled=is_nel, is_gt=False)
-
-        # assert len(gt_ig_masks) == self.num_ig_masks, \
-        #     'gt data does not have the correct number of ignore masks to consider'
-        # assert len(dt_ig_masks) == self.num_ig_masks, \
-        #     'tracker data does not have the correct number of ignore masks to consider'
 
         ious = self._compute_track_ious(data['dt_tracks'], data['gt_tracks'], iou_function=data['iou_type'])
 
@@ -166,8 +167,8 @@ class TrackMAP(_BaseMetric):
         return res
 
     def combine_sequences(self, all_res):
-        """Combines metrics across all sequences
-        Adapted from https://github.com/TAO-Dataset/tao/blob/master/tao/toolkit/tao/eval.py
+        """Combines metrics across all sequences. Computes precision and recall values based on track matches.
+        Adapted from https://github.com/TAO-Dataset/
         """
         num_thrs = len(self.array_labels)
         num_recalls = len(self.rec_thrs)
@@ -186,6 +187,7 @@ class TrackMAP(_BaseMetric):
                 continue
 
             # Append all scores: shape (N,)
+            # limit considered tracks for each sequence if maxDet > 0
             if self.maxDet == 0:
                 dt_scores = np.concatenate([res["dt_scores"] for res in ig_idx_results], axis=0)
 
@@ -272,6 +274,7 @@ class TrackMAP(_BaseMetric):
         return res
 
     def combine_classes_class_averaged(self, all_res):
+        """Combines metrics across all classes by averaging over the class values"""
         res = {}
         for field in self.fields:
             res[field] = np.zeros((len(self.array_labels)), dtype=np.float)
@@ -287,6 +290,7 @@ class TrackMAP(_BaseMetric):
         return res
 
     def combine_classes_det_averaged(self, all_res):
+        """Combines metrics across all classes by averaging over the detection values"""
         all_prec = np.array([res['precision'] for res in all_res.values()])
         all_rec = np.array([res['recall'] for res in all_res.values()])
 
@@ -315,13 +319,24 @@ class TrackMAP(_BaseMetric):
 
         return res
 
-    def _compute_track_ig_masks(self, track_length, track_lengths=None, track_areas=None, iscrowd=None,
+    def _compute_track_ig_masks(self, num_ids, track_lengths=None, track_areas=None, iscrowd=None,
                                 is_not_exhaustively_labeled=False, is_gt=True):
+        """
+        Computes ignore masks for different track sets to evaluate
+        :param num_ids: the number of track IDs
+        :param track_lengths: the lengths of the tracks (number of timesteps)
+        :param track_areas: the average area of a track
+        :param iscrowd: whether a track is marked as crowd
+        :param is_not_exhaustively_labeled: whether the track category is not exhaustively labeled
+        :param is_gt: whether it is gt
+        :return: the track ignore masks
+        """
+        # for TAO tracks for classes which are not exhaustively labeled are not evaluated
         if not is_gt and is_not_exhaustively_labeled:
-            track_ig_masks = [[1 for _ in range(track_length)] for i in range(self.num_ig_masks)]
+            track_ig_masks = [[1 for _ in range(num_ids)] for i in range(self.num_ig_masks)]
         else:
             # consider all tracks
-            track_ig_masks = [[0 for _ in range(track_length)]]
+            track_ig_masks = [[0 for _ in range(num_ids)]]
 
             # consider tracks with certain area
             if self.use_area_rngs:
@@ -333,6 +348,7 @@ class TrackMAP(_BaseMetric):
                 for rng in self.time_rngs:
                     track_ig_masks.append([0 if rng[0] <= length <= rng[1] else 1 for length in track_lengths])
 
+        # for YouTubeVIS evaluation tracks with crowd tag are not evaluated
         if is_gt and iscrowd:
             track_ig_masks = [np.logical_or(mask, iscrowd) for mask in track_ig_masks]
 
@@ -340,6 +356,15 @@ class TrackMAP(_BaseMetric):
 
     @staticmethod
     def _compute_bb_track_iou(dt_track, gt_track, boxformat='xywh'):
+        """
+        Calculates the track IoU for one detected track and one ground truth track for bounding boxes
+        :param dt_track: the detected track (format: dictionary with frame index as keys and
+                            numpy arrays as values)
+        :param gt_track: the ground truth track (format: dictionary with frame index as keys and
+                            numpy arrays as values)
+        :param boxformat: the format of the boxes
+        :return: the track IoU
+        """
         intersect = 0
         union = 0
         image_ids = set(gt_track.keys()) | set(dt_track.keys())
@@ -361,12 +386,24 @@ class TrackMAP(_BaseMetric):
                 elif d and not g:
                     union += d[2] * d[3]
             else:
-                raise (Exception('BoxFormat not implemented'))
-        assert intersect <= union
+                raise (TrackEvalException('BoxFormat not implemented'))
+        if intersect > union:
+            raise TrackEvalException("Intersection value > union value. Are the box values corrupted?")
         return intersect / union if union > 0 else 0
 
     @staticmethod
     def _compute_mask_track_iou(dt_track, gt_track):
+        """
+        Calculates the track IoU for one detected track and one ground truth track for segmentation masks
+        :param dt_track: the detected track (format: dictionary with frame index as keys and
+                            pycocotools rle encoded masks as values)
+        :param gt_track: the ground truth track (format: dictionary with frame index as keys and
+                            pycocotools rle encoded masks as values)
+        :return: the track IoU
+        """
+        # only loaded when needed to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+
         intersect = .0
         union = .0
         for d, g in zip(dt_track.values(), gt_track.values()):
@@ -377,16 +414,17 @@ class TrackMAP(_BaseMetric):
                 union += mask_utils.area(g)
             elif d and not g:
                 union += mask_utils.area(d)
-        assert union > .0
-        assert intersect <= union
+        if union < .0:
+            raise TrackEvalException("Union value < 0. Are the segmentaions corrupted?")
+        if intersect > union:
+            raise TrackEvalException("Intersection value > union value. Are the segmentations corrupted?")
         iou = intersect / union if union > .0 else .0
         return iou
 
     @staticmethod
     def _compute_track_ious(dt, gt, iou_function='bbox', boxformat='xywh'):
         """
-        Adapted from https://github.com/TAO-Dataset/tao/blob/master/tao/toolkit/tao/eval.py
-        Calculate track IoUs for a set of ground truth tracks gt and a set of detected tracks dt
+        Calculate track IoUs for a set of ground truth tracks and a set of detected tracks
         """
 
         if len(gt) == 0 and len(dt) == 0:

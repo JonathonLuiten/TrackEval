@@ -1,7 +1,7 @@
 """ run_tao.py
 
 Run example:
-run_tao.py --USE_PARALLEL False --METRICS Hota --TRACKERS_TO_EVAL Lif_T
+run_tao.py --USE_PARALLEL False --METRICS HOTA --TRACKERS_TO_EVAL Tracktor++
 
 Command Line Arguments: Defaults, # Comments
     Eval arguments:
@@ -16,20 +16,19 @@ Command Line Arguments: Defaults, # Comments
         'OUTPUT_DETAILED': True,
         'PLOT_CURVES': True,
     Dataset arguments:
-        'GT_FOLDER': os.path.join(code_path, 'data/gt/mot_challenge/'),  # Location of GT data
-        'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/mot_challenge/'),  # Trackers location
+        'GT_FOLDER': os.path.join(code_path, 'data/gt/tao/tao_training'),  # Location of GT data
+        'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/tao/tao_training'),  # Trackers location
         'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
         'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
-        'CLASSES_TO_EVAL': ['pedestrian'],  # Valid: ['pedestrian']
-        'BENCHMARK': 'MOT17',  # Valid: 'MOT17', 'MOT16', 'MOT20', '2D_MOT_2015'
-        'SPLIT_TO_EVAL': 'train',  # Valid: 'train', 'test', 'all'
-        'INPUT_AS_ZIP': False,  # Whether tracker input files are zipped
+        'CLASSES_TO_EVAL': None,  # Classes to eval (if None, all classes)
+        'SPLIT_TO_EVAL': 'training',  # Valid: 'training', 'val'
         'PRINT_CONFIG': True,  # Whether to print current config
-        'DO_PREPROC': True,  # Whether to perform preprocessing (never done for 2D_MOT_2015)
         'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
         'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
+        'TRACKER_DISPLAY_NAMES': None,  # Names of trackers to display, if None: TRACKERS_TO_EVAL
+        'MAX_DETECTIONS': 300,  # Number of maximal allowed detections per image (0 for unlimited)
     Metric arguments:
-        'METRICS': ['Hota','Clear', 'ID', 'Count']
+        'METRICS': ['HOTA', 'CLEAR', 'Identity', 'TrackMAP']
 """
 
 import sys
@@ -38,17 +37,17 @@ import argparse
 from multiprocessing import freeze_support
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import hota_metrics as hm  # noqa: E402
+import trackeval  # noqa: E402
 
 if __name__ == '__main__':
     freeze_support()
 
     # Command line interface:
-    default_eval_config = hm.Evaluator.get_default_eval_config()
-    default_eval_config['PRINT_ONLY_CLASSES_COMBINED'] = True
-    default_eval_config['OUTPUT_DETAILED'] = False
-    default_dataset_config = hm.datasets.TAO2DBox.get_default_dataset_config()
-    default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity', 'TrackMAP', 'Count']}
+    default_eval_config = trackeval.Evaluator.get_default_eval_config()
+    # print only combined since TrackMAP is undefined for per sequence breakdowns
+    default_eval_config['PRINT_ONLY_COMBINED'] = True
+    default_dataset_config = trackeval.datasets.TAO.get_default_dataset_config()
+    default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity', 'TrackMAP']}
     config = {**default_eval_config, **default_dataset_config, **default_metrics_config}  # Merge default configs
     parser = argparse.ArgumentParser()
     for setting in config.keys():
@@ -78,10 +77,11 @@ if __name__ == '__main__':
     metrics_config = {k: v for k, v in config.items() if k in default_metrics_config.keys()}
 
     # Run code
-    evaluator = hm.Evaluator(eval_config)
-    dataset_list = [hm.datasets.TAO2DBox(dataset_config)]
+    evaluator = trackeval.Evaluator(eval_config)
+    dataset_list = [trackeval.datasets.TAO(dataset_config)]
     metrics_list = []
-    for metric in [hm.metrics.TrackMAP, hm.metrics.CLEAR, hm.metrics.Identity, hm.metrics.HOTA]:
+    for metric in [trackeval.metrics.TrackMAP, trackeval.metrics.CLEAR, trackeval.metrics.Identity,
+                   trackeval.metrics.HOTA]:
         if metric.get_name() in metrics_config['METRICS']:
             metrics_list.append(metric())
     if len(metrics_list) == 0:
