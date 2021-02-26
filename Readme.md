@@ -4,19 +4,33 @@
 
 This codebase provides code for a number of different tracking evaluation metrics (including the [HOTA metrics](https://link.springer.com/article/10.1007/s11263-020-01375-2)), as well as supporting running all of these metrics on a number of different tracking benchmarks. Plus plotting of results and other things one may want to do for tracking evaluation.
 
-## Currently implemented metrics:
+## Currently implemented metrics
 
 The following metrics are currently implemented:
 
  - [HOTA metrics](https://link.springer.com/article/10.1007/s11263-020-01375-2) - **Recommended tracking metric** ([code](trackeval/metrics/hota.py))
  - [CLEARMOT metrics](https://link.springer.com/article/10.1155/2008/246309) (MOTA / MOTP / etc.) ([code](trackeval/metrics/clear.py))
  - [Identity metrics](https://arxiv.org/abs/1609.01775) (IDF1 / IDP / IDR / etc.) ([code](trackeval/metrics/identity.py))
+ - [J & F metrics](https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Perazzi_A_Benchmark_Dataset_CVPR_2016_paper.pdf) ([code](trackeval/metrics/j_and_f.py))
 
-## Currently implemented benchmarks:
+## Currently implemented benchmarks
+
+The following benchmarks are currently implemented:
 
  - [MOTChallenge](https://motchallenge.net/) (MOT15/16/17/20) ([code](trackeval/datasets/mot_challenge_2d_box.py), [format](docs/MOTChallenge-format.txt))
  - [KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php) ([code](trackeval/datasets/kitti_2d_box.py), [format](docs/KITTI-format.txt))
  - [MOTS](https://www.vision.rwth-aachen.de/page/mots) ([KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php) and [MOTS Challenge](https://motchallenge.net/results/MOTS/)) ([code](trackeval/datasets/mots_challenge.py) and [code](trackeval/datasets/kitti_mots.py), [format](docs/MOTS-format.txt))
+ - [BDD-100k](https://bdd-data.berkeley.edu/) ([code](trackeval/datasets/bdd100k.py), [format](docs/BDD100k-format.txt))
+ - [DAVIS](https://davischallenge.org/) ([code](trackeval/datasets/davis.py), [format](docs/DAVIS-format.txt))
+
+## Benchmarks which use TrackEval as their official evaluation code
+
+The following benchmarks use TrackEval as their official evaluation code, check out the links to see TrackEval in action:
+
+ - [KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)
+ - [KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php)
+
+If you run a tracking benchmark and want to use TrackEval as your official evaluation code, please contact Jonathon (contact details below).
 
 ## HOTA metrics
 
@@ -42,7 +56,7 @@ The code is also extremely fast, running at more than 10x the speed of the both 
 
 The implementation of CLEARMOT and ID metrics aligns perfectly with the [MOTChallengeEvalKit](https://github.com/dendorferpatrick/MOTChallengeEvalKit).
 
-By default the code prints results to the screen, saves results out as both a summary txt file and a detailed results csv file, and outputs plots of the results.
+By default the code prints results to the screen, saves results out as both a summary txt file and a detailed results csv file, and outputs plots of the results. All outputs are by default saved to the 'tracker' folder for each tracker.
 
 ## Running the code
 
@@ -54,7 +68,7 @@ The code can be run in one of two ways:
 ## Quickly evaluate on supported benchmarks
 
 To enable you to use TrackEval for evaluation as quickly and easily as possible, we provide ground-truth data, meta-data and example trackers for all currently supported benchmarks.
-You can download this here: [data.zip](https://omnomnom.vision.rwth-aachen.de/data/TrackEval/data.zip) (~60mb).
+You can download this here: [data.zip](https://omnomnom.vision.rwth-aachen.de/data/TrackEval/data.zip) (~120mb).
 
 The easiest way to begin is to extract this zip into the repository root folder such that the file paths look like: TrackEval/data/gt/...
 
@@ -73,6 +87,18 @@ To evaluate on your own data, you have two options:
 To convert formats, check out the format specifications defined [here](docs).
 
 By default, we would recommend the MOTChallenge format, although any implemented format should work. Note that for many cases you will want to use the argument ```--DO_PREPROC False``` unless you want to run preprocessing to remove distractor objects.
+
+## Requirments
+
+ - Minimum requirements: numpy, scipy
+ - For plotting: matplotlib
+ - For segmentation datasets (KITTI MOTS, MOTS-Challenge, DAVIS): pycocotools
+ - For DAVIS dataset: Pillow
+ - For J & F metric: opencv_python, scikit_image
+
+use ```pip3 -r install requirements.txt``` to install all possible requirements.
+
+use ```pip3 -r install minimum_requirments.txt``` to only install the minimum if you don't need the extra functionality as listed above.
 
 ## Timing analysis
 
@@ -104,7 +130,7 @@ TrackEval is released under the [MIT License](LICENSE).
 
 ## Contact
 
-If you encounter any problems with the code, please contact [Jonathon Luiten](https://www.vision.rwth-aachen.de/person/216/) (luiten at vision dot rwth-aachen dot de).
+If you encounter any problems with the code, please contact [Jonathon Luiten](https://www.vision.rwth-aachen.de/person/216/) ([luiten@vision.rwth-aachen.de](mailto:luiten@vision.rwth-aachen.de)).
 If anything is unclear, or hard to use, please leave a comment either via email or as an issue and I would love to help.
 
 ## Dedication
@@ -117,18 +143,18 @@ We welcome contributions of new metrics and new supported benchmarks. Also any o
 
 ## Citing TrackEval
 
-If you use this code in your research, please use the following BibTeX entry.
+If you use this code in your research, please use the following BibTeX entry:
 
 ```BibTeX
 @misc{luiten2020trackeval,
-  author =       {Jonathon Luiten},
+  author =       {Jonathon Luiten, Arne Hoffhues},
   title =        {TrackEval},
   howpublished = {\url{https://github.com/JonathonLuiten/TrackEval}},
   year =         {2020}
 }
 ```
 
-Furthermore, if you use the HOTA metrics, please cite the following paper
+Furthermore, if you use the HOTA metrics, please cite the following paper:
 
 ```
 @article{luiten2020hota,

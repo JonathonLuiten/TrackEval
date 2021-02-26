@@ -1,9 +1,6 @@
 import os
 import csv
 import numpy as np
-from glob import glob
-from PIL import Image
-from pycocotools import mask as mask_utils
 from ._base_dataset import _BaseDataset
 from ..utils import TrackEvalException
 from .. import utils
@@ -18,8 +15,8 @@ class DAVIS(_BaseDataset):
         """Default class config values"""
         code_path = utils.get_code_path()
         default_config = {
-            'GT_FOLDER': os.path.join(code_path, 'data/gt/davis/'),  # Location of GT data
-            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/davis/davis_val'),  # Trackers location
+            'GT_FOLDER': os.path.join(code_path, 'data/gt/davis/davis_unsupervised_val/'),  # Location of GT data
+            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/davis/davis_unsupervised_val/'),  # Trackers location
             'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
             'SPLIT_TO_EVAL': 'val',  # Valid: 'val', 'train'
@@ -27,10 +24,8 @@ class DAVIS(_BaseDataset):
             'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
             'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
             'TRACKER_DISPLAY_NAMES': None,  # Names of trackers to display, if None: TRACKERS_TO_EVAL
-            'SEQMAP_FOLDER': None,  # Where seqmaps are found (if None, GT_FOLDER/ImageSets/2017)
-            'SEQMAP_FILE': None,  # Directly specify seqmap file (if none use seqmap_folder/split-to-eval.txt)
+            'SEQMAP_FILE': None,  # Specify seqmap file
             'SEQ_INFO': None,  # If not None, directly specify sequences to eval and their number of timesteps
-            'GT_LOC_FORMAT': '{gt_folder}/Annotations_unsupervised/480p/{seq}',
             # '{gt_folder}/Annotations_unsupervised/480p/{seq}'
             'MAX_DETECTIONS': 0  # Maximum number of allowed detections per sequence (0 for no threshold)
         }
@@ -58,21 +53,13 @@ class DAVIS(_BaseDataset):
 
         self.max_det = self.config['MAX_DETECTIONS']
 
-        # Get sequences to eval and check gt files exist
-        self.seq_list = []
-        self.seq_lengths = {}
+        # Get sequences to eval
         if self.config["SEQ_INFO"]:
             self.seq_list = list(self.config["SEQ_INFO"].keys())
             self.seq_lengths = self.config["SEQ_INFO"]
-        else:
-            if self.config["SEQMAP_FILE"]:
-                seqmap_file = self.config["SEQMAP_FILE"]
-            else:
-                if self.config["SEQMAP_FOLDER"] is None:
-                    seqmap_file = os.path.join(self.config['GT_FOLDER'], 'ImageSets/2017',
-                                               self.config['SPLIT_TO_EVAL'] + '.txt')
-                else:
-                    seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], self.config['SPLIT_TO_EVAL'] + '.txt')
+        elif self.config["SEQMAP_FILE"]:
+            self.seq_list = []
+            seqmap_file = self.config["SEQMAP_FILE"]
             if not os.path.isfile(seqmap_file):
                 raise TrackEvalException('no seqmap found: ' + os.path.basename(seqmap_file))
             with open(seqmap_file) as fp:
@@ -82,11 +69,10 @@ class DAVIS(_BaseDataset):
                         continue
                     seq = row[0]
                     self.seq_list.append(seq)
-                    curr_dir = self.config["GT_LOC_FORMAT"].format(gt_folder=self.gt_fol, seq=seq)
-                    if not os.path.isdir(curr_dir):
-                        raise TrackEvalException('GT directory not found: ' + curr_dir)
-                    curr_timesteps = len(glob(os.path.join(curr_dir, '*.png')))
-                    self.seq_lengths[seq] = curr_timesteps
+        else:
+            self.seq_list = os.listdir(self.gt_fol)
+
+        self.seq_lengths = {seq: len(os.listdir(os.path.join(self.gt_fol, seq))) for seq in self.seq_list}
 
         # Get trackers to eval
         if self.config['TRACKERS_TO_EVAL'] is None:
@@ -97,8 +83,9 @@ class DAVIS(_BaseDataset):
             for seq in self.seq_list:
                 curr_dir = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq)
                 if not os.path.isdir(curr_dir):
-                    raise TrackEvalException('Tracker directory not found: ' + curr_dir)
-                tr_timesteps = len(glob(os.path.join(curr_dir, '*.png')))
+                    print('Tracker directory not found: ' + curr_dir)
+                    raise TrackEvalException('Tracker directory not found: ' + os.path.join(tracker, self.tracker_sub_fol, seq))
+                tr_timesteps = len(os.listdir(curr_dir))
                 if self.seq_lengths[seq] != tr_timesteps:
                     raise TrackEvalException('GT folder and tracker folder have a different number'
                                              'timesteps for tracker %s and sequence %s' % (tracker, seq))
@@ -123,9 +110,14 @@ class DAVIS(_BaseDataset):
         [tracker_ids] : list (for each timestep) of 1D NDArrays (for each det).
         [tracker_dets]: list (for each timestep) of lists of detections.
         """
+
+        # Only loaded when run to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+        from PIL import Image
+
         # File location
         if is_gt:
-            seq_dir = self.config["GT_LOC_FORMAT"].format(gt_folder=self.gt_fol, seq=seq)
+            seq_dir = os.path.join(self.gt_fol, seq)
         else:
             seq_dir = os.path.join(self.tracker_fol, tracker, 'data', seq)
 
@@ -134,7 +126,7 @@ class DAVIS(_BaseDataset):
         raw_data = {key: [None] * num_timesteps for key in data_keys}
 
         # read frames
-        frames = np.sort(glob(os.path.join(seq_dir, '*.png')))
+        frames = [os.path.join(seq_dir, im_name) for im_name in sorted(os.listdir(seq_dir))]
         mask0 = np.array(Image.open(frames[0]))
         all_masks = np.zeros((len(frames), *mask0.shape))
         for i, t in enumerate(frames):
@@ -215,6 +207,10 @@ class DAVIS(_BaseDataset):
             Preprocessing special to DAVIS: Pixels which are marked as void in the ground truth are set to zero in the
                 tracker detections since they are not considered during evaluation.
         """
+
+        # Only loaded when run to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+
         data_keys = ['gt_ids', 'tracker_ids', 'gt_dets', 'tracker_dets', 'similarity_scores']
         data = {key: [None] * raw_data['num_timesteps'] for key in data_keys}
         num_gt_dets = 0

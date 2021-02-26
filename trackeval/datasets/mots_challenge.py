@@ -2,7 +2,6 @@ import os
 import csv
 import configparser
 import numpy as np
-from pycocotools import mask as mask_utils
 from scipy.optimize import linear_sum_assignment
 from ._base_dataset import _BaseDataset
 from .. import utils
@@ -58,7 +57,7 @@ class MOTSChallenge(_BaseDataset):
 
         self.output_fol = self.config['OUTPUT_FOLDER']
         if self.output_fol is None:
-            self.output_fol = self.config['TRACKERS_FOLDER']
+            self.output_fol = self.tracker_fol
 
         self.tracker_sub_fol = self.config['TRACKER_SUB_FOLDER']
         self.output_sub_fol = self.config['OUTPUT_SUB_FOLDER']
@@ -97,11 +96,13 @@ class MOTSChallenge(_BaseDataset):
             if self.data_is_zipped:
                 curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol + '.zip')
                 if not os.path.isfile(curr_file):
+                    print('Tracker file not found: ' + curr_file)
                     raise TrackEvalException('Tracker file not found: ' + tracker + '/' + os.path.basename(curr_file))
             else:
                 for seq in self.seq_list:
                     curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.txt')
                     if not os.path.isfile(curr_file):
+                        print('Tracker file not found: ' + curr_file)
                         raise TrackEvalException(
                             'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol + '/' + os.path.basename(
                                 curr_file))
@@ -121,6 +122,7 @@ class MOTSChallenge(_BaseDataset):
                 else:
                     seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], self.gt_set + '.txt')
             if not os.path.isfile(seqmap_file):
+                print('no seqmap found: ' + seqmap_file)
                 raise TrackEvalException('no seqmap found: ' + os.path.basename(seqmap_file))
             with open(seqmap_file) as fp:
                 reader = csv.reader(fp)
@@ -149,6 +151,10 @@ class MOTSChallenge(_BaseDataset):
         [tracker_ids, tracker_classes] : list (for each timestep) of 1D NDArrays (for each det).
         [tracker_dets]: list (for each timestep) of lists of detections.
         """
+
+        # Only loaded when run to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+
         # File location
         if self.data_is_zipped:
             if is_gt:
@@ -195,7 +201,7 @@ class MOTSChallenge(_BaseDataset):
                 except IndexError:
                     self._raise_index_error(is_gt, tracker, seq)
                 except ValueError:
-                    self._raise_value_error(is_gt,tracker,seq)
+                    self._raise_value_error(is_gt, tracker, seq)
             else:
                 raw_data['dets'][t] = []
                 raw_data['ids'][t] = np.empty(0).astype(int)
@@ -212,7 +218,7 @@ class MOTSChallenge(_BaseDataset):
                     except IndexError:
                         self._raise_index_error(is_gt, tracker, seq)
                     except ValueError:
-                        self._raise_value_error(is_gt,tracker,seq)
+                        self._raise_value_error(is_gt, tracker, seq)
                 else:
                     raw_data['gt_ignore_region'][t] = mask_utils.merge([], intersect=False)
 
