@@ -93,6 +93,7 @@ class MotChallenge2DBox(_BaseDataset):
         if self.data_is_zipped:
             curr_file = os.path.join(self.gt_fol, 'data.zip')
             if not os.path.isfile(curr_file):
+                print('GT file not found ' + curr_file)
                 raise TrackEvalException('GT file not found: ' + os.path.basename(curr_file))
 
         # Get trackers to eval

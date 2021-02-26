@@ -7,7 +7,6 @@ from ..utils import TrackEvalException
 from ._base_dataset import _BaseDataset
 from .. import utils
 from .. import _timing
-from glob import glob
 
 
 class BDD100K(_BaseDataset):
@@ -68,8 +67,7 @@ class BDD100K(_BaseDataset):
         self.seq_list = []
         self.seq_lengths = {}
 
-        sequences = glob(os.path.join(self.gt_fol, '*.json'))
-        self.seq_list = [seq.split('/')[-1].split('.')[0] for seq in sequences]
+        self.seq_list = [seq_file.replace('.json', '') for seq_file in os.listdir(self.gt_fol)]
 
         # Get trackers to eval
         if self.config['TRACKERS_TO_EVAL'] is None:
@@ -89,6 +87,7 @@ class BDD100K(_BaseDataset):
             for seq in self.seq_list:
                 curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.json')
                 if not os.path.isfile(curr_file):
+                    print('Tracker file not found: ' + curr_file)
                     raise TrackEvalException(
                         'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol + '/' + os.path.basename(
                             curr_file))

@@ -1,7 +1,6 @@
 
 import os
 import numpy as np
-from matplotlib import pyplot as plt
 from .utils import TrackEvalException
 
 
@@ -66,6 +65,10 @@ def create_comparison_plot(data, out_loc, y_label, x_label, sort_label, bg_label
             'gap_val': gap between axis ticks and bg curves.
             'num_to_plot': maximum number of trackers to plot
     """
+
+    # Only loaded when run to reduce minimum requirements
+    from matplotlib import pyplot as plt
+
     # Get plot settings
     if settings is None:
         gap_val = 2
@@ -173,6 +176,11 @@ bg_function_dict = {
 
 
 def _plot_bg_contour(bg_function, plot_boundaries, gap_val):
+    """ Plot background contour. """
+
+    # Only loaded when run to reduce minimum requirements
+    from matplotlib import pyplot as plt
+
     # Plot background contour
     min_x, max_x, min_y, max_y = plot_boundaries
     x = np.arange(min_x, max_x, 0.1)
@@ -194,6 +202,11 @@ def _plot_bg_contour(bg_function, plot_boundaries, gap_val):
 
 
 def _plot_pareto_optimal_lines(x_values, y_values):
+    """ Plot pareto optimal lines """
+
+    # Only loaded when run to reduce minimum requirements
+    from matplotlib import pyplot as plt
+
     # Plot pareto optimal lines
     cxs = x_values
     cys = y_values
