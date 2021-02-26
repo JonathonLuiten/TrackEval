@@ -1,8 +1,6 @@
 import os
 import csv
 import numpy as np
-from PIL import Image
-from pycocotools import mask as mask_utils
 from ._base_dataset import _BaseDataset
 from ..utils import TrackEvalException
 from .. import utils
@@ -112,6 +110,11 @@ class DAVIS(_BaseDataset):
         [tracker_ids] : list (for each timestep) of 1D NDArrays (for each det).
         [tracker_dets]: list (for each timestep) of lists of detections.
         """
+
+        # Only loaded when run to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+        from PIL import Image
+
         # File location
         if is_gt:
             seq_dir = os.path.join(self.gt_fol, seq)
@@ -204,6 +207,10 @@ class DAVIS(_BaseDataset):
             Preprocessing special to DAVIS: Pixels which are marked as void in the ground truth are set to zero in the
                 tracker detections since they are not considered during evaluation.
         """
+
+        # Only loaded when run to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+
         data_keys = ['gt_ids', 'tracker_ids', 'gt_dets', 'tracker_dets', 'similarity_scores']
         data = {key: [None] * raw_data['num_timesteps'] for key in data_keys}
         num_gt_dets = 0

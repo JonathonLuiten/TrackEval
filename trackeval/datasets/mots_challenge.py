@@ -2,7 +2,6 @@ import os
 import csv
 import configparser
 import numpy as np
-from pycocotools import mask as mask_utils
 from scipy.optimize import linear_sum_assignment
 from ._base_dataset import _BaseDataset
 from .. import utils
@@ -152,6 +151,10 @@ class MOTSChallenge(_BaseDataset):
         [tracker_ids, tracker_classes] : list (for each timestep) of 1D NDArrays (for each det).
         [tracker_dets]: list (for each timestep) of lists of detections.
         """
+
+        # Only loaded when run to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+
         # File location
         if self.data_is_zipped:
             if is_gt:

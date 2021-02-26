@@ -1,10 +1,7 @@
 
 import numpy as np
 import math
-import cv2
 from scipy.optimize import linear_sum_assignment
-from pycocotools import mask as mask_utils
-from skimage.morphology import disk
 from ..utils import TrackEvalException
 from ._base_metric import _BaseMetric
 from .. import _timing
@@ -23,6 +20,10 @@ class JAndF(_BaseMetric):
     @_timing.time
     def eval_sequence(self, data):
         """Returns J&F metrics for one sequence"""
+
+        # Only loaded when run to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+
         num_tracker_ids = data['num_tracker_ids']
         num_gt_ids = data['num_gt_ids']
         gt_dets = data['gt_dets']
@@ -187,6 +188,12 @@ class JAndF(_BaseMetric):
         :param bound_th: boundary threshold parameter
         :return: the F value for the given tracker and gt ID
         """
+
+        # Only loaded when run to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+        from skimage.morphology import disk
+        import cv2
+
         f = np.zeros(len(gt_data))
 
         for t, (gt_masks, tracker_masks) in enumerate(zip(gt_data, tracker_data)):
@@ -249,6 +256,10 @@ class JAndF(_BaseMetric):
         :param num_timesteps: the number of timesteps
         :return: the J values
         """
+
+        # Only loaded when run to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+
         j = np.zeros((num_tracker_ids, num_gt_ids, num_timesteps))
 
         for t, (time_gt, time_data) in enumerate(zip(gt_data, tracker_data)):

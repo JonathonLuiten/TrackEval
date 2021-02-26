@@ -56,7 +56,7 @@ The code is also extremely fast, running at more than 10x the speed of the both 
 
 The implementation of CLEARMOT and ID metrics aligns perfectly with the [MOTChallengeEvalKit](https://github.com/dendorferpatrick/MOTChallengeEvalKit).
 
-By default the code prints results to the screen, saves results out as both a summary txt file and a detailed results csv file, and outputs plots of the results.
+By default the code prints results to the screen, saves results out as both a summary txt file and a detailed results csv file, and outputs plots of the results. All outputs are by default saved to the 'tracker' folder for each tracker.
 
 ## Running the code
 
@@ -87,6 +87,18 @@ To evaluate on your own data, you have two options:
 To convert formats, check out the format specifications defined [here](docs).
 
 By default, we would recommend the MOTChallenge format, although any implemented format should work. Note that for many cases you will want to use the argument ```--DO_PREPROC False``` unless you want to run preprocessing to remove distractor objects.
+
+## Requirments
+
+ - Minimum requirements: numpy, scipy
+ - For plotting: matplotlib
+ - For segmentation datasets (KITTI MOTS, MOTS-Challenge, DAVIS): pycocotools
+ - For DAVIS dataset: Pillow
+ - For J & F metric: opencv_python, scikit_image
+
+use ```pip3 -r install requirements.txt``` to install all possible requirements.
+
+use ```pip3 -r install minimum_requirments.txt``` to only install the minimum if you don't need the extra functionality as listed above.
 
 ## Timing analysis
 
