@@ -3,6 +3,7 @@ from time import perf_counter
 import inspect
 
 DO_TIMING = False
+DISPLAY_LESS_PROGRESS = False
 timer_dict = {}
 
 
@@ -18,7 +19,9 @@ def time(f):
 
             # Get function name
             arg_names = inspect.getfullargspec(f)[0]
-            if arg_names[0] == 'self':
+            if arg_names[0] == 'self' and DISPLAY_LESS_PROGRESS:
+                return result
+            elif arg_names[0] == 'self':
                 method_name = type(args[0]).__name__ + '.' + f.__name__
             else:
                 method_name = f.__name__
@@ -38,7 +41,6 @@ def time(f):
             else:
                 # Get function argument values for printing special arguments of interest
                 arg_titles = ['tracker', 'seq', 'cls']
-                arg_names = inspect.getfullargspec(f)[0]
                 arg_vals = []
                 for i, a in enumerate(arg_names):
                     if a in arg_titles:
