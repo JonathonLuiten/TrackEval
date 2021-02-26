@@ -21,7 +21,7 @@ The following benchmarks are currently implemented:
  - [KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php) ([code](trackeval/datasets/kitti_2d_box.py), [format](docs/KITTI-format.txt))
  - [MOTS](https://www.vision.rwth-aachen.de/page/mots) ([KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php) and [MOTS Challenge](https://motchallenge.net/results/MOTS/)) ([code](trackeval/datasets/mots_challenge.py) and [code](trackeval/datasets/kitti_mots.py), [format](docs/MOTS-format.txt))
  - [BDD-100k](https://bdd-data.berkeley.edu/) ([code](trackeval/datasets/bdd100k.py), [format](docs/BDD100k-format.txt))
- - [DAVIS](https://davischallenge.org/) ([code](trackeval/datasets/davis.py))
+ - [DAVIS](https://davischallenge.org/) ([code](trackeval/datasets/davis.py), [format](docs/DAVIS-format.txt))
 
 ## Benchmarks which use TrackEval as their official evaluation code
 

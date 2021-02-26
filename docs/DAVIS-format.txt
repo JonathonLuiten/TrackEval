@@ -1,0 +1,20 @@
+Annotation Format
+
+The annotations are png images for each frame.
+The png format has a single color channel with 8 bits.
+
+Each pixel that belongs to the same object has the same value in this png map.
+Start at 1 for the first object, then 2, 3, 4 etc.
+The background (not an object) has value 0.
+
+These can be read like this:
+
+import PIL.Image as Image
+img = np.array(Image.open("000005.png"))
+
+or like this:
+
+ann_data = tf.read_file(ann_filename)
+ann = tf.image.decode_image(ann_data, dtype=tf.uint8, channels=1)
+
+See the code for loading the davis dataset for more details.
