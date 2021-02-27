@@ -15,13 +15,13 @@ class YouTubeVIS(_BaseDataset):
         """Default class config values"""
         code_path = utils.get_code_path()
         default_config = {
-            'GT_FOLDER': os.path.join(code_path, 'data/gt/youtube_vis/youtube_vis_training'),  # Location of GT data
-            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/youtube_vis/youtube_vis_training'),
+            'GT_FOLDER': os.path.join(code_path, 'data/gt/youtube_vis/'),  # Location of GT data
+            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/youtube_vis/'),
             # Trackers location
             'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
             'CLASSES_TO_EVAL': None,  # Classes to eval (if None, all classes)
-            'SPLIT_TO_EVAL': 'training',  # Valid: 'training', 'val'
+            'SPLIT_TO_EVAL': 'train_sub_split',  # Valid: 'train', 'val', 'train_sub_split'
             'PRINT_CONFIG': True,  # Whether to print current config
             'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
             'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
@@ -34,8 +34,8 @@ class YouTubeVIS(_BaseDataset):
         super().__init__()
         # Fill non-given config values with defaults
         self.config = utils.init_config(config, self.get_default_dataset_config(), self.get_name())
-        self.gt_fol = self.config['GT_FOLDER']
-        self.tracker_fol = self.config['TRACKERS_FOLDER']
+        self.gt_fol = self.config['GT_FOLDER'] + 'youtube_vis_' + self.config['SPLIT_TO_EVAL']
+        self.tracker_fol = self.config['TRACKERS_FOLDER'] + 'youtube_vis_' + self.config['SPLIT_TO_EVAL']
         self.use_super_categories = False
         self.should_classes_combine = True
 
@@ -45,6 +45,9 @@ class YouTubeVIS(_BaseDataset):
         self.output_sub_fol = self.config['OUTPUT_SUB_FOLDER']
         self.tracker_sub_fol = self.config['TRACKER_SUB_FOLDER']
 
+        if not os.path.exists(self.gt_fol):
+            print("GT folder not found: " + self.gt_fol)
+            raise TrackEvalException("GT folder not found: " + os.path.basename(self.gt_fol))
         gt_dir_files = [file for file in os.listdir(self.gt_fol) if file.endswith('.json')]
         if len(gt_dir_files) != 1:
             raise TrackEvalException(self.gt_fol + ' does not contain exactly one json file.')
