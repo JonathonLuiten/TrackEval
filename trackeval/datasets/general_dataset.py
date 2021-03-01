@@ -39,7 +39,7 @@ class General(_BaseDataset):
                 'MOT20': os.path.join('mot_challenge', 'mot_challenge_2d_box'),
                 'MOTS': os.path.join('mot_challenge', 'mots_challenge'),
                 'Kitti2DBox': os.path.join('kitti', 'kitti_2d_box'),
-                'KittiMots': os.path.join('kitti', 'kitti_mots'),
+                'KittiMOTS': os.path.join('kitti', 'kitti_mots'),
                 'DAVIS': 'davis',
                 'BDD100K': 'bdd100k',
                 'TAO': 'tao',
@@ -208,6 +208,7 @@ class General(_BaseDataset):
         [tracker_dets]: list (for each timestep) of lists of detections.
         """
         # File location
+
         if self.data_is_zipped:
             if is_gt:
                 zip_file = os.path.join(self.gt_fol, self.split, 'data.zip')
