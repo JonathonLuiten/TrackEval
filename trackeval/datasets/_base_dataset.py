@@ -4,7 +4,6 @@ import zipfile
 import os
 import traceback
 import numpy as np
-from pycocotools import mask as mask_utils
 from copy import deepcopy
 from abc import ABC, abstractmethod
 from .. import _timing
@@ -221,6 +220,10 @@ class _BaseDataset(ABC):
         :param do_ioa: whether to perform IoA computation
         :return: the IoU/IoA scores
         """
+
+        # Only loaded when run to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+
         # use pycocotools for run length encoding of masks
         if not is_encoded:
             masks1 = mask_utils.encode(np.array(np.transpose(masks1, (1, 2, 0)), order='F'))

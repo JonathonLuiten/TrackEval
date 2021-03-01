@@ -1,10 +1,11 @@
 
 import os
 import csv
+from collections import OrderedDict
 import argparse
 
 
-def init_config(config, default_config, name):
+def init_config(config, default_config, name=None):
     """Initialise non-given config values with defaults"""
     if config is None:
         config = default_config
@@ -12,7 +13,7 @@ def init_config(config, default_config, name):
         for k in default_config.keys():
             if k not in config.keys():
                 config[k] = default_config[k]
-    if config['PRINT_CONFIG']:
+    if name and config['PRINT_CONFIG']:
         print('\n%s Config:' % name)
         for c in config.keys():
             print('%-20s : %-30s' % (c, config[c]))
@@ -50,7 +51,6 @@ def update_config(config):
             config[setting] = x
     return config
 
-
 def get_code_path():
     """Get base path where code is"""
     return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -75,8 +75,27 @@ def validate_metrics_list(metrics_list):
 
 def write_summary_results(summaries, cls, output_folder):
     """Write summary results to file"""
+
     fields = sum([list(s.keys()) for s in summaries], [])
     values = sum([list(s.values()) for s in summaries], [])
+
+    # In order to remain consistent upon new fields being adding, for each of the following fields if they are present
+    # they will be output in the summary first in the order below. Any further fields will be output in the order each
+    # metric family is called, and within each family either in the order they were added to the dict (python >= 3.6) or
+    # randomly (python < 3.6).
+    default_order = ['HOTA', 'DetA', 'AssA', 'DetRe', 'DetPr', 'AssRe', 'AssPr', 'LocA', 'RHOTA', 'HOTA(0)', 'LocA(0)',
+                     'HOTALocA(0)', 'MOTA', 'MOTP', 'MODA', 'CLR_Re', 'CLR_Pr', 'MTR', 'PTR', 'MLR', 'CLR_TP', 'CLR_FN',
+                     'CLR_FP', 'IDSW', 'MT', 'PT', 'ML', 'Frag', 'sMOTA', 'IDF1', 'IDR', 'IDP', 'IDTP', 'IDFN', 'IDFP',
+                     'Dets', 'GT_Dets', 'IDs', 'GT_IDs']
+    default_ordered_dict = OrderedDict(zip(default_order, [None for _ in default_order]))
+    for f, v in zip(fields, values):
+        default_ordered_dict[f] = v
+    for df in default_order:
+        if default_ordered_dict[df] is None:
+            del default_ordered_dict[df]
+    fields = list(default_ordered_dict.keys())
+    values = list(default_ordered_dict.values())
+
     out_file = os.path.join(output_folder, cls + '_summary.txt')
     os.makedirs(os.path.dirname(out_file), exist_ok=True)
     with open(out_file, 'w') as f:

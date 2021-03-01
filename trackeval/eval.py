@@ -2,6 +2,7 @@ import time
 import traceback
 from multiprocessing.pool import Pool
 from functools import partial
+import os
 from . import utils
 from .utils import TrackEvalException
 from . import _timing
@@ -14,16 +15,19 @@ class Evaluator:
     @staticmethod
     def get_default_eval_config():
         """Returns the default config values for evaluation"""
+        code_path = utils.get_code_path()
         default_config = {
             'USE_PARALLEL': False,
             'NUM_PARALLEL_CORES': 8,
             'BREAK_ON_ERROR': True,  # Raises exception and exits with error
-            'RETURN_ON_ERROR': False,  # if not BREAK_ON_ERROR, then returns from function on error\
+            'RETURN_ON_ERROR': False,  # if not BREAK_ON_ERROR, then returns from function on error
+            'LOG_ON_ERROR': os.path.join(code_path, 'error_log.txt'),  # if not None, save any errors into a log file.
 
             'PRINT_RESULTS': True,
             'PRINT_ONLY_COMBINED': False,
             'PRINT_CONFIG': True,
             'TIME_PROGRESS': True,
+            'DISPLAY_LESS_PROGRESS': True,
 
             'OUTPUT_SUMMARY': True,
             'OUTPUT_EMPTY_CLASSES': True,  # If False, summary files are not output for classes with no detections
@@ -38,6 +42,8 @@ class Evaluator:
         # Only run timing analysis if not run in parallel.
         if self.config['TIME_PROGRESS'] and not self.config['USE_PARALLEL']:
             _timing.DO_TIMING = True
+            if self.config['DISPLAY_LESS_PROGRESS']:
+                _timing.DISPLAY_LESS_PROGRESS = True
 
     @_timing.time
     def evaluate(self, dataset_list, metrics_list):
@@ -77,37 +83,63 @@ class Evaluator:
                     else:
                         res = {}
                         for curr_seq in sorted(seq_list):
-                            res[curr_seq] = eval_sequence(curr_seq, dataset, tracker, class_list, metrics_list, metric_names)
+                            res[curr_seq] = eval_sequence(curr_seq, dataset, tracker, class_list, metrics_list,
+                                                          metric_names)
 
                     # Combine results over all sequences and then over all classes
+
+                    # collecting combined cls keys (cls averaged, det averaged, super classes)
+                    combined_cls_keys = []
                     res['COMBINED_SEQ'] = {}
+                    # combine sequences for each class
                     for c_cls in class_list:
                         res['COMBINED_SEQ'][c_cls] = {}
                         for metric, metric_name in zip(metrics_list, metric_names):
                             curr_res = {seq_key: seq_value[c_cls][metric_name] for seq_key, seq_value in res.items() if
                                         seq_key is not 'COMBINED_SEQ'}
                             res['COMBINED_SEQ'][c_cls][metric_name] = metric.combine_sequences(curr_res)
+                    # combine classes
                     if dataset.should_classes_combine:
+                        combined_cls_keys += ['cls_comb_cls_av', 'cls_comb_det_av']
+                        res['COMBINED_SEQ']['cls_comb_cls_av'] = {}
+                        res['COMBINED_SEQ']['cls_comb_det_av'] = {}
                         for metric, metric_name in zip(metrics_list, metric_names):
                             cls_res = {cls_key: cls_value[metric_name] for cls_key, cls_value in
-                                       res['COMBINED_SEQ'].items()}
-                            res['COMBINED_SEQ']['COMBINED_CLS'] = metric.combine_classes(cls_res)
+                                       res['COMBINED_SEQ'].items() if cls_key not in combined_cls_keys}
+                            res['COMBINED_SEQ']['cls_comb_cls_av'][metric_name] = \
+                                metric.combine_classes_class_averaged(cls_res)
+                            res['COMBINED_SEQ']['cls_comb_det_av'][metric_name] = \
+                                metric.combine_classes_det_averaged(cls_res)
+                    # combine classes to super classes
+                    if dataset.use_super_categories:
+                        for cat, sub_cats in dataset.super_categories.items():
+                            combined_cls_keys.append(cat)
+                            res['COMBINED_SEQ'][cat] = {}
+                            for metric, metric_name in zip(metrics_list, metric_names):
+                                cat_res = {cls_key: cls_value[metric_name] for cls_key, cls_value in
+                                           res['COMBINED_SEQ'].items() if cls_key in sub_cats}
+                                res['COMBINED_SEQ'][cat][metric_name] = metric.combine_classes_det_averaged(cat_res)
 
                     # Print and output results in various formats
                     if config['TIME_PROGRESS']:
                         print('\nAll sequences for %s finished in %.2f seconds' % (tracker, time.time() - time_start))
                     output_fol = dataset.get_output_fol(tracker)
                     tracker_display_name = dataset.get_display_name(tracker)
-                    for c_cls in res['COMBINED_SEQ'].keys():  # class_list + 'COMBINED_CLS' if calculated
+                    for c_cls in res['COMBINED_SEQ'].keys():  # class_list + combined classes if calculated
                         summaries = []
                         details = []
                         num_dets = res['COMBINED_SEQ'][c_cls]['Count']['Dets']
                         if config['OUTPUT_EMPTY_CLASSES'] or num_dets > 0:
                             for metric, metric_name in zip(metrics_list, metric_names):
-                                table_res = {seq_key: seq_value[c_cls][metric_name] for seq_key, seq_value in res.items()}
+                                # for combined classes there is no per sequence evaluation
+                                if c_cls in combined_cls_keys:
+                                    table_res = {'COMBINED_SEQ': res['COMBINED_SEQ'][c_cls][metric_name]}
+                                else:
+                                    table_res = {seq_key: seq_value[c_cls][metric_name] for seq_key, seq_value
+                                                 in res.items()}
                                 if config['PRINT_RESULTS'] and config['PRINT_ONLY_COMBINED']:
-                                    metric.print_table({'COMBINED_SEQ': table_res['COMBINED_SEQ']}, tracker_display_name,
-                                                       c_cls)
+                                    metric.print_table({'COMBINED_SEQ': table_res['COMBINED_SEQ']},
+                                                       tracker_display_name, c_cls)
                                 elif config['PRINT_RESULTS']:
                                     metric.print_table(table_res, tracker_display_name, c_cls)
                                 if config['OUTPUT_SUMMARY']:
@@ -115,7 +147,8 @@ class Evaluator:
                                 if config['OUTPUT_DETAILED']:
                                     details.append(metric.detailed_results(table_res))
                                 if config['PLOT_CURVES']:
-                                    metric.plot_single_tracker_results(table_res, tracker_display_name, c_cls, output_fol)
+                                    metric.plot_single_tracker_results(table_res, tracker_display_name, c_cls,
+                                                                       output_fol)
                             if config['OUTPUT_SUMMARY']:
                                 utils.write_summary_results(summaries, c_cls, output_fol)
                             if config['OUTPUT_DETAILED']:
@@ -130,13 +163,19 @@ class Evaluator:
                     if type(err) == TrackEvalException:
                         output_msg[dataset_name][tracker] = str(err)
                     else:
-                        output_msg[dataset_name][tracker] = "Unknown error occurred."
+                        output_msg[dataset_name][tracker] = 'Unknown error occurred.'
                     print('Tracker %s was unable to be evaluated.' % tracker)
                     print(err)
                     traceback.print_exc()
-                    if config["BREAK_ON_ERROR"]:
+                    if config['LOG_ON_ERROR'] is not None:
+                        with open(config['LOG_ON_ERROR'], 'a') as f:
+                            print(dataset_name, file=f)
+                            print(tracker, file=f)
+                            print(traceback.format_exc(), file=f)
+                            print('\n\n\n', file=f)
+                    if config['BREAK_ON_ERROR']:
                         raise err
-                    elif config["RETURN_ON_ERROR"]:
+                    elif config['RETURN_ON_ERROR']:
                         return output_res, output_msg
 
         return output_res, output_msg

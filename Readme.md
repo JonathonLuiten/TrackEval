@@ -1,51 +1,125 @@
 
-# HOTA-metrics
-*[HOTA: A Higher Order Metric for Evaluating Multi-Object Tracking](https://arxiv.org/pdf/2009.07736.pdf). IJCV 2020. Jonathon Luiten, Aljosa Osep, Patrick Dendorfer, Philip Torr, Andreas Geiger, Laura Leal-Taixe and Bastian Leibe.*
+# TrackEval
+*Code for evaluating object tracking.*
 
-This is the official implementation of the [HOTA metrics](https://arxiv.org/pdf/2009.07736.pdf) for Multi-Object Tracking.
+This codebase provides code for a number of different tracking evaluation metrics (including the [HOTA metrics](https://link.springer.com/article/10.1007/s11263-020-01375-2)), as well as supporting running all of these metrics on a number of different tracking benchmarks. Plus plotting of results and other things one may want to do for tracking evaluation.
 
- - [IJCV version](https://link.springer.com/article/10.1007/s11263-020-01375-2)
- - [ArXiv version](https://arxiv.org/pdf/2009.07736.pdf)
+## Currently implemented metrics
+
+The following metrics are currently implemented:
+
+ - **[HOTA metrics](https://link.springer.com/article/10.1007/s11263-020-01375-2)** - **Recommended tracking metric** ([code](trackeval/metrics/hota.py))
+ - **[CLEARMOT metrics](https://link.springer.com/article/10.1155/2008/246309)** (MOTA / MOTP / etc.) ([code](trackeval/metrics/clear.py))
+ - **[Identity metrics](https://arxiv.org/abs/1609.01775)** (IDF1 / IDP / IDR / etc.) ([code](trackeval/metrics/identity.py))
+ - **[J & F metrics](https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Perazzi_A_Benchmark_Dataset_CVPR_2016_paper.pdf)** ([code](trackeval/metrics/j_and_f.py))
+ - **[Track mAP metrics](https://arxiv.org/abs/1905.04804)** ([code](trackeval/metrics/track_map.py))
+
+## Currently implemented benchmarks
+
+The following benchmarks are currently implemented:
+
+ - **[MOTChallenge](https://motchallenge.net/)** (MOT15/16/17/20) ([code](trackeval/datasets/mot_challenge_2d_box.py), [format](docs/MOTChallenge-format.txt))
+ - **[KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)** ([code](trackeval/datasets/kitti_2d_box.py), [format](docs/KITTI-format.txt))
+ - **[MOTS](https://www.vision.rwth-aachen.de/page/mots)** ([KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php) and [MOTS Challenge](https://motchallenge.net/results/MOTS/))** ([code](trackeval/datasets/mots_challenge.py) and [code](trackeval/datasets/kitti_mots.py), [format](docs/MOTS-format.txt))
+ - **[BDD-100k](https://bdd-data.berkeley.edu/)** ([code](trackeval/datasets/bdd100k.py), [format](docs/BDD100k-format.txt))
+ - **[DAVIS](https://davischallenge.org/)** ([code](trackeval/datasets/davis.py), [format](docs/DAVIS-format.txt))
+ - **[TAO](https://taodataset.org/)** ([code](trackeval/datasets/tao.py), [format](docs/TAO-format.txt))
+ - **[YouTube-VIS](https://youtube-vos.org/dataset/vis/)** ([code](trackeval/datasets/youtube_vis.py), [format](docs/YouTube-VIS-format.txt))
+
+## Benchmarks which use TrackEval as their official evaluation code
+
+The following benchmarks use TrackEval as their official evaluation code, check out the links to see TrackEval in action:
+
+ - **[KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)**
+ - **[KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php)**
+
+If you run a tracking benchmark and want to use TrackEval as your official evaluation code, please contact Jonathon (contact details below).
+
+## HOTA metrics
+
+This code is also the official reference implementation for the HOTA metrics:
+
+*[HOTA: A Higher Order Metric for Evaluating Multi-Object Tracking](https://link.springer.com/article/10.1007/s11263-020-01375-2). IJCV 2020. Jonathon Luiten, Aljosa Osep, Patrick Dendorfer, Philip Torr, Andreas Geiger, Laura Leal-Taixe and Bastian Leibe.*
 
 HOTA is a novel set of MOT evaluation metrics which enable better understanding of tracking behaviour than previous metrics.
 
-## Further metrics
+For more information check out the following links:
+ - [Short blog post on HOTA](https://jonathonluiten.medium.com/how-to-evaluate-tracking-with-the-hota-metrics-754036d183e1) - **HIGHLY RECOMMENDED READING**
+ - [IJCV version of paper](https://link.springer.com/article/10.1007/s11263-020-01375-2) (Open Access)
+ - [ArXiv version of paper](https://arxiv.org/abs/2009.07736)
+ - [Code](trackeval/metrics/hota.py)
 
-This code also includes implementations of the [CLEARMOT metrics](https://link.springer.com/article/10.1155/2008/246309), and the [ID metrics](https://arxiv.org/pdf/1609.01775.pdf).
+## Properties of this codebase
 
-The code is written in python and is designed to be easily understandable and extendable.
+The code is written 100% in python with only numpy and scipy as minimum requirements.
+
+The code is designed to be easily understandable and easily extendable. 
 
 The code is also extremely fast, running at more than 10x the speed of the both [MOTChallengeEvalKit](https://github.com/dendorferpatrick/MOTChallengeEvalKit), and [py-motmetrics](https://github.com/cheind/py-motmetrics) (see detailed speed comparison below).
 
 The implementation of CLEARMOT and ID metrics aligns perfectly with the [MOTChallengeEvalKit](https://github.com/dendorferpatrick/MOTChallengeEvalKit).
 
+By default the code prints results to the screen, saves results out as both a summary txt file and a detailed results csv file, and outputs plots of the results. All outputs are by default saved to the 'tracker' folder for each tracker.
+
 ## Running the code
 
-We provide two scripts to run the code: 
- - For running [MOTChallenge](https://motchallenge.net/) there is [scripts/run_mot_challenge.py](scripts/run_mot_challenge.py).
- - For running [KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php) there is [scripts/run_kitti.py](scripts/run_mot_challenge.py).
+The code can be run in one of two ways:
 
-There are a number of parameters that can be tweaked, these are all self-explanatory, see each script for more details.
+ - From the terminal via one of the scripts [here](scripts/). See each script for instructions and arguments, hopefully this is self-explanatory.
+ - Directly by importing this package into your code, see the same scripts above for how. 
 
-By default the script prints results to the screen, saves results out as both a summary csv and detailed csv, and outputs plots of the results.
+## Quickly evaluate on supported benchmarks
+
+To enable you to use TrackEval for evaluation as quickly and easily as possible, we provide ground-truth data, meta-data and example trackers for all currently supported benchmarks.
+You can download this here: [data.zip](https://omnomnom.vision.rwth-aachen.de/data/TrackEval/data.zip) (~150mb).
+
+The easiest way to begin is to extract this zip into the repository root folder such that the file paths look like: TrackEval/data/gt/...
+
+This then corresponds to the default paths in the code. You can now run each of the scripts [here](scripts/) without providing any arguments and they will by default evaluate all trackers present in the supplied file structure. To evaluate your own tracking results, simply copy your files as a new tracker folder into the file structure at the same level as the example trackers (MPNTrack, CIWT, track_rcnn, qdtrack, ags, Tracktor++, STEm_Seg), ensuring the same file structure for your trackers as in the example.
+
+Of course, if your ground-truth and tracker files are located somewhere else you can simply use the script arguments to point the code toward your data.
+
+To ensure your tracker outputs data in the correct format, check out our format guides for each of the supported benchmarks [here](docs), or check out the example trackers provided.
+
+## Evaluate on your own custom benchmark
+
+To evaluate on your own data, you have two options:
+ - Write custom dataset code (more effort, rarely worth it).
+ - Convert your current dataset and trackers to the same format of an already implemented benchmark.
+
+To convert formats, check out the format specifications defined [here](docs).
+
+By default, we would recommend the MOTChallenge format, although any implemented format should work. Note that for many cases you will want to use the argument ```--DO_PREPROC False``` unless you want to run preprocessing to remove distractor objects.
+
+## Requirments
+
+ - Minimum requirements: numpy, scipy
+ - For plotting: matplotlib
+ - For segmentation datasets (KITTI MOTS, MOTS-Challenge, DAVIS, YouTube-VIS): pycocotools
+ - For DAVIS dataset: Pillow
+ - For J & F metric: opencv_python, scikit_image
+
+use ```pip3 -r install requirements.txt``` to install all possible requirements.
+
+use ```pip3 -r install minimum_requirments.txt``` to only install the minimum if you don't need the extra functionality as listed above.
 
 ## Timing analysis
 
 Evaluating CLEAR + ID metrics on Lift_T tracker on MOT17-train (seconds) on a i7-9700K CPU with 8 physical cores (median of 3 runs):		
-Num Cores|HOTA-metrics|MOTChallenge|Speedup vs MOTChallenge|py-motmetrics|Speedup vs py-motmetrics
+Num Cores|TrackEval|MOTChallenge|Speedup vs MOTChallenge|py-motmetrics|Speedup vs py-motmetrics
 :---|:---|:---|:---|:---|:---
 1|9.64|66.23|6.87x|99.65|10.34x
 4|3.01|29.42|9.77x| |33.11x*
 8|1.62|29.51|18.22x| |61.51x*
 
-*using different number of cores at py-motmetrics doesn't allow multiprocessing.
+*using a different number of cores as py-motmetrics doesn't allow multiprocessing.
 				
 ```
 python scripts/run_mot_challenge.py --BENCHMARK MOT17 --TRACKERS_TO_EVAL Lif_T --METRICS Clear ID --USE_PARALLEL False --NUM_PARALLEL_CORES 1  
 ```
 				
 Evaluating CLEAR + ID metrics on LPC_MOT tracker on MOT20-train (seconds) on a i7-9700K CPU with 8 physical cores (median of 3 runs):	
-Num Cores|HOTA-metrics|MOTChallenge|Speedup vs MOTChallenge|py-motmetrics|Speedup vs py-motmetrics
+Num Cores|TrackEval|MOTChallenge|Speedup vs MOTChallenge|py-motmetrics|Speedup vs py-motmetrics
 :---|:---|:---|:---|:---|:---
 1|18.63|105.3|5.65x|175.17|9.40x
 
@@ -53,19 +127,47 @@ Num Cores|HOTA-metrics|MOTChallenge|Speedup vs MOTChallenge|py-motmetrics|Speedu
 python scripts/run_mot_challenge.py --BENCHMARK MOT20 --TRACKERS_TO_EVAL LPC_MOT --METRICS Clear ID --USE_PARALLEL False --NUM_PARALLEL_CORES 1
 ```
 
+## License
+
+TrackEval is released under the [MIT License](LICENSE).
+
 ## Contact
 
-If you encounter any problems with the code, please contact [Jonathon Luiten](https://www.vision.rwth-aachen.de/person/216/) (luiten at vision dot rwth-aachen dot de).
+If you encounter any problems with the code, please contact [Jonathon Luiten](https://www.vision.rwth-aachen.de/person/216/) ([luiten@vision.rwth-aachen.de](mailto:luiten@vision.rwth-aachen.de)).
+If anything is unclear, or hard to use, please leave a comment either via email or as an issue and I would love to help.
 
-## Citation
+## Dedication
 
-If you use this code, please consider citing the following paper:
+This codebase was built for you, in order to make your life easier! For anyone doing research on tracking or using trackers, please don't hesitate to reach out with any comments or suggestions on how things could be improved.
+
+## Contributing
+
+We welcome contributions of new metrics and new supported benchmarks. Also any other new features or code improvements. Send a PR, an email, or open an issue detailing what you'd like to add/change to begin a conversation.
+
+## Citing TrackEval
+
+If you use this code in your research, please use the following BibTeX entry:
+
+```BibTeX
+@misc{luiten2020trackeval,
+  author =       {Jonathon Luiten, Arne Hoffhues},
+  title =        {TrackEval},
+  howpublished = {\url{https://github.com/JonathonLuiten/TrackEval}},
+  year =         {2020}
+}
+```
+
+Furthermore, if you use the HOTA metrics, please cite the following paper:
 
 ```
 @article{luiten2020hota,
   title={HOTA: A Higher Order Metric for Evaluating Multi-Object Tracking},
-  author={Jonathon Luiten, Aljosa Osep, Patrick Dendorfer, Philip Torr, Andreas Geiger, Laura Leal-Taixe and Bastian Leibe},
+  author={Luiten, Jonathon and Osep, Aljosa and Dendorfer, Patrick and Torr, Philip and Geiger, Andreas and Leal-Taix{\'e}, Laura and Leibe, Bastian},
   journal={International Journal of Computer Vision},
-  year={2020}
+  pages={1--31},
+  year={2020},
+  publisher={Springer}
 }
 ```
+
+If you use any other metrics please also cite the relevant papers, and don't forget to cite each of the benchmarks you evaluate on.

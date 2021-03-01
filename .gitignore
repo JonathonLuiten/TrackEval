@@ -7,3 +7,4 @@ data/*
 !goutput/Readme.md
 **/__pycache__
 .idea
+error_log.txt

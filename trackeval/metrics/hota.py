@@ -13,7 +13,7 @@ class HOTA(_BaseMetric):
     def __init__(self):
         super().__init__()
         self.plottable = True
-        self.array_labels = np.arange(0.0, 1.01, 0.05)
+        self.array_labels = np.arange(0.05, 0.99, 0.05)
         self.integer_array_fields = ['HOTA_TP', 'HOTA_FN', 'HOTA_FP']
         self.float_array_fields = ['HOTA', 'DetA', 'AssA', 'DetRe', 'DetPr', 'AssRe', 'AssPr', 'LocA', 'RHOTA']
         self.float_fields = ['HOTA(0)', 'LocA(0)', 'HOTALocA(0)']
@@ -127,6 +127,32 @@ class HOTA(_BaseMetric):
         res = self._compute_final_fields(res)
         return res
 
+    def combine_classes_class_averaged(self, all_res):
+        """Combines metrics across all classes by averaging over the class values"""
+        res = {}
+        for field in self.integer_array_fields:
+            res[field] = self._combine_sum(
+                {k: v for k, v in all_res.items() if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0).any()}, field)
+        for field in self.float_fields:
+            res[field] = np.mean([v[field] for v in all_res.values() if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0).any()],
+                                 axis=0)
+        for field in self.float_array_fields:
+            res[field] = np.mean([v[field] for v in all_res.values() if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0).any()],
+                                 axis=0)
+        return res
+
+    def combine_classes_det_averaged(self, all_res):
+        """Combines metrics across all classes by averaging over the detection values"""
+        res = {}
+        for field in self.integer_array_fields:
+            res[field] = self._combine_sum(all_res, field)
+        for field in ['AssRe', 'AssPr', 'AssA']:
+            res[field] = self._combine_weighted_av(all_res, field, res, weight_field='HOTA_TP')
+        loca_weighted_sum = sum([all_res[k]['LocA'] * all_res[k]['HOTA_TP'] for k in all_res.keys()])
+        res['LocA'] = np.maximum(1e-10, loca_weighted_sum) / np.maximum(1e-10, res['HOTA_TP'])
+        res = self._compute_final_fields(res)
+        return res
+
     @staticmethod
     def _compute_final_fields(res):
         """Calculate sub-metric ('field') values which only depend on other sub-metric values.
@@ -145,8 +171,10 @@ class HOTA(_BaseMetric):
 
     def plot_single_tracker_results(self, table_res, tracker, cls, output_folder):
         """Create plot of results"""
-        # Optional dependency only for plotting
+
+        # Only loaded when run to reduce minimum requirements
         from matplotlib import pyplot as plt
+
         res = table_res['COMBINED_SEQ']
         styles_to_plot = ['r', 'b', 'g', 'b--', 'b:', 'g--', 'g:', 'm']
         for name, style in zip(self.float_array_fields, styles_to_plot):
@@ -162,4 +190,5 @@ class HOTA(_BaseMetric):
         out_file = os.path.join(output_folder, cls + '_plot.pdf')
         os.makedirs(os.path.dirname(out_file), exist_ok=True)
         plt.savefig(out_file)
+        plt.savefig(out_file.replace('.pdf', '.png'))
         plt.clf()

@@ -2,7 +2,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import hota_metrics as hm  # noqa: E402
+import trackeval  # noqa: E402
 
 plots_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'plots'))
 tracker_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'trackers'))
@@ -17,4 +17,4 @@ data_fol = os.path.join(tracker_folder, dataset)
 trackers = os.listdir(data_fol)
 out_loc = os.path.join(plots_folder, dataset)
 for cls in classes:
-    hm.plotting.plot_compare_trackers(data_fol, trackers, cls, out_loc)
+    trackeval.plotting.plot_compare_trackers(data_fol, trackers, cls, out_loc)
