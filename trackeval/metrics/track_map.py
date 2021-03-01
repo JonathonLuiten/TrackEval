@@ -1,4 +1,3 @@
-
 import numpy as np
 from ._base_metric import _BaseMetric
 from .. import _timing
@@ -15,9 +14,9 @@ class TrackMAP(_BaseMetric):
         """Default class config values"""
         default_config = {
             'USE_AREA_RANGES': True,  # whether to evaluate for certain area ranges
-            'AREA_RANGES': [[0 ** 2, 32 ** 2],      # additional area range sets for which TrackMAP is evaluated
-                            [32 ** 2, 96 ** 2],     # (all area range always included), default values for TAO
-                            [96 ** 2, 1e5 ** 2]],   # evaluation
+            'AREA_RANGES': [[0 ** 2, 32 ** 2],  # additional area range sets for which TrackMAP is evaluated
+                            [32 ** 2, 96 ** 2],  # (all area range always included), default values for TAO
+                            [96 ** 2, 1e5 ** 2]],  # evaluation
             'AREA_RANGE_LABELS': ["area_s", "area_m", "area_l"],  # the labels for the area ranges
             'USE_TIME_RANGES': True,  # whether to evaluate for certain time ranges (length of tracks)
             'TIME_RANGES': [[0, 3], [3, 10], [10, 1e5]],  # additional time range sets for which TrackMAP is evaluated
@@ -129,7 +128,7 @@ class TrackMAP(_BaseMetric):
                         if m > -1 and gt_ig[m] == 0 and gt_ig[gt_idx] == 1:
                             break
                         # continue to next gt unless better match made
-                        if ious_sorted[dt_idx, gt_idx] < iou:
+                        if ious_sorted[dt_idx, gt_idx] < iou - np.finfo('float').eps:
                             continue
                         # if match successful and best so far, store appropriately
                         iou = ious_sorted[dt_idx, gt_idx]
@@ -341,12 +340,14 @@ class TrackMAP(_BaseMetric):
             # consider tracks with certain area
             if self.use_area_rngs:
                 for rng in self.area_rngs:
-                    track_ig_masks.append([0 if rng[0] <= area <= rng[1] else 1 for area in track_areas])
+                    track_ig_masks.append([0 if rng[0] - np.finfo('float').eps <= area <= rng[1] + np.finfo('float').eps
+                                           else 1 for area in track_areas])
 
             # consider tracks with certain duration
             if self.use_time_rngs:
                 for rng in self.time_rngs:
-                    track_ig_masks.append([0 if rng[0] <= length <= rng[1] else 1 for length in track_lengths])
+                    track_ig_masks.append([0 if rng[0] - np.finfo('float').eps <= length
+                                                <= rng[1] + np.finfo('float').eps else 1 for length in track_lengths])
 
         # for YouTubeVIS evaluation tracks with crowd tag are not evaluated
         if is_gt and iscrowd:
@@ -414,11 +415,11 @@ class TrackMAP(_BaseMetric):
                 union += mask_utils.area(g)
             elif d and not g:
                 union += mask_utils.area(d)
-        if union < .0:
+        if union < 0.0 - np.finfo('float').eps:
             raise TrackEvalException("Union value < 0. Are the segmentaions corrupted?")
         if intersect > union:
             raise TrackEvalException("Intersection value > union value. Are the segmentations corrupted?")
-        iou = intersect / union if union > .0 else .0
+        iou = intersect / union if union > 0.0 + np.finfo('float').eps else 0.0
         return iou
 
     @staticmethod

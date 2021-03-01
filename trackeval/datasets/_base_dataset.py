@@ -233,8 +233,8 @@ class _BaseDataset(ABC):
         ious = np.asarray(mask_utils.iou(masks1, masks2, [do_ioa for _ in range(len(masks1))]))
         if len(masks1) == 0 or len(masks2) == 0:
             ious = ious.reshape(len(masks1), len(masks2))
-        assert (ious >= 0).all()
-        assert (ious <= 1).all()
+        assert (ious >= 0 - np.finfo('float').eps).all()
+        assert (ious <= 1 + np.finfo('float').eps).all()
 
         return ious
 
@@ -265,15 +265,17 @@ class _BaseDataset(ABC):
 
         if do_ioa:
             ioas = np.zeros_like(intersection)
-            ioas[area1 > 0, :] = intersection[area1 > 0, :] / area1[area1 > 0][:, np.newaxis]
+            valid_mask = area1 > 0 + np.finfo('float').eps
+            ioas[valid_mask, :] = intersection[valid_mask, :] / area1[valid_mask][:, np.newaxis]
+
             return ioas
         else:
             area2 = (bboxes2[..., 2] - bboxes2[..., 0]) * (bboxes2[..., 3] - bboxes2[..., 1])
             union = area1[:, np.newaxis] + area2[np.newaxis, :] - intersection
-            intersection[area1 <= 0, :] = 0
-            intersection[:, area2 <= 0] = 0
-            intersection[union <= 0] = 0
-            union[union <= 0] = 1
+            intersection[area1 <= 0 + np.finfo('float').eps, :] = 0
+            intersection[:, area2 <= 0 + np.finfo('float').eps] = 0
+            intersection[union <= 0 + np.finfo('float').eps] = 0
+            union[union <= 0 + np.finfo('float').eps] = 1
             ious = intersection / union
             return ious
 

@@ -334,9 +334,9 @@ class MotChallenge2DBox(_BaseDataset):
             to_remove_tracker = np.array([], np.int)
             if self.do_preproc and self.benchmark != 'MOT15' and gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
                 matching_scores = similarity_scores.copy()
-                matching_scores[matching_scores < 0.5] = 0
+                matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = 0
                 match_rows, match_cols = linear_sum_assignment(-matching_scores)
-                actually_matched_mask = matching_scores[match_rows, match_cols] > 0
+                actually_matched_mask = matching_scores[match_rows, match_cols] > 0 + np.finfo('float').eps
                 match_rows = match_rows[actually_matched_mask]
                 match_cols = match_cols[actually_matched_mask]
 
