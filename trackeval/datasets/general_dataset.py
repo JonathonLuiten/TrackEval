@@ -631,6 +631,7 @@ class General(_BaseDataset):
                                                 in data['dt_track_ids']])
 
             if self.benchmark == 'TAO':
+                data['iou_type'] = 'bbox'
                 data['gt_track_areas'] = []
                 for tid in data['gt_track_ids']:
                     track = raw_data['classes_to_gt_tracks'][cls_id][tid]
@@ -648,6 +649,7 @@ class General(_BaseDataset):
                     else:
                         data['dt_track_areas'].append(0)
             else:
+                data['iou_type'] = 'mask'
                 data['gt_track_areas'] = []
                 for tid in data['gt_track_ids']:
                     track = raw_data['classes_to_gt_tracks'][cls_id][tid]

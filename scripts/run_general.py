@@ -12,12 +12,12 @@ if __name__ == '__main__':
     # Command line interface:
     default_eval_config = trackeval.Evaluator.get_default_eval_config()
     default_eval_config['PRINT_ONLY_COMBINED'] = True
-    default_eval_config['DISPLAY_LESS_PROGRESS'] = True
+    default_eval_config['DISPLAY_LESS_PROGRESS'] = False
     default_dataset_config = trackeval.datasets.General.get_default_dataset_config()
     config = {**default_eval_config, **default_dataset_config}
     config = utils.update_config(config)
-    benchmarks = ['MOTS']
-    splits_to_eval = ['train']
+    benchmarks = ['DAVIS']
+    splits_to_eval = ['val']
 
     for i in range(len(benchmarks)):
         benchmark = benchmarks[i]
