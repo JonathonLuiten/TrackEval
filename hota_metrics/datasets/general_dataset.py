@@ -362,7 +362,7 @@ class General(_BaseDataset):
                 if cls_id not in raw_data['classes_to_tracks']:
                     raw_data['classes_to_tracks'][cls_id] = {}
                 if not is_gt and cls_id not in raw_data['classes_to_track_scores']:
-                    raw_data['classes_to_track_scores'] = []
+                    raw_data['classes_to_track_scores'][cls_id] = []
 
             if is_gt:
                 key_map['classes_to_tracks'] = 'classes_to_gt_tracks'
@@ -435,66 +435,16 @@ class General(_BaseDataset):
         distractor_classes = [self.class_name_to_class_id[x] for x in distractor_class_names]
         cls_id = self.class_name_to_class_id[cls]
 
+        is_neg_category = cls_id in raw_data['neg_cat_ids'] if self.benchmark == 'TAO' else False
+        is_not_exhaustively_labeled = cls_id in raw_data['not_exhaustively_labeled_cls'] if self.benchmark == 'TAO' \
+            else False
+
         data_keys = ['gt_ids', 'tracker_ids', 'gt_dets', 'tracker_dets', 'tracker_confidences', 'similarity_scores']
         data = {key: [None] * raw_data['num_timesteps'] for key in data_keys}
         unique_gt_ids = []
         unique_tracker_ids = []
         num_gt_dets = 0
         num_tracker_dets = 0
-
-        print(raw_data['classes_to_gt_tracks'])
-        exit()
-
-        if self.benchmark in ['TAO', 'YouTubeVIS']:
-            data['gt_track_ids'] = raw_data['classes_to_gt_tracks'][cls_id].keys()
-            data['gt_tracks'] = [raw_data['classes_to_gt_tracks'][cls_id][tid] for tid in data['gt_track_ids']]
-            data['gt_track_lengths'] = [len(track.keys()) for track in data['gt_tracks']]
-            data['dt_track_ids'] = raw_data['classes_to_dt_tracks'][cls_id].keys()
-            data['dt_tracks'] = [raw_data['classes_to_dt_tracks'][cls_id][tid] for tid in data['dt_track_ids']]
-            data['dt_track_lengths'] = [len(track.keys()) for track in data['dt_tracks']]
-            data['dt_track_scores'] = np.array([np.mean(raw_data['classes_to_track_scores'][cls_id][tid]) for tid
-                                                in data['dt_track_ids']])
-            if self.benchmark == 'TAO':
-                data['gt_track_areas'] = []
-                for tid in data['gt_track_ids']:
-                    track = raw_data['classes_to_gt_tracks'][cls_id][tid]
-                    if track:
-                        data['gt_track_areas'].append(sum([(ann[2] - ann[0]) * (ann[3] - ann[1]) for ann in track])
-                                                      / len(track))
-                    else:
-                        data['gt_track_areas'].append(0)
-                data['dt_track_areas'] = []
-                for tid in data['dt_track_ids']:
-                    track = raw_data['classes_to_dt_tracks'][cls_id][tid]
-                    if track:
-                        data['dt_track_areas'].append(sum([(ann[2] - ann[0]) * (ann[3] - ann[1]) for ann in track])
-                                                      / len(track))
-                    else:
-                        data['dt_track_areas'].append(0)
-            else:
-                data['gt_track_areas'] = []
-                for tid in data['gt_track_ids']:
-                    track = raw_data['classes_to_gt_tracks'][cls_id][tid]
-                    if track:
-                        data['gt_track_areas'].append(np.mean([mask_utils.area(ann) for ann in track]))
-                    else:
-                        data['gt_track_areas'].append(0)
-                data['dt_track_areas'] = []
-                for tid in data['dt_track_ids']:
-                    track = raw_data['classes_to_dt_tracks'][cls_id][tid]
-                    if track:
-                        data['dt_track_areas'].append(np.mean([mask_utils.area(ann) for ann in track]))
-                    else:
-                        data['dt_track_areas'].append(0)
-
-            if data['dt_tracks']:
-                idx = np.argsort([-score for score in data['dt_track_scores']], kind="mergesort")
-                data['dt_track_scores'] = [data['dt_track_scores'][i] for i in idx]
-                data['dt_tracks'] = [data['dt_tracks'][i] for i in idx]
-                data['dt_track_ids'] = [data['dt_track_ids'][i] for i in idx]
-                data['dt_track_areas'] = [data['dt_track_areas'][i] for i in idx]
-        print(raw_data['classes_to_gt_tracks'][cls_id])
-        exit()
 
         for t in range(raw_data['num_timesteps']):
 
@@ -504,11 +454,9 @@ class General(_BaseDataset):
             gt_ids = raw_data['gt_ids'][t][gt_class_mask]
             gt_dets = raw_data['gt_dets'][t][gt_class_mask]
             gt_classes = raw_data['gt_classes'][t][gt_class_mask]
-            if self.benchmark == 'Kitti2DBox':
-                gt_occlusion = raw_data['gt_extras'][t]['occlusion'][gt_class_mask]
-                gt_truncation = raw_data['gt_extras'][t]['truncation'][gt_class_mask]
-            elif self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20']:
-                gt_zero_marked = raw_data['gt_extras'][t]['zero_marked'][gt_class_mask]
+            gt_occlusion = raw_data['gt_extras'][t]['occlusion'][gt_class_mask]
+            gt_truncation = raw_data['gt_extras'][t]['truncation'][gt_class_mask]
+            gt_zero_marked = raw_data['gt_extras'][t]['zero_marked'][gt_class_mask]
 
             tracker_class_mask = np.atleast_1d(raw_data['tracker_classes'][t] == cls_id)
             tracker_class_mask = tracker_class_mask.astype(np.bool)
@@ -517,52 +465,115 @@ class General(_BaseDataset):
             tracker_confidences = raw_data['tracker_confidences'][t][tracker_class_mask]
             similarity_scores = raw_data['similarity_scores'][t][gt_class_mask, :][:, tracker_class_mask]
 
-            # Match tracker and gt dets (with hungarian algorithm) and remove tracker dets which match with gt dets
-            # which are labeled as truncated, occluded, or belonging to a distractor class.
-            to_remove_matched = np.array([], np.int)
-            unmatched_indices = np.arange(tracker_ids.shape[0])
-            if gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
-                matching_scores = similarity_scores.copy()
-                matching_scores[matching_scores < 0.5] = 0
-                match_rows, match_cols = linear_sum_assignment(-matching_scores)
-                actually_matched_mask = matching_scores[match_rows, match_cols] > 0
-                match_rows = match_rows[actually_matched_mask]
-                match_cols = match_cols[actually_matched_mask]
+            if self.benchmark == 'YouTubeVIS':
+                data['tracker_ids'][t] = tracker_ids
+                data['tracker_dets'][t] = tracker_dets
+                data['gt_ids'][t] = gt_ids
+                data['gt_dets'][t] = gt_dets
+                data['similarity_scores'][t] = similarity_scores
+            elif self.benchmark == 'DAVIS':
+                data['tracker_ids'][t] = tracker_ids
+                data['gt_ids'][t] = gt_ids
+                data['gt_dets'][t] = gt_dets
+                data['similarity_scores'][t] = similarity_scores
 
-                is_distractor_class = np.isin(gt_classes[match_rows], distractor_classes)
-                is_occluded_or_truncated = np.logical_or(gt_occlusion[match_rows] > self.max_occlusion,
-                                                         gt_truncation[match_rows] > self.max_truncation)
-                to_remove_matched = np.logical_or(is_distractor_class, is_occluded_or_truncated)
-                to_remove_matched = match_cols[to_remove_matched]
-                unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
+                # set void pixels in tracker detections to zero
+                void_mask = raw_data['masks_void'][t]
+                if mask_utils.area(void_mask) > 0:
+                    void_mask_ious = np.\
+                        atleast_1d(mask_utils.iou(tracker_dets, [void_mask],
+                                                  [False for _ in range(len(tracker_dets))]))
+                    if void_mask_ious.any():
+                        rows, columns = np.where(void_mask_ious > 0)
+                        for r in rows:
+                            det = mask_utils.decode(tracker_dets[r])
+                            void = mask_utils.decode(void_mask).astype(np.bool)
+                            det[void] = 0
+                            det = mask_utils.encode(np.array(det, order='F').astype(np.uint8))
+                            tracker_dets[r] = det
+                data['tracker_dets'][t] = tracker_dets
+            else:
+                # Match tracker and gt dets (with hungarian algorithm) and remove tracker dets which match with gt dets
+                # which are labeled as truncated, occluded, or belonging to a distractor class.
+                to_remove_matched = np.array([], np.int)
+                unmatched_indices = np.arange(tracker_ids.shape[0])
+                if gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
+                    matching_scores = similarity_scores.copy()
+                    matching_scores[matching_scores < 0.5] = 0
+                    match_rows, match_cols = linear_sum_assignment(-matching_scores)
+                    actually_matched_mask = matching_scores[match_rows, match_cols] > 0
+                    match_rows = match_rows[actually_matched_mask]
+                    match_cols = match_cols[actually_matched_mask]
 
-            # For unmatched tracker dets, also remove those smaller than a minimum height.
-            unmatched_tracker_dets = tracker_dets[unmatched_indices, :]
-            unmatched_heights = unmatched_tracker_dets[:, 3] - unmatched_tracker_dets[:, 1]
-            is_too_small = unmatched_heights <= self.min_height
+                    if self.benchmark == 'Kitti2DBox':
+                        is_distractor_class = np.isin(gt_classes[match_rows], distractor_classes)
+                        is_occluded_or_truncated = np.logical_or(gt_occlusion[match_rows] > self.max_occlusion,
+                                                                 gt_truncation[match_rows] > self.max_truncation)
+                        to_remove_matched = np.logical_or(is_distractor_class, is_occluded_or_truncated)
+                        to_remove_matched = match_cols[to_remove_matched]
+                    elif self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20']:
+                        is_distractor_class = np.isin(gt_classes[match_rows], distractor_classes)
+                        to_remove_matched = match_cols[is_distractor_class]
+                    else:
+                        to_remove_matched = np.array([], dtype=np.int)
+                    unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
 
-            # For unmatched tracker dets, also remove those that are greater than 50% within a crowd ignore region.
-            crowd_ignore_regions = raw_data['gt_ignore_regions'][t]
-            intersection_with_ignore_region = self._calculate_box_ious(unmatched_tracker_dets, crowd_ignore_regions,
-                                                                       box_format='x0y0x1y1', do_ioa=True)
-            is_within_crowd_ignore_region = np.any(intersection_with_ignore_region > 0.5, axis=1)
+                unmatched_tracker_dets = tracker_dets[unmatched_indices, :]
+                if self.benchmark in ['Kitti2DBox', 'BDD100K']:
+                    # For unmatched tracker dets, also remove those that are greater than 50% within a crowd ignore region.
+                    crowd_ignore_regions = raw_data['gt_ignore_regions'][t]
+                    intersection_with_ignore_region = self.\
+                        _calculate_box_ious(unmatched_tracker_dets, crowd_ignore_regions, box_format='x0y0x1y1',
+                                            do_ioa=True)
+                    is_within_ignore_region = np.any(intersection_with_ignore_region > 0.5, axis=1)
+                    if self.benchmark == 'Kitti2DBox':
+                        # For unmatched tracker dets, also remove those smaller than a minimum height.
+                        unmatched_heights = unmatched_tracker_dets[:, 3] - unmatched_tracker_dets[:, 1]
+                        is_too_small = unmatched_heights <= self.min_height
 
-            # Apply preprocessing to remove all unwanted tracker dets.
-            to_remove_unmatched = unmatched_indices[np.logical_or(is_too_small, is_within_crowd_ignore_region)]
-            to_remove_tracker = np.concatenate((to_remove_matched, to_remove_unmatched), axis=0)
-            data['tracker_ids'][t] = np.delete(tracker_ids, to_remove_tracker, axis=0)
-            data['tracker_dets'][t] = np.delete(tracker_dets, to_remove_tracker, axis=0)
-            data['tracker_confidences'][t] = np.delete(tracker_confidences, to_remove_tracker, axis=0)
-            similarity_scores = np.delete(similarity_scores, to_remove_tracker, axis=1)
+                        to_remove_unmatched = unmatched_indices[np.logical_or(is_too_small,
+                                                                              is_within_ignore_region)]
+                        to_remove_tracker = np.concatenate((to_remove_matched, to_remove_unmatched), axis=0)
+                    else:
+                        to_remove_tracker = unmatched_indices[is_within_ignore_region]
+                elif self.benchmark in ['KittiMOTS', 'MOTS']:
+                    ignore_region = raw_data['gt_ignore_region'][t]
+                    intersection_with_ignore_region = self.\
+                        _calculate_mask_ious(unmatched_tracker_dets, [ignore_region], is_encoded=True, do_ioa=True)
+                    is_within_ignore_region = np.any(intersection_with_ignore_region > 0.5, axis=1)
+                    to_remove_tracker = unmatched_indices[is_within_ignore_region]
+                elif self.benchmark == 'TAO':
+                    if gt_ids.shape[0] == 0 and not is_neg_category:
+                        to_remove_tracker = unmatched_indices
+                    elif is_not_exhaustively_labeled:
+                        to_remove_tracker = unmatched_indices
+                    else:
+                        to_remove_tracker = np.array([], dtype=np.int)
+                else:
+                    to_remove_tracker = np.array([], dtype=np.int)
 
-            # Also remove gt dets that were only useful for preprocessing and are not needed for evaluation.
-            # These are those that are occluded, truncated and from distractor objects.
-            gt_to_keep_mask = (np.less_equal(gt_occlusion, self.max_occlusion)) & \
-                              (np.less_equal(gt_truncation, self.max_truncation)) & \
-                              (np.equal(gt_classes, cls_id))
-            data['gt_ids'][t] = gt_ids[gt_to_keep_mask]
-            data['gt_dets'][t] = gt_dets[gt_to_keep_mask, :]
-            data['similarity_scores'][t] = similarity_scores[gt_to_keep_mask]
+                data['tracker_ids'][t] = np.delete(tracker_ids, to_remove_tracker, axis=0)
+                data['tracker_dets'][t] = np.delete(tracker_dets, to_remove_tracker, axis=0)
+                data['tracker_confidences'][t] = np.delete(tracker_confidences, to_remove_tracker, axis=0)
+                similarity_scores = np.delete(similarity_scores, to_remove_tracker, axis=1)
+
+                if self.benchmark == 'Kitti2DBox':
+                    # Also remove gt dets that were only useful for preprocessing and are not needed for evaluation.
+                    # These are those that are occluded, truncated and from distractor objects.
+                    gt_to_keep_mask = (np.less_equal(gt_occlusion, self.max_occlusion)) & \
+                                      (np.less_equal(gt_truncation, self.max_truncation)) & \
+                                      (np.equal(gt_classes, cls_id))
+                elif self.benchmark in ['MOT16', 'MOT17', 'MOT20']:
+                    gt_to_keep_mask = (np.not_equal(gt_zero_marked, 0)) & \
+                                      (np.equal(gt_classes, cls_id))
+                elif self.benchmark == 'MOT15':
+                    # There are no classes for MOT15
+                    gt_to_keep_mask = np.not_equal(gt_zero_marked, 0)
+                else:
+                    gt_to_keep_mask = np.ones_like(gt_ids, dtype=np.bool)
+                data['gt_ids'][t] = gt_ids[gt_to_keep_mask]
+                data['gt_dets'][t] = gt_dets[gt_to_keep_mask, :]
+                data['similarity_scores'][t] = similarity_scores[gt_to_keep_mask]
 
             unique_gt_ids += list(np.unique(data['gt_ids'][t]))
             unique_tracker_ids += list(np.unique(data['tracker_ids'][t]))
@@ -595,6 +606,57 @@ class General(_BaseDataset):
 
         # Ensure that ids are unique per timestep.
         self._check_unique_ids(data)
+
+        if self.benchmark in ['TAO', 'YouTubeVIS']:
+            data['gt_track_ids'] = [key for key in raw_data['classes_to_gt_tracks'][cls_id].keys()]
+            data['gt_tracks'] = [raw_data['classes_to_gt_tracks'][cls_id][tid] for tid in data['gt_track_ids']]
+            data['gt_track_lengths'] = [len(track.keys()) for track in data['gt_tracks']]
+            data['dt_track_ids'] = [key for key in raw_data['classes_to_dt_tracks'][cls_id].keys()]
+            data['dt_tracks'] = [raw_data['classes_to_dt_tracks'][cls_id][tid] for tid in data['dt_track_ids']]
+            data['dt_track_lengths'] = [len(track.keys()) for track in data['dt_tracks']]
+            data['dt_track_scores'] = np.array([np.mean(raw_data['classes_to_track_scores'][cls_id][tid]) for tid
+                                                in data['dt_track_ids']])
+
+            if self.benchmark == 'TAO':
+                data['gt_track_areas'] = []
+                for tid in data['gt_track_ids']:
+                    track = raw_data['classes_to_gt_tracks'][cls_id][tid]
+                    if track:
+                        data['gt_track_areas'].append(sum([(ann[2] - ann[0]) * (ann[3] - ann[1]) for ann
+                                                           in track.values()]) / len(track))
+                    else:
+                        data['gt_track_areas'].append(0)
+                data['dt_track_areas'] = []
+                for tid in data['dt_track_ids']:
+                    track = raw_data['classes_to_dt_tracks'][cls_id][tid]
+                    if track:
+                        data['dt_track_areas'].append(sum([(ann[2] - ann[0]) * (ann[3] - ann[1]) for ann
+                                                           in track.values()]) / len(track))
+                    else:
+                        data['dt_track_areas'].append(0)
+            else:
+                data['gt_track_areas'] = []
+                for tid in data['gt_track_ids']:
+                    track = raw_data['classes_to_gt_tracks'][cls_id][tid]
+                    if track:
+                        data['gt_track_areas'].append(np.mean([mask_utils.area(ann) for ann in track.values()]))
+                    else:
+                        data['gt_track_areas'].append(0)
+                data['dt_track_areas'] = []
+                for tid in data['dt_track_ids']:
+                    track = raw_data['classes_to_dt_tracks'][cls_id][tid]
+                    if track:
+                        data['dt_track_areas'].append(np.mean([mask_utils.area(ann) for ann in track.values()]))
+                    else:
+                        data['dt_track_areas'].append(0)
+
+            if data['dt_tracks']:
+                idx = np.argsort([-score for score in data['dt_track_scores']], kind="mergesort")
+                data['dt_track_scores'] = [data['dt_track_scores'][i] for i in idx]
+                data['dt_tracks'] = [data['dt_tracks'][i] for i in idx]
+                data['dt_track_ids'] = [data['dt_track_ids'][i] for i in idx]
+                data['dt_track_lengths'] = [data['dt_track_lengths'][i] for i in idx]
+                data['dt_track_areas'] = [data['dt_track_areas'][i] for i in idx]
 
         return data
 
