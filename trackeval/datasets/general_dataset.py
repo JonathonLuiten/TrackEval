@@ -452,8 +452,11 @@ class General(_BaseDataset):
             # Only extract relevant dets for this class for preproc and eval (cls + distractor classes)
             gt_class_mask = np.sum([raw_data['gt_classes'][t] == c for c in [cls_id] + distractor_classes], axis=0)
             gt_class_mask = gt_class_mask.astype(np.bool)
-            gt_ids = raw_data['gt_ids'][t][gt_class_mask]
-            gt_dets = raw_data['gt_dets'][t][gt_class_mask]
+            gt_ids = raw_data['gt_ids'][t][gt_class_mask]#
+            if self.benchmark in ['DAVIS', 'YouTubeVIS', 'KittiMOTS', 'MOTS']:
+                gt_dets = [raw_data['gt_dets'][t][ind] for ind in range(len(gt_class_mask)) if gt_class_mask[ind]]
+            else:
+                gt_dets = raw_data['gt_dets'][t][gt_class_mask]
             gt_classes = raw_data['gt_classes'][t][gt_class_mask]
             gt_occlusion = raw_data['gt_extras'][t]['occlusion'][gt_class_mask]
             gt_truncation = raw_data['gt_extras'][t]['truncation'][gt_class_mask]
@@ -462,7 +465,11 @@ class General(_BaseDataset):
             tracker_class_mask = np.atleast_1d(raw_data['tracker_classes'][t] == cls_id)
             tracker_class_mask = tracker_class_mask.astype(np.bool)
             tracker_ids = raw_data['tracker_ids'][t][tracker_class_mask]
-            tracker_dets = raw_data['tracker_dets'][t][tracker_class_mask]
+            if self.benchmark in ['DAVIS', 'YouTubeVIS', 'KittiMOTS', 'MOTS']:
+                tracker_dets = [raw_data['tracker_dets'][t][ind] for ind in range(len(tracker_class_mask)) if
+                                tracker_class_mask[ind]]
+            else:
+                tracker_dets = raw_data['tracker_dets'][t][tracker_class_mask]
             tracker_confidences = raw_data['tracker_confidences'][t][tracker_class_mask]
             similarity_scores = raw_data['similarity_scores'][t][gt_class_mask, :][:, tracker_class_mask]
 
@@ -519,9 +526,9 @@ class General(_BaseDataset):
                         to_remove_matched = np.array([], dtype=np.int)
                     unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
 
-                unmatched_tracker_dets = tracker_dets[unmatched_indices, :]
                 if self.benchmark in ['Kitti2DBox', 'BDD100K']:
                     # For unmatched tracker dets, also remove those that are greater than 50% within a crowd ignore region.
+                    unmatched_tracker_dets = tracker_dets[unmatched_indices, :]
                     crowd_ignore_regions = raw_data['gt_ignore_regions'][t]
                     intersection_with_ignore_region = self.\
                         _calculate_box_ious(unmatched_tracker_dets, crowd_ignore_regions, box_format='x0y0x1y1',
@@ -538,7 +545,9 @@ class General(_BaseDataset):
                     else:
                         to_remove_tracker = unmatched_indices[is_within_ignore_region]
                 elif self.benchmark in ['KittiMOTS', 'MOTS']:
-                    ignore_region = raw_data['gt_ignore_region'][t]
+                    unmatched_tracker_dets = [tracker_dets[i] for i in range(len(tracker_dets))
+                                              if i in unmatched_indices]
+                    ignore_region = raw_data['gt_ignore_regions'][t]
                     intersection_with_ignore_region = self.\
                         _calculate_mask_ious(unmatched_tracker_dets, [ignore_region], is_encoded=True, do_ioa=True)
                     is_within_ignore_region = np.any(intersection_with_ignore_region > 0.5, axis=1)
@@ -558,23 +567,26 @@ class General(_BaseDataset):
                 data['tracker_confidences'][t] = np.delete(tracker_confidences, to_remove_tracker, axis=0)
                 similarity_scores = np.delete(similarity_scores, to_remove_tracker, axis=1)
 
-                if self.benchmark == 'Kitti2DBox':
-                    # Also remove gt dets that were only useful for preprocessing and are not needed for evaluation.
-                    # These are those that are occluded, truncated and from distractor objects.
-                    gt_to_keep_mask = (np.less_equal(gt_occlusion, self.max_occlusion)) & \
-                                      (np.less_equal(gt_truncation, self.max_truncation)) & \
-                                      (np.equal(gt_classes, cls_id))
-                elif self.benchmark in ['MOT16', 'MOT17', 'MOT20']:
-                    gt_to_keep_mask = (np.not_equal(gt_zero_marked, 0)) & \
-                                      (np.equal(gt_classes, cls_id))
-                elif self.benchmark == 'MOT15':
-                    # There are no classes for MOT15
-                    gt_to_keep_mask = np.not_equal(gt_zero_marked, 0)
+                if self.benchmark in ['Kitti2DBox', 'MOT15', 'MOT16', 'MOT17', 'MOT20']:
+                    if self.benchmark == 'Kitti2DBox':
+                        # Also remove gt dets that were only useful for preprocessing and are not needed for evaluation.
+                        # These are those that are occluded, truncated and from distractor objects.
+                        gt_to_keep_mask = (np.less_equal(gt_occlusion, self.max_occlusion)) & \
+                                          (np.less_equal(gt_truncation, self.max_truncation)) & \
+                                          (np.equal(gt_classes, cls_id))
+                    elif self.benchmark in ['MOT16', 'MOT17', 'MOT20']:
+                        gt_to_keep_mask = (np.not_equal(gt_zero_marked, 0)) & \
+                                          (np.equal(gt_classes, cls_id))
+                    else:
+                        # There are no classes for MOT15
+                        gt_to_keep_mask = np.not_equal(gt_zero_marked, 0)
+                    data['gt_ids'][t] = gt_ids[gt_to_keep_mask]
+                    data['gt_dets'][t] = gt_dets[gt_to_keep_mask, :]
+                    data['similarity_scores'][t] = similarity_scores[gt_to_keep_mask]
                 else:
-                    gt_to_keep_mask = np.ones_like(gt_ids, dtype=np.bool)
-                data['gt_ids'][t] = gt_ids[gt_to_keep_mask]
-                data['gt_dets'][t] = gt_dets[gt_to_keep_mask, :]
-                data['similarity_scores'][t] = similarity_scores[gt_to_keep_mask]
+                    data['gt_ids'][t] = gt_ids
+                    data['gt_dets'][t] = gt_dets
+                    data['similarity_scores'][t] = similarity_scores
 
             unique_gt_ids += list(np.unique(data['gt_ids'][t]))
             unique_tracker_ids += list(np.unique(data['tracker_ids'][t]))
