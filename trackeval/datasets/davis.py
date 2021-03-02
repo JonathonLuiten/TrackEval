@@ -166,7 +166,7 @@ class DAVIS(_BaseDataset):
         for k, v in key_map.items():
             raw_data[v] = raw_data.pop(k)
         raw_data["num_timesteps"] = num_timesteps
-        raw_data['mask_shape'] = masks.shape[2:]
+        raw_data['frame_size'] = masks.shape[2:]
         if is_gt:
             raw_data['num_gt_ids'] = num_objects
         else:
@@ -248,7 +248,7 @@ class DAVIS(_BaseDataset):
         data['num_gt_dets'] = num_gt_dets
         data['num_tracker_ids'] = raw_data['num_tracker_ids']
         data['num_gt_ids'] = raw_data['num_gt_ids']
-        data['mask_shape'] = raw_data['mask_shape']
+        data['frame_size'] = raw_data['frame_size']
         data['num_timesteps'] = num_timesteps
         return data
 
