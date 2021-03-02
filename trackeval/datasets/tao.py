@@ -205,7 +205,7 @@ class TAO(_BaseDataset):
                              if cls in classes_to_consider else [] for cls in all_classes}
 
         # mapping from classes to track information
-        raw_data['classes_to_tracks'] = {cls: [{det['image_id']: det['bbox']
+        raw_data['classes_to_tracks'] = {cls: [{det['image_id']: np.atleast_1d(det['bbox'])
                                                 for det in track['annotations']} for track in tracks]
                                          for cls, tracks in classes_to_tracks.items()}
         raw_data['classes_to_track_ids'] = {cls: [track['id'] for track in tracks]

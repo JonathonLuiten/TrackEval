@@ -89,7 +89,9 @@ class TrackMAP(_BaseMetric):
         dt_ig_masks = self._compute_track_ig_masks(len(dt_ids), track_lengths=dt_tr_lengths, track_areas=dt_tr_areas,
                                                    is_not_exhaustively_labeled=is_nel, is_gt=False)
 
-        ious = self._compute_track_ious(data['dt_tracks'], data['gt_tracks'], iou_function=data['iou_type'])
+        boxformat = data.get('boxformat', 'xywh')
+        ious = self._compute_track_ious(data['dt_tracks'], data['gt_tracks'], iou_function=data['iou_type'],
+                                        boxformat=boxformat)
 
         for mask_idx in range(self.num_ig_masks):
             gt_ig_mask = gt_ig_masks[mask_idx]
@@ -362,7 +364,7 @@ class TrackMAP(_BaseMetric):
         :param dt_track: the detected track (format: dictionary with frame index as keys and
                             numpy arrays as values)
         :param gt_track: the ground truth track (format: dictionary with frame index as keys and
-                            numpy arrays as values)
+                        numpy array as values)
         :param boxformat: the format of the boxes
         :return: the track IoU
         """
@@ -373,7 +375,7 @@ class TrackMAP(_BaseMetric):
             g = gt_track.get(image, None)
             d = dt_track.get(image, None)
             if boxformat == 'xywh':
-                if d and g:
+                if d is not None and g is not None:
                     dx, dy, dw, dh = d
                     gx, gy, gw, gh = g
                     w = max(min(dx + dw, gx + gw) - max(dx, gx), 0)
@@ -382,10 +384,24 @@ class TrackMAP(_BaseMetric):
                     u = dw * dh + gw * gh - i
                     intersect += i
                     union += u
-                elif not d and g:
+                elif d is None and g is not None:
                     union += g[2] * g[3]
-                elif d and not g:
+                elif d is not None and g is None:
                     union += d[2] * d[3]
+            elif boxformat == 'x0y0x1y1':
+                if d is not None and g is not None:
+                    dx0, dy0, dx1, dy1 = d
+                    gx0, gy0, gx1, gy1 = g
+                    w = max(min(dx1, gx1) - max(dx0, gx0), 0)
+                    h = max(min(dy1, gy1) - max(dy0, gy0), 0)
+                    i = w * h
+                    u = (dx1 - dx0) * (dy1 - dy0) + (gx1 - gx0) * (gy1 - gy0) - i
+                    intersect += i
+                    union += u
+                elif d is None and g is not None:
+                    union += (g[2] - g[0]) * (g[3] - g[1])
+                elif d is not None and g is None:
+                    union += (d[2] - d[0]) * (d[3] - d[1])
             else:
                 raise (TrackEvalException('BoxFormat not implemented'))
         if intersect > union:

@@ -655,6 +655,7 @@ class General(_BaseDataset):
 
             if self.benchmark == 'TAO':
                 data['iou_type'] = 'bbox'
+                data['boxformat'] = 'x0y0x1y1'
                 data['not_exhaustively_labeled'] = is_not_exhaustively_labeled
                 data['gt_track_areas'] = []
                 for tid in data['gt_track_ids']:
