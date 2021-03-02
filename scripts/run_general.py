@@ -12,12 +12,12 @@ if __name__ == '__main__':
     # Command line interface:
     default_eval_config = trackeval.Evaluator.get_default_eval_config()
     default_eval_config['PRINT_ONLY_COMBINED'] = True
-    default_eval_config['DISPLAY_LESS_PROGRESS'] = False
+    default_eval_config['DISPLAY_LESS_PROGRESS'] = True
     default_dataset_config = trackeval.datasets.General.get_default_dataset_config()
     config = {**default_eval_config, **default_dataset_config}
     config = utils.update_config(config)
-    benchmarks = ['DAVIS']
-    splits_to_eval = ['val']
+    benchmarks = ['YouTubeVIS']
+    splits_to_eval = ['training']
 
     for i in range(len(benchmarks)):
         benchmark = benchmarks[i]
@@ -39,7 +39,7 @@ if __name__ == '__main__':
         metrics_list = []
         for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity,
                        trackeval.metrics.TrackMAP, trackeval.metrics.JAndF]:
-            if benchmark == 'YouTubeVis' and metric == trackeval.metrics.TrackMAP:
+            if benchmark == 'YouTubeVIS' and metric == trackeval.metrics.TrackMAP:
                 default_track_map_config = metric.get_default_metric_config()
                 default_track_map_config['USE_TIME_RANGES'] = False
                 default_track_map_config['AREA_RANGES'] = [[0 ** 2, 128 ** 2],

@@ -365,6 +365,27 @@ class General(_BaseDataset):
                 if not is_gt and cls_id not in raw_data['classes_to_track_scores']:
                     raw_data['classes_to_track_scores'][cls_id] = []
 
+            if self.benchmark == 'YouTubeVIS' and is_gt:
+                raw_data['classes_to_gt_track_iscrowd'] = {}
+                for t in range(num_timesteps):
+                    for i in range(len(raw_data['ids'][t])):
+                        tid = raw_data['ids'][t][i]
+                        cls_id = raw_data['classes'][t][i]
+                        if cls_id not in raw_data['classes_to_gt_track_iscrowd']:
+                            raw_data['classes_to_gt_track_iscrowd'][cls_id] = {}
+                        if tid not in raw_data['classes_to_gt_track_iscrowd'][cls_id]:
+                            raw_data['classes_to_gt_track_iscrowd'][cls_id][tid] = []
+                        raw_data['classes_to_gt_track_iscrowd'][cls_id][tid].\
+                            append(raw_data['gt_extras'][t]['crowd'][i])
+
+                for cls in self.class_list:
+                    cls_id = self.class_name_to_class_id[cls]
+                    if cls_id not in raw_data['classes_to_gt_track_iscrowd']:
+                        raw_data['classes_to_gt_track_iscrowd'][cls_id] = {}
+                    else:
+                        raw_data['classes_to_gt_track_iscrowd'][cls_id] = \
+                            {k: np.all(v) for k, v in raw_data['classes_to_gt_track_iscrowd'][cls_id].items()}
+
             if is_gt:
                 key_map['classes_to_tracks'] = 'classes_to_gt_tracks'
             else:
@@ -634,6 +655,7 @@ class General(_BaseDataset):
 
             if self.benchmark == 'TAO':
                 data['iou_type'] = 'bbox'
+                data['not_exhaustively_labeled'] = is_not_exhaustively_labeled
                 data['gt_track_areas'] = []
                 for tid in data['gt_track_ids']:
                     track = raw_data['classes_to_gt_tracks'][cls_id][tid]
@@ -650,8 +672,11 @@ class General(_BaseDataset):
                                                            in track.values()]) / len(track))
                     else:
                         data['dt_track_areas'].append(0)
-            else:
+
+            if self.benchmark == 'YouTubeVIS':
                 data['iou_type'] = 'mask'
+                data['gt_track_iscrowd'] = [raw_data['classes_to_gt_track_iscrowd'][cls_id][tid]
+                                            for tid in data['gt_track_ids']]
                 data['gt_track_areas'] = []
                 for tid in data['gt_track_ids']:
                     track = raw_data['classes_to_gt_tracks'][cls_id][tid]
