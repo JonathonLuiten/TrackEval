@@ -101,24 +101,26 @@ class Evaluator:
                     # combine classes
                     if dataset.should_classes_combine:
                         combined_cls_keys += ['cls_comb_cls_av', 'cls_comb_det_av']
-                        res['COMBINED_SEQ']['cls_comb_cls_av'] = {}
-                        res['COMBINED_SEQ']['cls_comb_det_av'] = {}
-                        for metric, metric_name in zip(metrics_list, metric_names):
-                            cls_res = {cls_key: cls_value[metric_name] for cls_key, cls_value in
-                                       res['COMBINED_SEQ'].items() if cls_key not in combined_cls_keys}
-                            res['COMBINED_SEQ']['cls_comb_cls_av'][metric_name] = \
-                                metric.combine_classes_class_averaged(cls_res)
-                            res['COMBINED_SEQ']['cls_comb_det_av'][metric_name] = \
-                                metric.combine_classes_det_averaged(cls_res)
+                        for seq in res.keys():
+                            res[seq]['cls_comb_cls_av'] = {}
+                            res[seq]['cls_comb_det_av'] = {}
+                            for metric, metric_name in zip(metrics_list, metric_names):
+                                cls_res = {cls_key: cls_value[metric_name] for cls_key, cls_value in
+                                           res[seq].items() if cls_key not in combined_cls_keys}
+                                res[seq]['cls_comb_cls_av'][metric_name] = \
+                                    metric.combine_classes_class_averaged(cls_res)
+                                res[seq]['cls_comb_det_av'][metric_name] = \
+                                    metric.combine_classes_det_averaged(cls_res)
                     # combine classes to super classes
                     if dataset.use_super_categories:
                         for cat, sub_cats in dataset.super_categories.items():
                             combined_cls_keys.append(cat)
-                            res['COMBINED_SEQ'][cat] = {}
-                            for metric, metric_name in zip(metrics_list, metric_names):
-                                cat_res = {cls_key: cls_value[metric_name] for cls_key, cls_value in
-                                           res['COMBINED_SEQ'].items() if cls_key in sub_cats}
-                                res['COMBINED_SEQ'][cat][metric_name] = metric.combine_classes_det_averaged(cat_res)
+                            for seq in res.keys():
+                                res[seq][cat] = {}
+                                for metric, metric_name in zip(metrics_list, metric_names):
+                                    cat_res = {cls_key: cls_value[metric_name] for cls_key, cls_value in
+                                               res[seq].items() if cls_key in sub_cats}
+                                    res[seq][cat][metric_name] = metric.combine_classes_det_averaged(cat_res)
 
                     # Print and output results in various formats
                     if config['TIME_PROGRESS']:
@@ -131,12 +133,8 @@ class Evaluator:
                         num_dets = res['COMBINED_SEQ'][c_cls]['Count']['Dets']
                         if config['OUTPUT_EMPTY_CLASSES'] or num_dets > 0:
                             for metric, metric_name in zip(metrics_list, metric_names):
-                                # for combined classes there is no per sequence evaluation
-                                if c_cls in combined_cls_keys:
-                                    table_res = {'COMBINED_SEQ': res['COMBINED_SEQ'][c_cls][metric_name]}
-                                else:
-                                    table_res = {seq_key: seq_value[c_cls][metric_name] for seq_key, seq_value
-                                                 in res.items()}
+                                table_res = {seq_key: seq_value[c_cls][metric_name] for seq_key, seq_value
+                                             in res.items()}
                                 if config['PRINT_RESULTS'] and config['PRINT_ONLY_COMBINED']:
                                     metric.print_table({'COMBINED_SEQ': table_res['COMBINED_SEQ']},
                                                        tracker_display_name, c_cls)
