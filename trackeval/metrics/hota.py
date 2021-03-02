@@ -55,7 +55,7 @@ class HOTA(_BaseMetric):
             similarity = data['similarity_scores'][t]
             sim_iou_denom = similarity.sum(0)[np.newaxis, :] + similarity.sum(1)[:, np.newaxis] - similarity
             sim_iou = np.zeros_like(similarity)
-            sim_iou_mask = sim_iou_denom > 0
+            sim_iou_mask = sim_iou_denom > 0 + np.finfo('float').eps
             sim_iou[sim_iou_mask] = similarity[sim_iou_mask] / sim_iou_denom[sim_iou_mask]
             potential_matches_count[gt_ids_t[:, np.newaxis], tracker_ids_t[np.newaxis, :]] += sim_iou
 
@@ -88,7 +88,7 @@ class HOTA(_BaseMetric):
 
             # Calculate and accumulate basic statistics
             for a, alpha in enumerate(self.array_labels):
-                actually_matched_mask = similarity[match_rows, match_cols] >= alpha
+                actually_matched_mask = similarity[match_rows, match_cols] >= alpha - np.finfo('float').eps
                 alpha_match_rows = match_rows[actually_matched_mask]
                 alpha_match_cols = match_cols[actually_matched_mask]
                 num_matches = len(alpha_match_rows)
@@ -132,12 +132,15 @@ class HOTA(_BaseMetric):
         res = {}
         for field in self.integer_array_fields:
             res[field] = self._combine_sum(
-                {k: v for k, v in all_res.items() if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0).any()}, field)
+                {k: v for k, v in all_res.items()
+                 if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0 + np.finfo('float').eps).any()}, field)
         for field in self.float_fields:
-            res[field] = np.mean([v[field] for v in all_res.values() if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0).any()],
+            res[field] = np.mean([v[field] for v in all_res.values()
+                                  if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0 + np.finfo('float').eps).any()],
                                  axis=0)
         for field in self.float_array_fields:
-            res[field] = np.mean([v[field] for v in all_res.values() if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0).any()],
+            res[field] = np.mean([v[field] for v in all_res.values()
+                                  if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0 + np.finfo('float').eps).any()],
                                  axis=0)
         return res
 

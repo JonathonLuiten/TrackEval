@@ -304,9 +304,9 @@ class TAO(_BaseDataset):
             unmatched_indices = np.arange(tracker_ids.shape[0])
             if gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
                 matching_scores = similarity_scores.copy()
-                matching_scores[matching_scores < 0.5] = 0
+                matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = 0
                 match_rows, match_cols = linear_sum_assignment(-matching_scores)
-                actually_matched_mask = matching_scores[match_rows, match_cols] > 0
+                actually_matched_mask = matching_scores[match_rows, match_cols] > 0 + np.finfo('float').eps
                 match_cols = match_cols[actually_matched_mask]
                 unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
 

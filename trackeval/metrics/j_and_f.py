@@ -72,9 +72,9 @@ class JAndF(_BaseMetric):
         # compute the metrics for each ground truth track
         res = {
             'J-Mean': [np.nanmean(j_m[i, :]) for i in range(j_m.shape[0])],
-            'J-Recall': [np.nanmean(j_m[i, :] > 0.5) for i in range(j_m.shape[0])],
+            'J-Recall': [np.nanmean(j_m[i, :] > 0.5 + np.finfo('float').eps) for i in range(j_m.shape[0])],
             'F-Mean': [np.nanmean(f_m[i, :]) for i in range(f_m.shape[0])],
-            'F-Recall': [np.nanmean(f_m[i, :] > 0.5) for i in range(f_m.shape[0])],
+            'F-Recall': [np.nanmean(f_m[i, :] > 0.5 + np.finfo('float').eps) for i in range(f_m.shape[0])],
             'J-Decay': [],
             'F-Decay': []
         }
@@ -200,7 +200,7 @@ class JAndF(_BaseMetric):
             curr_tracker_mask = mask_utils.decode(tracker_masks[tracker_data_id])
             curr_gt_mask = mask_utils.decode(gt_masks[gt_id])
             
-            bound_pix = bound_th if bound_th >= 1 else \
+            bound_pix = bound_th if bound_th >= 1 - np.finfo('float').eps else \
                 np.ceil(bound_th * np.linalg.norm(curr_tracker_mask.shape))
 
             # Get the pixel boundaries of both masks
@@ -274,8 +274,8 @@ class JAndF(_BaseMetric):
             ious = mask_utils.iou(time_data, time_gt, np.zeros([len(time_data)]))
             # set iou to 1 if both masks are close to 0 (no ground truth and no predicted mask in timestep)
             ious[np.isclose(area_tr, 0) & np.isclose(area_gt, 0)] = 1
-            assert (ious >= 0).all()
-            assert (ious <= 1).all()
+            assert (ious >= 0 - np.finfo('float').eps).all()
+            assert (ious <= 1 + np.finfo('float').eps).all()
 
             j[..., t] = ious
 

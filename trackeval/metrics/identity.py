@@ -80,11 +80,11 @@ class Identity(_BaseMetric):
         """Combines metrics across all classes by averaging over the class values"""
         res = {}
         for field in self.integer_fields:
-            res[field] = self._combine_sum(
-                {k: v for k, v in all_res.items() if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0}, field)
+            res[field] = self._combine_sum({k: v for k, v in all_res.items()
+                                            if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0 + np.finfo('float').eps}, field)
         for field in self.float_fields:
-            res[field] = np.mean([v[field] for v in all_res.values() if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0],
-                                 axis=0)
+            res[field] = np.mean([v[field] for v in all_res.values()
+                                  if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0 + np.finfo('float').eps], axis=0)
         return res
 
     def combine_classes_det_averaged(self, all_res):
@@ -108,9 +108,11 @@ class Identity(_BaseMetric):
         res = {}
         for field in self.integer_fields:
             res[field] = self._combine_sum(
-                {k: v for k, v in all_res.items() if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0}, field)
+                {k: v for k, v in all_res.items()
+                 if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0 + np.finfo('float').eps}, field)
         for field in self.float_fields:
-            res[field] = np.mean([v[field] for v in all_res.values() if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0],
+            res[field] = np.mean([v[field] for v in all_res.values()
+                                  if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0 + np.finfo('float').eps],
                                  axis=0)
         return res
 
