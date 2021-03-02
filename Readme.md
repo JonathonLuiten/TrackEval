@@ -160,7 +160,7 @@ If you use this code in your research, please use the following BibTeX entry:
 Furthermore, if you use the HOTA metrics, please cite the following paper:
 
 ```
-@article{luiten2020hota,
+@article{luiten2020IJCV,
   title={HOTA: A Higher Order Metric for Evaluating Multi-Object Tracking},
   author={Luiten, Jonathon and Osep, Aljosa and Dendorfer, Patrick and Torr, Philip and Geiger, Andreas and Leal-Taix{\'e}, Laura and Leibe, Bastian},
   journal={International Journal of Computer Vision},
