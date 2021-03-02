@@ -32,7 +32,7 @@ class JAndF(_BaseMetric):
         # pad with all zero masks if num_tracker_ids < num_gt_ids
         if num_tracker_ids < num_gt_ids:
             diff = num_gt_ids - num_tracker_ids
-            zero_padding = np.zeros((data['mask_shape']), order= 'F').astype(np.uint8)
+            zero_padding = np.zeros((data['frame_size']), order= 'F').astype(np.uint8)
             padding_mask = mask_utils.encode(zero_padding)
             for t in range(data['num_timesteps']):
                 tracker_dets[t] = tracker_dets[t] + [padding_mask for _ in range(diff)]

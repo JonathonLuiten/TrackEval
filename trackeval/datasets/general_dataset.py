@@ -377,6 +377,7 @@ class General(_BaseDataset):
             raw_data['neg_cat_ids'] = self.neg_categories[seq]
             raw_data['not_exhaustively_labeled_cls'] = self.not_exhaustively_labeled[seq]
         raw_data['num_timesteps'] = num_timesteps
+        raw_data['frame_size'] = self.seq_sizes[seq]
         raw_data['seq'] = seq
         return raw_data
 
@@ -486,7 +487,7 @@ class General(_BaseDataset):
                 data['similarity_scores'][t] = similarity_scores
 
                 # set void pixels in tracker detections to zero
-                void_mask = raw_data['masks_void'][t]
+                void_mask = raw_data['gt_ignore_regions'][t]
                 if mask_utils.area(void_mask) > 0:
                     void_mask_ious = np.\
                         atleast_1d(mask_utils.iou(tracker_dets, [void_mask],
@@ -616,6 +617,7 @@ class General(_BaseDataset):
         data['num_gt_ids'] = len(unique_gt_ids)
         data['num_timesteps'] = raw_data['num_timesteps']
         data['seq'] = raw_data['seq']
+        data['frame_size'] = raw_data['frame_size']
 
         # Ensure that ids are unique per timestep.
         self._check_unique_ids(data)
