@@ -27,6 +27,7 @@ class General(_BaseDataset):
             'SPLIT_TO_EVAL': None,
             'INPUT_AS_ZIP': False,  # Whether tracker input files are zipped
             'PRINT_CONFIG': True,  # Whether to print current config
+            'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
             'TRACKER_DISPLAY_NAMES': None,  # Names of trackers to display, if None: TRACKERS_TO_EVAL
         }
         return default_config
@@ -228,7 +229,9 @@ class General(_BaseDataset):
             elif self.benchmark == 'Kitti2DBox':
                 crowd_ignore_filter = {2: [str(self.class_name_to_class_id['dontcare'])]}
             elif self.benchmark == 'BDD100K':
-                crowd_ignore_filter = {10: ['1']}
+                distractor_class_names = ['other person', 'trailer', 'other vehicle']
+                crowd_ignore_filter = {10: ['1'], 2: [str(self.class_name_to_class_id[x])
+                                                      for x in distractor_class_names]}
             elif self.benchmark == 'DAVIS':
                 crowd_ignore_filter = {2: [str(self.class_name_to_class_id['void'])]}
             else:
@@ -451,8 +454,6 @@ class General(_BaseDataset):
                 distractor_class_names = ['van']
             else:
                 raise (TrackEvalException('Class %s is not evaluatable' % cls))
-        # elif self.benchmark == 'BDD100K':
-        #     distractor_class_names = ['other person', 'trailer', 'other vehicle']
         else:
             distractor_class_names = []
         distractor_classes = [self.class_name_to_class_id[x] for x in distractor_class_names]

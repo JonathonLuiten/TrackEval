@@ -71,7 +71,7 @@ for dataset_config in tests:
 
                 for field in test_data[seq].keys():
                     assert np.isclose(res_dict[field], test_data[seq][field]), \
-                        seq + ': ' + cls + ': ' + field + "(" + str(res_dict[field]) + "," \
+                        seq + ': ' + cls + ': ' + field + " (" + str(res_dict[field]) + "," \
                         + str(test_data[seq][field]) + ")"
 
         print('Tracker %s tests passed' % tracker)
