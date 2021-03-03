@@ -84,9 +84,9 @@ class General(_BaseDataset):
             self.class_list = ['car', 'pedestrian']
         elif self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20', 'MOTS']:
             self.class_list = ['pedestrian']
-        elif self.benchmark in ['DAVIS']:
+        elif self.benchmark == 'DAVIS':
             self.class_list = ['general']
-        elif self.benchmark == ['BDD100K']:
+        elif self.benchmark == 'BDD100K':
             self.class_list = ['pedestrian', 'rider', 'car', 'bus', 'truck', 'train', 'motorcycle', 'bicycle']
         else:
             self.class_list = self.class_name_to_class_id.keys()
@@ -451,8 +451,8 @@ class General(_BaseDataset):
                 distractor_class_names = ['van']
             else:
                 raise (TrackEvalException('Class %s is not evaluatable' % cls))
-        elif self.benchmark == 'BDD100K':
-            distractor_class_names = ['other person', 'trailer', 'other vehicle']
+        # elif self.benchmark == 'BDD100K':
+        #     distractor_class_names = ['other person', 'trailer', 'other vehicle']
         else:
             distractor_class_names = []
         distractor_classes = [self.class_name_to_class_id[x] for x in distractor_class_names]
@@ -529,9 +529,9 @@ class General(_BaseDataset):
                 unmatched_indices = np.arange(tracker_ids.shape[0])
                 if gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
                     matching_scores = similarity_scores.copy()
-                    matching_scores[matching_scores < 0.5] = 0
+                    matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = 0
                     match_rows, match_cols = linear_sum_assignment(-matching_scores)
-                    actually_matched_mask = matching_scores[match_rows, match_cols] > 0
+                    actually_matched_mask = matching_scores[match_rows, match_cols] > 0 + np.finfo('float').eps
                     match_rows = match_rows[actually_matched_mask]
                     match_cols = match_cols[actually_matched_mask]
 
@@ -555,7 +555,8 @@ class General(_BaseDataset):
                     intersection_with_ignore_region = self.\
                         _calculate_box_ious(unmatched_tracker_dets, crowd_ignore_regions, box_format='x0y0x1y1',
                                             do_ioa=True)
-                    is_within_ignore_region = np.any(intersection_with_ignore_region > 0.5, axis=1)
+                    is_within_ignore_region = np.any(intersection_with_ignore_region > 0.5 + np.finfo('float').eps,
+                                                     axis=1)
                     if self.benchmark == 'Kitti2DBox':
                         # For unmatched tracker dets, also remove those smaller than a minimum height.
                         unmatched_heights = unmatched_tracker_dets[:, 3] - unmatched_tracker_dets[:, 1]
@@ -572,7 +573,8 @@ class General(_BaseDataset):
                     ignore_region = raw_data['gt_ignore_regions'][t]
                     intersection_with_ignore_region = self.\
                         _calculate_mask_ious(unmatched_tracker_dets, [ignore_region], is_encoded=True, do_ioa=True)
-                    is_within_ignore_region = np.any(intersection_with_ignore_region > 0.5, axis=1)
+                    is_within_ignore_region = np.any(intersection_with_ignore_region > 0.5 + np.finfo('float').eps,
+                                                     axis=1)
                     to_remove_tracker = unmatched_indices[is_within_ignore_region]
                 elif self.benchmark == 'TAO':
                     if gt_ids.shape[0] == 0 and not is_neg_category:
