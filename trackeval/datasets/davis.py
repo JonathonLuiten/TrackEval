@@ -219,8 +219,8 @@ class DAVIS(_BaseDataset):
 
         # count detections
         for t in range(num_timesteps):
-            num_gt_dets += len([mask for mask in raw_data['gt_dets'][t] if mask_utils.area(mask) > 0])
-            num_tracker_dets += len([mask for mask in raw_data['tracker_dets'][t] if mask_utils.area(mask) > 0])
+            num_gt_dets += len([mask for mask in raw_data['gt_dets'][t]])
+            num_tracker_dets += len([mask for mask in raw_data['tracker_dets'][t]])
 
         data['gt_ids'] = raw_data['gt_ids']
         data['gt_dets'] = raw_data['gt_dets']
