@@ -24,8 +24,9 @@ eval_config = {'USE_PARALLEL': False,
 evaluator = trackeval.Evaluator(eval_config)
 
 tests = [
-    {'BENCHMARK': 'BDD100K', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['qdtrack']},
+    #{'BENCHMARK': 'BDD100K', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['qdtrack']},
     #{'BENCHMARK': 'DAVIS', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['ags']}
+    {'BENCHMARK': 'YouTubeVIS', 'SPLIT_TO_EVAL': 'train_sub_split', 'TRACKERS_TO_EVAL': ['STEm_Seg'] }
 ]
 
 for dataset_config in tests:
@@ -38,6 +39,15 @@ for dataset_config in tests:
         file_loc = os.path.join('davis', 'davis_unsupervised_' + dataset_config['SPLIT_TO_EVAL'])
         metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity(),
                         trackeval.metrics.JAndF()]
+    elif dataset_config['BENCHMARK'] == 'YouTubeVIS':
+        file_loc = os.path.join('youtube_vis', 'youtube_vis_' + dataset_config['SPLIT_TO_EVAL'])
+        metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity()]
+        default_track_map_config = trackeval.metrics.TrackMAP.get_default_metric_config()
+        default_track_map_config['USE_TIME_RANGES'] = False
+        default_track_map_config['AREA_RANGES'] = [[0 ** 2, 128 ** 2],
+                                                   [ 128 ** 2, 256 ** 2],
+                                                   [256 ** 2, 1e5 ** 2]]
+        metrics_list.append(trackeval.metrics.TrackMAP(default_track_map_config))
     else:
         raise Exception("Benchmark %s not implemented." % dataset_config['BENCHMARK'])
 

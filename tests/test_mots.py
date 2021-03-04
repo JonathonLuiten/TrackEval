@@ -12,6 +12,14 @@ if __name__ == '__main__':
 
 eval_config = {'USE_PARALLEL': False,
                'NUM_PARALLEL_CORES': 8,
+               'PRINT_RESULTS': False,
+               'PRINT_CONFIG': True,
+               'TIME_PROGRESS': True,
+               'DISPLAY_LESS_PROGRESS': True,
+               'OUTPUT_SUMMARY': False,
+               'OUTPUT_EMPTY_CLASSES': False,
+               'OUTPUT_DETAILED': False,
+               'PLOT_CURVES': False,
                }
 evaluator = trackeval.Evaluator(eval_config)
 metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity()]
@@ -60,7 +68,9 @@ for dataset_config in tests:
             res_dict = dict(zip(res_fields, res_values))
 
             for field in test_data[seq].keys():
-                assert np.isclose(res_dict[field], test_data[seq][field]), seq + ': ' + cls + ': ' + field
+                assert np.isclose(res_dict[field], test_data[seq][field]), \
+                    seq + ': ' + cls + ': ' + field + " (" + str(res_dict[field]) + "," \
+                    + str(test_data[seq][field]) + ")"
 
     print('Tracker %s tests passed' % tracker)
 print('All tests passed')
