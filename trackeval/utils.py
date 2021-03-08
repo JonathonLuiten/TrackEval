@@ -98,7 +98,7 @@ def write_summary_results(summaries, cls, output_folder):
 
     out_file = os.path.join(output_folder, cls + '_summary.txt')
     os.makedirs(os.path.dirname(out_file), exist_ok=True)
-    with open(out_file, 'w') as f:
+    with open(out_file, 'w', newline='') as f:
         writer = csv.writer(f, delimiter=' ')
         writer.writerow(fields)
         writer.writerow(values)
@@ -110,7 +110,7 @@ def write_detailed_results(details, cls, output_folder):
     fields = ['seq'] + sum([list(s['COMBINED_SEQ'].keys()) for s in details], [])
     out_file = os.path.join(output_folder, cls + '_detailed.csv')
     os.makedirs(os.path.dirname(out_file), exist_ok=True)
-    with open(out_file, 'w') as f:
+    with open(out_file, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(fields)
         for seq in sorted(sequences):
