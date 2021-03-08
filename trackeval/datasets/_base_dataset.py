@@ -90,7 +90,7 @@ class _BaseDataset(ABC):
 
         # Calculate similarities for each timestep.
         similarity_scores = []
-        for gt_dets_t, tracker_dets_t in zip(raw_data['gt_dets'], raw_data['tracker_dets']):
+        for t, (gt_dets_t, tracker_dets_t) in enumerate(zip(raw_data['gt_dets'], raw_data['tracker_dets'])):
             ious = self._calculate_similarities(gt_dets_t, tracker_dets_t)
             similarity_scores.append(ious)
         raw_data['similarity_scores'] = similarity_scores
@@ -230,9 +230,9 @@ class _BaseDataset(ABC):
             masks2 = mask_utils.encode(np.array(np.transpose(masks2, (1, 2, 0)), order='F'))
 
         # use pycocotools for iou computation of rle encoded masks
-        ious = np.asarray(mask_utils.iou(masks1, masks2, [do_ioa for _ in range(len(masks1))]))
+        ious = mask_utils.iou(masks1, masks2, [do_ioa]*len(masks2))
         if len(masks1) == 0 or len(masks2) == 0:
-            ious = ious.reshape(len(masks1), len(masks2))
+            ious = np.asarray(ious).reshape(len(masks1), len(masks2))
         assert (ious >= 0 - np.finfo('float').eps).all()
         assert (ious <= 1 + np.finfo('float').eps).all()
 

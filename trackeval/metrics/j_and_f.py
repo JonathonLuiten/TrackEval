@@ -271,7 +271,7 @@ class JAndF(_BaseMetric):
             area_gt = np.repeat(area_gt[np.newaxis, :], len(area_tr), axis=0)
 
             # mask iou computation with pycocotools
-            ious = mask_utils.iou(time_data, time_gt, np.zeros([len(time_data)]))
+            ious = mask_utils.iou(time_data, time_gt, [0]*len(time_gt))
             # set iou to 1 if both masks are close to 0 (no ground truth and no predicted mask in timestep)
             ious[np.isclose(area_tr, 0) & np.isclose(area_gt, 0)] = 1
             assert (ious >= 0 - np.finfo('float').eps).all()

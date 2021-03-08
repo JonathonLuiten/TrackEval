@@ -366,6 +366,7 @@ class KittiMOTS(_BaseDataset):
         data['num_gt_ids'] = len(unique_gt_ids)
         data['num_timesteps'] = raw_data['num_timesteps']
         data['seq'] = raw_data['seq']
+        data['cls'] = cls
 
         # Ensure again that ids are unique per timestep after preproc.
         self._check_unique_ids(data, after_preproc=True)
