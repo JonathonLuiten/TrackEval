@@ -201,7 +201,7 @@ class MOTSChallenge(_BaseDataset):
             data_keys += ['gt_ignore_region']
         raw_data = {key: [None] * num_timesteps for key in data_keys}
         for t in range(num_timesteps):
-            time_key = str(t)
+            time_key = str(t+1)
             # list to collect all masks of a timestep to check for overlapping areas
             all_masks = []
             if time_key in read_data.keys():
