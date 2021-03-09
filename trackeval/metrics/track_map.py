@@ -437,7 +437,10 @@ class TrackMAP(_BaseMetric):
 
         intersect = .0
         union = .0
-        for d, g in zip(dt_track.values(), gt_track.values()):
+        image_ids = set(gt_track.keys()) | set(dt_track.keys())
+        for image in image_ids:
+            g = gt_track.get(image, None)
+            d = dt_track.get(image, None)
             if d and g:
                 intersect += mask_utils.area(mask_utils.merge([d, g], True))
                 union += mask_utils.area(mask_utils.merge([d, g], False))
