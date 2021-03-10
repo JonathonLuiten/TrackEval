@@ -193,7 +193,8 @@ class _BaseDataset(ABC):
                         else:
                             read_data[timestep] = [row]
                     except Exception:
-                        exc_str_init = 'In file %s the following line cannot be read correctly: \n'
+                        exc_str_init = 'In file %s the following line cannot be read correctly: \n' % os.path.basename(
+                            file)
                         exc_str = ' '.join([exc_str_init]+row)
                         raise TrackEvalException(exc_str)
             fp.close()

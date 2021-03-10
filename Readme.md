@@ -6,7 +6,7 @@ This codebase provides code for a number of different tracking evaluation metric
 
 ## **NEW**: RobMOTS Challenge 2021
 
-Call for submission to our [RobMOTS Challenge](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110) (Robust Multi-Object Tracking and Segmentation) held in conjunction with our [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/). Robust tracking evaluation against 7 tracking benchmarks. Submission deadline May 27th. Also check out our workshop [call for papers](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=74).
+Call for submission to our [RobMOTS Challenge](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110) (Robust Multi-Object Tracking and Segmentation) held in conjunction with our [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/). Robust tracking evaluation against 8 tracking benchmarks. Submission deadline May 27th. Also check out our workshop [call for papers](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=74).
 
 ## Currently implemented metrics
 
