@@ -16,8 +16,8 @@ if __name__ == '__main__':
     default_dataset_config = trackeval.datasets.General.get_default_dataset_config()
     config = {**default_eval_config, **default_dataset_config}
     config = utils.update_config(config)
-    benchmarks = ['YouTubeVIS']
-    splits_to_eval = ['train_sub_split']
+    benchmarks = ['TAO']
+    splits_to_eval = ['training']
 
     for i in range(len(benchmarks)):
         benchmark = benchmarks[i]

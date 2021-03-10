@@ -2,6 +2,7 @@ import sys
 import os
 import numpy as np
 from multiprocessing import freeze_support
+from tqdm import tqdm
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import trackeval  # noqa: E402
@@ -25,8 +26,16 @@ evaluator = trackeval.Evaluator(eval_config)
 
 tests = [
     #{'BENCHMARK': 'BDD100K', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['qdtrack']},
-    #{'BENCHMARK': 'DAVIS', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['ags']}
-    {'BENCHMARK': 'YouTubeVIS', 'SPLIT_TO_EVAL': 'train_sub_split', 'TRACKERS_TO_EVAL': ['STEm_Seg'] }
+    #{'BENCHMARK': 'DAVIS', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['ags']},
+    {'BENCHMARK': 'YouTubeVIS', 'SPLIT_TO_EVAL': 'train_sub_split', 'TRACKERS_TO_EVAL': ['STEm_Seg'] },
+    #{'BENCHMARK': 'TAO', 'SPLIT_TO_EVAL': 'training', 'TRACKERS_TO_EVAL': ['Tracktor++']},
+    #{'BENCHMARK': 'KittiMOTS', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['trackrcnn']},
+    #{'BENCHMARK': 'MOTS', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['TrackRCNN']},
+    #{'BENCHMARK': 'Kitti2DBox', 'SPLIT_TO_EVAL': 'training', 'TRACKERS_TO_EVAL': ['CIWT']},
+    #{'BENCHMARK': 'MOT15', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
+    #{'BENCHMARK': 'MOT16', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
+    #{'BENCHMARK': 'MOT17', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
+    #{'BENCHMARK': 'MOT20', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
 ]
 
 for dataset_config in tests:
@@ -48,6 +57,19 @@ for dataset_config in tests:
                                                    [ 128 ** 2, 256 ** 2],
                                                    [256 ** 2, 1e5 ** 2]]
         metrics_list.append(trackeval.metrics.TrackMAP(default_track_map_config))
+    elif dataset_config['BENCHMARK'] == 'TAO':
+        file_loc = os.path.join('tao', 'tao_' + dataset_config['SPLIT_TO_EVAL'])
+        metrics_list = [trackeval.metrics.Identity(), trackeval.metrics.CLEAR(), trackeval.metrics.HOTA(),
+                        trackeval.metrics.TrackMAP()]
+    elif dataset_config['BENCHMARK'] == 'KittiMOTS':
+        file_loc = os.path.join('kitti', 'kitti_mots_' + dataset_config['SPLIT_TO_EVAL'])
+        metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity()]
+    elif dataset_config['BENCHMARK'] in ['MOTS', 'MOT15', 'MOT16', 'MOT17', 'MOT20']:
+        file_loc = os.path.join('mot_challenge', dataset_config['BENCHMARK'] + '-' + dataset_config['SPLIT_TO_EVAL'])
+        metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity()]
+    elif dataset_config['BENCHMARK'] == 'Kitti2DBox':
+        file_loc = os.path.join('kitti', 'kitti_2d_box_' + dataset_config['SPLIT_TO_EVAL'])
+        metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity()]
     else:
         raise Exception("Benchmark %s not implemented." % dataset_config['BENCHMARK'])
 
@@ -68,7 +90,7 @@ for dataset_config in tests:
             test_data = trackeval.utils.load_detail(os.path.join(test_data_loc, tracker, cls + '_detailed.csv'))
 
             # Do checks
-            for seq in test_data.keys():
+            for seq in tqdm(test_data.keys(), desc='Testing sequences for class %s' % cls):
                 assert len(test_data[seq].keys()) > 250, len(test_data[seq].keys())
 
                 details = []

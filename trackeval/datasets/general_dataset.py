@@ -33,12 +33,12 @@ class General(_BaseDataset):
         return default_config
 
     @staticmethod
-    def _get_subpath(config, benchmark):
-        return {'MOT15': os.path.join('mot_challenge', 'mot_challenge_2d_box'),
-                'MOT16': os.path.join('mot_challenge', 'mot_challenge_2d_box'),
-                'MOT17': os.path.join('mot_challenge', 'mot_challenge_2d_box'),
-                'MOT20': os.path.join('mot_challenge', 'mot_challenge_2d_box'),
-                'MOTS': os.path.join('mot_challenge', 'mots_challenge'),
+    def _get_subpath(benchmark):
+        return {'MOT15': 'mot_challenge',
+                'MOT16': 'mot_challenge',
+                'MOT17': 'mot_challenge',
+                'MOT20': 'mot_challenge',
+                'MOTS': 'mot_challenge',
                 'Kitti2DBox': os.path.join('kitti', 'kitti_2d_box'),
                 'KittiMOTS': os.path.join('kitti', 'kitti_mots'),
                 'DAVIS': 'davis',
@@ -54,10 +54,10 @@ class General(_BaseDataset):
 
         self.benchmark = self.config['BENCHMARK']
         self.split = self.benchmark + '-' + self.config['SPLIT_TO_EVAL'] \
-            if self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20'] else self.config['SPLIT_TO_EVAL']
+            if self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20', 'MOTS'] else self.config['SPLIT_TO_EVAL']
 
-        self.gt_fol = os.path.join(self.config['GT_FOLDER'], self._get_subpath(self.config, self.benchmark))
-        self.tracker_fol = os.path.join(self.config['TRACKERS_FOLDER'], self._get_subpath(self.config, self.benchmark),
+        self.gt_fol = os.path.join(self.config['GT_FOLDER'], self._get_subpath(self.benchmark))
+        self.tracker_fol = os.path.join(self.config['TRACKERS_FOLDER'], self._get_subpath(self.benchmark),
                                         self.split)
         self.data_is_zipped = self.config['INPUT_AS_ZIP']
 
@@ -66,7 +66,7 @@ class General(_BaseDataset):
             self.output_fol = os.path.join(self.tracker_fol)
             self.output_sub_fol = ''
         else:
-            self.output_sub_fol = os.path.join(self._get_subpath(self.config, self.benchmark), self.split)
+            self.output_sub_fol = os.path.join(self._get_subpath(self.benchmark), self.split)
             Path(os.path.join(self.output_fol, self.output_sub_fol)).mkdir(parents=True, exist_ok=True)
 
         if self.benchmark == 'Kitti2DBox':
@@ -77,8 +77,12 @@ class General(_BaseDataset):
         self._get_cls_info()
         self._get_seq_info()
 
+        if len(self.seq_list) < 1:
+            raise TrackEvalException('No sequences are selected to be evaluated.')
+
         if self.benchmark == 'TAO':
-            pos_cat_id_list = list(set([cat for seq, cats in self.pos_categories.items() for cat in cats]))
+            pos_cat_id_list = list(set([cat for seq, cats in self.pos_categories.items() if seq
+                                        in self.seq_list for cat in cats]))
             self.class_list = [cls for cls in self.class_name_to_class_id.keys() if self.class_name_to_class_id[cls]
                                in pos_cat_id_list]
         elif self.benchmark in ['Kitti2DBox', 'KittiMOTS']:
@@ -209,7 +213,6 @@ class General(_BaseDataset):
         [tracker_dets]: list (for each timestep) of lists of detections.
         """
         # File location
-
         if self.data_is_zipped:
             if is_gt:
                 zip_file = os.path.join(self.gt_fol, self.split, 'data.zip')
@@ -260,6 +263,9 @@ class General(_BaseDataset):
                 try:
                     raw_data['ids'][t] = np.atleast_1d([det[1] for det in read_data[time_key]]).astype(int)
                     raw_data['classes'][t] = np.atleast_1d([det[2] for det in read_data[time_key]]).astype(int)
+                    if self.benchmark == 'TAO':
+                        raw_data['classes'][t] = np.atleast_1d([self.merge_map.get(cls, cls) for cls
+                                                                in raw_data['classes'][t]]).astype(int)
                     if self.benchmark in ['DAVIS', 'YouTubeVIS', 'MOTS', 'KittiMOTS']:
                         raw_data['dets'][t] = [{'size': [int(region[3]), int(region[4])],
                                                 'counts': region[5].encode(encoding='UTF-8')}
@@ -345,21 +351,30 @@ class General(_BaseDataset):
             if not is_gt:
                 raw_data['classes_to_track_scores'] = {}
 
+            if self.benchmark == 'YouTubeVIS' or self.benchmark == 'TAO' and is_gt:
+                classes_to_consider = [self.class_name_to_class_id[cls] for cls in self.class_list]
+            elif self.benchmark == 'TAO' and not is_gt:
+                classes_to_consider = self.pos_categories[seq] + self.neg_categories[seq]
+            else:
+                raise TrackEvalException('Track based evaluation undefined for benchmark %s' % self.benchmark)
+
             for t in range(num_timesteps):
                 for i in range(len(raw_data['ids'][t])):
                     tid = raw_data['ids'][t][i]
                     cls_id = raw_data['classes'][t][i]
-                    if cls_id not in raw_data['classes_to_tracks']:
-                        raw_data['classes_to_tracks'][cls_id] = {}
-                    if tid not in raw_data['classes_to_tracks'][cls_id]:
-                        raw_data['classes_to_tracks'][cls_id][tid] = {}
-                    raw_data['classes_to_tracks'][cls_id][tid][t] = raw_data['dets'][t][i]
-                    if not is_gt:
-                        if cls_id not in raw_data['classes_to_track_scores']:
-                            raw_data['classes_to_track_scores'][cls_id] = {}
-                        if tid not in raw_data['classes_to_track_scores'][cls_id]:
-                            raw_data['classes_to_track_scores'][cls_id][tid] = []
-                        raw_data['classes_to_track_scores'][cls_id][tid].append(raw_data['tracker_confidences'][t][i])
+                    if cls_id in classes_to_consider:
+                        if cls_id not in raw_data['classes_to_tracks']:
+                            raw_data['classes_to_tracks'][cls_id] = {}
+                        if tid not in raw_data['classes_to_tracks'][cls_id]:
+                            raw_data['classes_to_tracks'][cls_id][tid] = {}
+                        raw_data['classes_to_tracks'][cls_id][tid][t] = raw_data['dets'][t][i]
+                        if not is_gt:
+                            if cls_id not in raw_data['classes_to_track_scores']:
+                                raw_data['classes_to_track_scores'][cls_id] = {}
+                            if tid not in raw_data['classes_to_track_scores'][cls_id]:
+                                raw_data['classes_to_track_scores'][cls_id][tid] = []
+                            raw_data['classes_to_track_scores'][cls_id][tid].\
+                                append(raw_data['tracker_confidences'][t][i])
 
             for cls in self.class_list:
                 cls_id = self.class_name_to_class_id[cls]
@@ -374,12 +389,13 @@ class General(_BaseDataset):
                     for i in range(len(raw_data['ids'][t])):
                         tid = raw_data['ids'][t][i]
                         cls_id = raw_data['classes'][t][i]
-                        if cls_id not in raw_data['classes_to_gt_track_iscrowd']:
-                            raw_data['classes_to_gt_track_iscrowd'][cls_id] = {}
-                        if tid not in raw_data['classes_to_gt_track_iscrowd'][cls_id]:
-                            raw_data['classes_to_gt_track_iscrowd'][cls_id][tid] = []
-                        raw_data['classes_to_gt_track_iscrowd'][cls_id][tid].\
-                            append(raw_data['gt_extras'][t]['crowd'][i])
+                        if cls_id in classes_to_consider:
+                            if cls_id not in raw_data['classes_to_gt_track_iscrowd']:
+                                raw_data['classes_to_gt_track_iscrowd'][cls_id] = {}
+                            if tid not in raw_data['classes_to_gt_track_iscrowd'][cls_id]:
+                                raw_data['classes_to_gt_track_iscrowd'][cls_id][tid] = []
+                            raw_data['classes_to_gt_track_iscrowd'][cls_id][tid].\
+                                append(raw_data['gt_extras'][t]['crowd'][i])
 
                 for cls in self.class_list:
                     cls_id = self.class_name_to_class_id[cls]
@@ -387,7 +403,8 @@ class General(_BaseDataset):
                         raw_data['classes_to_gt_track_iscrowd'][cls_id] = {}
                     else:
                         raw_data['classes_to_gt_track_iscrowd'][cls_id] = \
-                            {k: np.all(v) for k, v in raw_data['classes_to_gt_track_iscrowd'][cls_id].items()}
+                            {k: np.all(v).astype(int) for k, v in
+                             raw_data['classes_to_gt_track_iscrowd'][cls_id].items()}
 
             if is_gt:
                 key_map['classes_to_tracks'] = 'classes_to_gt_tracks'
@@ -545,8 +562,6 @@ class General(_BaseDataset):
                     elif self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20']:
                         is_distractor_class = np.isin(gt_classes[match_rows], distractor_classes)
                         to_remove_matched = match_cols[is_distractor_class]
-                    else:
-                        to_remove_matched = np.array([], dtype=np.int)
                     unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
 
                 if self.benchmark in ['Kitti2DBox', 'BDD100K']:
@@ -653,8 +668,8 @@ class General(_BaseDataset):
             data['dt_track_ids'] = [key for key in raw_data['classes_to_dt_tracks'][cls_id].keys()]
             data['dt_tracks'] = [raw_data['classes_to_dt_tracks'][cls_id][tid] for tid in data['dt_track_ids']]
             data['dt_track_lengths'] = [len(track.keys()) for track in data['dt_tracks']]
-            data['dt_track_scores'] = np.array([np.mean(raw_data['classes_to_track_scores'][cls_id][tid]) for tid
-                                                in data['dt_track_ids']])
+            data['dt_track_scores'] = [np.mean(raw_data['classes_to_track_scores'][cls_id][tid]) for tid
+                                       in data['dt_track_ids']]
 
             if self.benchmark == 'TAO':
                 data['iou_type'] = 'bbox'
@@ -665,7 +680,7 @@ class General(_BaseDataset):
                     track = raw_data['classes_to_gt_tracks'][cls_id][tid]
                     if track:
                         data['gt_track_areas'].append(sum([(ann[2] - ann[0]) * (ann[3] - ann[1]) for ann
-                                                           in track.values()]) / len(track))
+                                                           in track.values()]) / len(track.keys()))
                     else:
                         data['gt_track_areas'].append(0)
                 data['dt_track_areas'] = []
@@ -673,7 +688,7 @@ class General(_BaseDataset):
                     track = raw_data['classes_to_dt_tracks'][cls_id][tid]
                     if track:
                         data['dt_track_areas'].append(sum([(ann[2] - ann[0]) * (ann[3] - ann[1]) for ann
-                                                           in track.values()]) / len(track))
+                                                           in track.values()]) / len(track.keys()))
                     else:
                         data['dt_track_areas'].append(0)
 
@@ -681,20 +696,23 @@ class General(_BaseDataset):
                 data['iou_type'] = 'mask'
                 data['gt_track_iscrowd'] = [raw_data['classes_to_gt_track_iscrowd'][cls_id][tid]
                                             for tid in data['gt_track_ids']]
-                data['gt_track_areas'] = []
-                for tid in data['gt_track_ids']:
-                    track = raw_data['classes_to_gt_tracks'][cls_id][tid]
-                    if track:
-                        data['gt_track_areas'].append(np.mean([mask_utils.area(ann) for ann in track.values()]))
-                    else:
-                        data['gt_track_areas'].append(0)
-                data['dt_track_areas'] = []
-                for tid in data['dt_track_ids']:
-                    track = raw_data['classes_to_dt_tracks'][cls_id][tid]
-                    if track:
-                        data['dt_track_areas'].append(np.mean([mask_utils.area(ann) for ann in track.values()]))
-                    else:
-                        data['dt_track_areas'].append(0)
+
+                for key in ['gt', 'dt']:
+                    data[key + '_track_areas'] = []
+                    for tid in data[key + '_track_ids']:
+                        track = raw_data['classes_to_' + key + '_tracks'][cls_id][tid]
+                        if track:
+                            areas = []
+                            for seg in track.values():
+                                if seg:
+                                    areas.append(mask_utils.area(seg))
+                                else:
+                                    areas.append(None)
+                            areas = [a for a in areas if a]
+                            if len(areas) == 0:
+                                data[key + '_track_areas'].append(0)
+                            else:
+                                data[key + '_track_areas'].append(np.array(areas).mean())
 
             if data['dt_tracks']:
                 idx = np.argsort([-score for score in data['dt_track_scores']], kind="mergesort")

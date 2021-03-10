@@ -59,10 +59,14 @@ class TAO(_BaseDataset):
         self._merge_categories(self.gt_data['annotations'] + self.gt_data['tracks'])
 
         # Get sequences to eval and sequence information
-        self.seq_list = [vid['name'] for vid in self.gt_data['videos']]
-        self.seq_name_to_seq_id = {vid['name']: vid['id'] for vid in self.gt_data['videos']}
+        self.seq_list = [vid['name'].replace('/', '-') for vid in self.gt_data['videos']]
+        self.seq_name_to_seq_id = {vid['name'].replace('/', '-'): vid['id'] for vid in self.gt_data['videos']}
+        # compute mappings from videos to annotation data
         self.videos_to_gt_tracks, self.videos_to_gt_images = self._compute_vid_mappings(self.gt_data['annotations'])
-        self.seq_lengths = {vid_id: len(images) for vid_id, images in self.videos_to_gt_images.items()}
+        # compute sequence lengths
+        self.seq_lengths = {vid['id']: 0 for vid in self.gt_data['videos']}
+        for img in self.gt_data['images']:
+            self.seq_lengths[img['video_id']] += 1
         self.seq_to_images_to_timestep = self._compute_image_to_timestep_mappings()
         self.seq_to_classes = {vid['id']: {'pos_cat_ids': list({track['category_id'] for track
                                                                 in self.videos_to_gt_tracks[vid['id']]}),
@@ -237,6 +241,7 @@ class TAO(_BaseDataset):
         raw_data['num_timesteps'] = num_timesteps
         raw_data['neg_cat_ids'] = self.seq_to_classes[seq_id]['neg_cat_ids']
         raw_data['not_exhaustively_labeled_cls'] = self.seq_to_classes[seq_id]['not_exhaustively_labeled_cat_ids']
+        raw_data['seq'] = seq
         return raw_data
 
     @_timing.time
@@ -354,6 +359,7 @@ class TAO(_BaseDataset):
         data['num_tracker_ids'] = len(unique_tracker_ids)
         data['num_gt_ids'] = len(unique_gt_ids)
         data['num_timesteps'] = raw_data['num_timesteps']
+        data['seq'] = raw_data['seq']
 
         # get track representations
         data['gt_tracks'] = raw_data['classes_to_gt_tracks'][cls_id]

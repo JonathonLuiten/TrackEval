@@ -417,7 +417,7 @@ class TrackMAP(_BaseMetric):
                 elif d is not None and g is None:
                     union += (d[2] - d[0]) * (d[3] - d[1])
             else:
-                raise (TrackEvalException('BoxFormat not implemented'))
+                raise TrackEvalException('BoxFormat not implemented')
         if intersect > union:
             raise TrackEvalException("Intersection value > union value. Are the box values corrupted?")
         return intersect / union if union > 0 else 0
