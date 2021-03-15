@@ -9,16 +9,16 @@ from .. import utils
 from .. import _timing
 
 
-class BDD100K(_BaseDataset):
-    """Dataset class for BDD100K tracking"""
+class BDD100K2DBox(_BaseDataset):
+    """Dataset class for BDD100K 2D Box tracking"""
 
     @staticmethod
     def get_default_dataset_config():
         """Default class config values"""
         code_path = utils.get_code_path()
         default_config = {
-            'GT_FOLDER': os.path.join(code_path, 'data/gt/bdd100k/bdd100k_val'),  # Location of GT data
-            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/bdd100k/bdd100k_val'),  # Trackers location
+            'GT_FOLDER': os.path.join(code_path, 'data/gt/bdd100k/bdd100k_2d_box_val'),  # Location of GT data
+            'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/bdd100k/bdd100k_2d_box_val'),  # Trackers location
             'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
             'CLASSES_TO_EVAL': ['pedestrian', 'rider', 'car', 'bus', 'truck', 'train', 'motorcycle', 'bicycle'],

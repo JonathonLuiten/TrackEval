@@ -25,7 +25,7 @@ The following benchmarks are currently implemented:
  - **[MOTChallenge](https://motchallenge.net/)** (MOT15/16/17/20) ([code](trackeval/datasets/mot_challenge_2d_box.py), [format](docs/MOTChallenge-format.txt))
  - **[KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)** ([code](trackeval/datasets/kitti_2d_box.py), [format](docs/KITTI-format.txt))
  - **[MOTS](https://www.vision.rwth-aachen.de/page/mots)** ([KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php) and [MOTS Challenge](https://motchallenge.net/results/MOTS/))** ([code](trackeval/datasets/mots_challenge.py) and [code](trackeval/datasets/kitti_mots.py), [format](docs/MOTS-format.txt))
- - **[BDD-100k](https://bdd-data.berkeley.edu/)** ([code](trackeval/datasets/bdd100k.py), [format](docs/BDD100k-format.txt))
+ - **[BDD-100k](https://bdd-data.berkeley.edu/)** ([code](trackeval/datasets/bdd100k_2d_box.py), [format](docs/BDD100k-format.txt))
  - **[DAVIS](https://davischallenge.org/)** ([code](trackeval/datasets/davis.py), [format](docs/DAVIS-format.txt))
  - **[TAO](https://taodataset.org/)** ([code](trackeval/datasets/tao.py), [format](docs/TAO-format.txt))
  - **[YouTube-VIS](https://youtube-vos.org/dataset/vis/)** ([code](trackeval/datasets/youtube_vis.py), [format](docs/YouTube-VIS-format.txt))
