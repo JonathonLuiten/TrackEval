@@ -462,7 +462,7 @@ class General(_BaseDataset):
 
         if self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20']:
             distractor_class_names = ['person_on_vehicle', 'static_person', 'distractor', 'reflection']
-            if self.benchmark == ['MOT20']:
+            if self.benchmark == 'MOT20':
                 distractor_class_names.append('non_mot_vehicle')
         elif self.benchmark == 'Kitti2DBox':
             if cls == 'pedestrian':
@@ -489,10 +489,13 @@ class General(_BaseDataset):
 
         for t in range(raw_data['num_timesteps']):
 
-            # Only extract relevant dets for this class for preproc and eval (cls + distractor classes)
-            gt_class_mask = np.sum([raw_data['gt_classes'][t] == c for c in [cls_id] + distractor_classes], axis=0)
-            gt_class_mask = gt_class_mask.astype(np.bool)
-            gt_ids = raw_data['gt_ids'][t][gt_class_mask]#
+            if self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20']:
+                gt_class_mask = np.ones(len(raw_data['gt_classes'][t])).astype(np.bool)
+            else:
+                # Only extract relevant dets for this class for preproc and eval (cls + distractor classes)
+                gt_class_mask = np.sum([raw_data['gt_classes'][t] == c for c in [cls_id] + distractor_classes], axis=0)
+                gt_class_mask = gt_class_mask.astype(np.bool)
+            gt_ids = raw_data['gt_ids'][t][gt_class_mask]
             if self.benchmark in ['DAVIS', 'YouTubeVIS', 'KittiMOTS', 'MOTS']:
                 gt_dets = [raw_data['gt_dets'][t][ind] for ind in range(len(gt_class_mask)) if gt_class_mask[ind]]
             else:
@@ -545,7 +548,7 @@ class General(_BaseDataset):
                 # which are labeled as truncated, occluded, or belonging to a distractor class.
                 to_remove_matched = np.array([], np.int)
                 unmatched_indices = np.arange(tracker_ids.shape[0])
-                if gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
+                if self.benchmark != 'MOT15' and gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
                     matching_scores = similarity_scores.copy()
                     matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = 0
                     match_rows, match_cols = linear_sum_assignment(-matching_scores)
@@ -559,7 +562,7 @@ class General(_BaseDataset):
                                                                  gt_truncation[match_rows] > self.max_truncation)
                         to_remove_matched = np.logical_or(is_distractor_class, is_occluded_or_truncated)
                         to_remove_matched = match_cols[to_remove_matched]
-                    elif self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20']:
+                    elif self.benchmark in ['MOT16', 'MOT17', 'MOT20']:
                         is_distractor_class = np.isin(gt_classes[match_rows], distractor_classes)
                         to_remove_matched = match_cols[is_distractor_class]
                     unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
@@ -599,6 +602,8 @@ class General(_BaseDataset):
                         to_remove_tracker = unmatched_indices
                     else:
                         to_remove_tracker = np.array([], dtype=np.int)
+                elif self.benchmark in ['MOT16', 'MOT17', 'MOT20']:
+                    to_remove_tracker = to_remove_matched
                 else:
                     to_remove_tracker = np.array([], dtype=np.int)
 
