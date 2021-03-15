@@ -25,30 +25,30 @@ eval_config = {'USE_PARALLEL': False,
 evaluator = trackeval.Evaluator(eval_config)
 
 tests = [
-    #{'BENCHMARK': 'BDD100K', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['qdtrack']},
-    #{'BENCHMARK': 'DAVIS', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['ags']},
-    {'BENCHMARK': 'YouTubeVIS', 'SPLIT_TO_EVAL': 'train_sub_split', 'TRACKERS_TO_EVAL': ['STEm_Seg'] },
-    #{'BENCHMARK': 'TAO', 'SPLIT_TO_EVAL': 'training', 'TRACKERS_TO_EVAL': ['Tracktor++']},
-    #{'BENCHMARK': 'KittiMOTS', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['trackrcnn']},
-    #{'BENCHMARK': 'MOTS', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['TrackRCNN']},
-    #{'BENCHMARK': 'Kitti2DBox', 'SPLIT_TO_EVAL': 'training', 'TRACKERS_TO_EVAL': ['CIWT']},
-    #{'BENCHMARK': 'MOT15', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
-    #{'BENCHMARK': 'MOT16', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
-    #{'BENCHMARK': 'MOT17', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
-    #{'BENCHMARK': 'MOT20', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
+    {'BENCHMARK': 'bdd100k_2d_box', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['qdtrack']},
+    {'BENCHMARK': 'davis_unsupervised', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['ags']},
+    {'BENCHMARK': 'youtube_vis', 'SPLIT_TO_EVAL': 'train_sub_split', 'TRACKERS_TO_EVAL': ['STEm_Seg'] },
+    {'BENCHMARK': 'tao', 'SPLIT_TO_EVAL': 'training', 'TRACKERS_TO_EVAL': ['Tracktor++']},
+    {'BENCHMARK': 'kitti_mots', 'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['trackrcnn']},
+    {'BENCHMARK': 'MOTS', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['TrackRCNN']},
+    {'BENCHMARK': 'kitti_2d_box', 'SPLIT_TO_EVAL': 'training', 'TRACKERS_TO_EVAL': ['CIWT']},
+    {'BENCHMARK': 'MOT15', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
+    {'BENCHMARK': 'MOT16', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
+    {'BENCHMARK': 'MOT17', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
+    {'BENCHMARK': 'MOT20', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
 ]
 
 for dataset_config in tests:
 
     dataset_list = [trackeval.datasets.General(dataset_config)]
-    if dataset_config['BENCHMARK'] == 'BDD100K':
-        file_loc = os.path.join('bdd100k', 'bdd100k_' + dataset_config['SPLIT_TO_EVAL'])
+    if dataset_config['BENCHMARK'] == 'bdd100k_2d_box':
+        file_loc = os.path.join('bdd100k', 'bdd100k_2d_box_' + dataset_config['SPLIT_TO_EVAL'])
         metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity()]
-    elif dataset_config['BENCHMARK'] == 'DAVIS':
+    elif dataset_config['BENCHMARK'] == 'davis_unsupervised':
         file_loc = os.path.join('davis', 'davis_unsupervised_' + dataset_config['SPLIT_TO_EVAL'])
         metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity(),
                         trackeval.metrics.JAndF()]
-    elif dataset_config['BENCHMARK'] == 'YouTubeVIS':
+    elif dataset_config['BENCHMARK'] == 'youtube_vis':
         file_loc = os.path.join('youtube_vis', 'youtube_vis_' + dataset_config['SPLIT_TO_EVAL'])
         metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity()]
         default_track_map_config = trackeval.metrics.TrackMAP.get_default_metric_config()
@@ -57,17 +57,17 @@ for dataset_config in tests:
                                                    [ 128 ** 2, 256 ** 2],
                                                    [256 ** 2, 1e5 ** 2]]
         metrics_list.append(trackeval.metrics.TrackMAP(default_track_map_config))
-    elif dataset_config['BENCHMARK'] == 'TAO':
+    elif dataset_config['BENCHMARK'] == 'tao':
         file_loc = os.path.join('tao', 'tao_' + dataset_config['SPLIT_TO_EVAL'])
         metrics_list = [trackeval.metrics.Identity(), trackeval.metrics.CLEAR(), trackeval.metrics.HOTA(),
                         trackeval.metrics.TrackMAP()]
-    elif dataset_config['BENCHMARK'] == 'KittiMOTS':
+    elif dataset_config['BENCHMARK'] == 'kitti_mots':
         file_loc = os.path.join('kitti', 'kitti_mots_' + dataset_config['SPLIT_TO_EVAL'])
         metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity()]
     elif dataset_config['BENCHMARK'] in ['MOTS', 'MOT15', 'MOT16', 'MOT17', 'MOT20']:
         file_loc = os.path.join('mot_challenge', dataset_config['BENCHMARK'] + '-' + dataset_config['SPLIT_TO_EVAL'])
         metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity()]
-    elif dataset_config['BENCHMARK'] == 'Kitti2DBox':
+    elif dataset_config['BENCHMARK'] == 'kitti_2d_box':
         file_loc = os.path.join('kitti', 'kitti_2d_box_' + dataset_config['SPLIT_TO_EVAL'])
         metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity()]
     else:

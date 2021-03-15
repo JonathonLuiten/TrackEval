@@ -22,30 +22,23 @@ class General(_BaseDataset):
             'TRACKERS_FOLDER': os.path.join(code_path, 'data/converted_trackers'),  # Trackers location
             'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
-            'BENCHMARK': None,  # valid: 'MOT17', 'MOT16', 'MOT20', 'MOT15', 'MOTS', 'Kitti2DBox', 'KittiMOTS',
-                                # 'BDD100K', 'DAVIS', 'TAO', 'YouTubeVIS'
+            'BENCHMARK': None,  # valid: 'MOT17', 'MOT16', 'MOT20', 'MOT15', 'MOTS', 'kitti_2d_box', 'kitti_mots',
+                                # 'bdd100k_2d_box', 'davis_unsupervised', 'tao', 'youtube_vis'
+            'CLASSES_TO_EVAL': None,  # if None, all valid classes
             'SPLIT_TO_EVAL': None,
             'INPUT_AS_ZIP': False,  # Whether tracker input files are zipped
             'PRINT_CONFIG': True,  # Whether to print current config
-            'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
+            'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/DATA_LOC_FORMAT/OUTPUT_SUB_FOLDER
+            'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/DATA_LOC_FORMAT/TRACKER_SUB_FOLDER
             'TRACKER_DISPLAY_NAMES': None,  # Names of trackers to display, if None: TRACKERS_TO_EVAL
+            'SEQMAP_FOLDER': None,  # Where seqmaps are found (if None, GT_FOLDER/dataset_subfolder/seqmaps)
+            'SEQMAP_FILE': None,  # Directly specify seqmap file (if none use SEQMAP_FOLDER/BENCHMARK_SPLIT_TO_EVAL)
+            'CLSMAP_FOLDER': None,  # Where seqmaps are found (if None, GT_FOLDER/dataset_subfolder/clsmaps)
+            'CLSMAP_FILE': None,  # Directly specify seqmap file (if none use CLSMAP_FOLDER/BENCHMARK_SPLIT_TO_EVAL)
+            'DATA_LOC_FORMAT': '{dataset}/{benchmark}_{split}/',    # data localization format for GT, Tracker
+                                                                    # and output subfolder structure
         }
         return default_config
-
-    @staticmethod
-    def _get_subpath(benchmark):
-        return {'MOT15': 'mot_challenge',
-                'MOT16': 'mot_challenge',
-                'MOT17': 'mot_challenge',
-                'MOT20': 'mot_challenge',
-                'MOTS': 'mot_challenge',
-                'Kitti2DBox': os.path.join('kitti', 'kitti_2d_box'),
-                'KittiMOTS': os.path.join('kitti', 'kitti_mots'),
-                'DAVIS': 'davis',
-                'BDD100K': 'bdd100k',
-                'TAO': 'tao',
-                'YouTubeVIS': 'youtube_vis'
-                }[benchmark]
 
     def __init__(self, config=None):
         super().__init__()
@@ -53,23 +46,39 @@ class General(_BaseDataset):
         self.config = utils.init_config(config, self.get_default_dataset_config(), self.get_name())
 
         self.benchmark = self.config['BENCHMARK']
-        self.split = self.benchmark + '-' + self.config['SPLIT_TO_EVAL'] \
-            if self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20', 'MOTS'] else self.config['SPLIT_TO_EVAL']
+        if self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20', 'MOTS']:
+            self.dataset = 'mot_challenge'
+        elif self.benchmark in ['kitti_2d_box', 'kitti_mots']:
+            self.dataset = 'kitti'
+        elif self.benchmark == 'davis_unsupervised':
+            self.dataset = 'davis'
+        elif self.benchmark == 'bdd100k_2d_box':
+            self.dataset = 'bdd100k'
+        elif self.benchmark == 'tao':
+            self.dataset = 'tao'
+        elif self.benchmark == 'youtube_vis':
+            self.dataset = 'youtube_vis'
+        else:
+            raise TrackEvalException('Unknown Benchmark!')
 
-        self.gt_fol = os.path.join(self.config['GT_FOLDER'], self._get_subpath(self.benchmark))
-        self.tracker_fol = os.path.join(self.config['TRACKERS_FOLDER'], self._get_subpath(self.benchmark),
-                                        self.split)
+        self.split = self.config['SPLIT_TO_EVAL']
+
+        self.gt_fol = os.path.join(self.config['GT_FOLDER'])
+        self.tracker_fol = os.path.join(self.config['TRACKERS_FOLDER'], self.config['DATA_LOC_FORMAT'].
+                                        format(dataset=self.dataset, benchmark=self.benchmark, split=self.split))
         self.data_is_zipped = self.config['INPUT_AS_ZIP']
 
         self.output_fol = self.config['OUTPUT_FOLDER']
         if self.output_fol is None:
-            self.output_fol = os.path.join(self.tracker_fol)
-            self.output_sub_fol = ''
+            self.output_fol = self.tracker_fol
         else:
-            self.output_sub_fol = os.path.join(self._get_subpath(self.benchmark), self.split)
-            Path(os.path.join(self.output_fol, self.output_sub_fol)).mkdir(parents=True, exist_ok=True)
+            self.output_fol = os.path.join(self.output_fol, self.config['DATA_LOC_FORMAT'].
+                                           format(dataset=self.dataset, benchmark=self.benchmark, split=self.split))
 
-        if self.benchmark == 'Kitti2DBox':
+        self.tracker_sub_fol = self.config['TRACKER_SUB_FOLDER']
+        self.output_sub_fol = self.config['OUTPUT_SUB_FOLDER']
+
+        if self.benchmark == 'kitti_2d_box':
             self.max_occlusion = 2
             self.max_truncation = 0
             self.min_height = 25
@@ -80,24 +89,33 @@ class General(_BaseDataset):
         if len(self.seq_list) < 1:
             raise TrackEvalException('No sequences are selected to be evaluated.')
 
-        if self.benchmark == 'TAO':
+        if self.benchmark == 'tao':
             pos_cat_id_list = list(set([cat for seq, cats in self.pos_categories.items() if seq
                                         in self.seq_list for cat in cats]))
-            self.class_list = [cls for cls in self.class_name_to_class_id.keys() if self.class_name_to_class_id[cls]
-                               in pos_cat_id_list]
-        elif self.benchmark in ['Kitti2DBox', 'KittiMOTS']:
-            self.class_list = ['car', 'pedestrian']
+            valid_classes = [cls for cls in self.class_name_to_class_id.keys() if self.class_name_to_class_id[cls]
+                             in pos_cat_id_list]
+        elif self.benchmark in ['kitti_2d_box', 'kitti_mots']:
+            valid_classes = ['car', 'pedestrian']
         elif self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20', 'MOTS']:
-            self.class_list = ['pedestrian']
-        elif self.benchmark == 'DAVIS':
-            self.class_list = ['general']
-        elif self.benchmark == 'BDD100K':
-            self.class_list = ['pedestrian', 'rider', 'car', 'bus', 'truck', 'train', 'motorcycle', 'bicycle']
+            valid_classes = ['pedestrian']
+        elif self.benchmark == 'davis_unsupervised':
+            valid_classes = ['general']
+        elif self.benchmark == 'bdd100k_2d_box':
+            valid_classes = ['pedestrian', 'rider', 'car', 'bus', 'truck', 'train', 'motorcycle', 'bicycle']
         else:
-            self.class_list = self.class_name_to_class_id.keys()
+            valid_classes = self.class_name_to_class_id.keys()
 
-        self.should_classes_combine = True if self.benchmark in ['TAO', 'BDD100K', 'YouTubeVIS'] else False
-        if self.benchmark == 'BDD100K':
+        if not self.config['CLASSES_TO_EVAL']:
+            self.class_list = valid_classes
+        else:
+            self.class_list = [cls.lower() if cls.lower() in valid_classes else None
+                               for cls in self.config['CLASSES_TO_EVAL']]
+            if not all(self.class_list):
+                raise TrackEvalException('Attempted to evaluate an invalid class. Only classes ' +
+                                         ', '.join(valid_classes) + ' are valid.')
+
+        self.should_classes_combine = True if self.benchmark in ['tao', 'bdd100k_2d_box', 'youtube_vis'] else False
+        if self.benchmark == 'bdd100k_2d_box':
             self.use_super_categories = True
             self.super_categories = {"HUMAN": [cls for cls in ["pedestrian", "rider"] if cls in self.class_list],
                                      "VEHICLE": [cls for cls in ["car", "truck", "bus", "train"]
@@ -109,12 +127,16 @@ class General(_BaseDataset):
         # Check gt files exist
         for seq in self.seq_list:
             if not self.data_is_zipped:
-                curr_file = os.path.join(self.gt_fol, self.split, 'data', seq + '.txt')
+                curr_file = os.path.join(self.gt_fol, self.config['DATA_LOC_FORMAT'].
+                                         format(dataset=self.dataset, benchmark=self.benchmark, split=self.split),
+                                         'data', seq + '.txt')
                 if not os.path.isfile(curr_file):
                     print('GT file not found ' + curr_file)
                     raise TrackEvalException('GT file not found for sequence: ' + seq)
         if self.data_is_zipped:
-            curr_file = os.path.join(self.gt_fol, self.split, 'data.zip')
+            curr_file = os.path.join(self.gt_fol, self.config['DATA_LOC_FORMAT'].
+                                     format(dataset=self.dataset, benchmark=self.benchmark, split=self.split),
+                                     'data.zip')
             if not os.path.isfile(curr_file):
                 raise TrackEvalException('GT file not found: ' + os.path.basename(curr_file))
 
@@ -139,7 +161,7 @@ class General(_BaseDataset):
                     raise TrackEvalException('Tracker file not found: ' + tracker + '/' + os.path.basename(curr_file))
             else:
                 for seq in self.seq_list:
-                    curr_file = os.path.join(self.tracker_fol, tracker, 'data', seq + '.txt')
+                    curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.txt')
                     if not os.path.isfile(curr_file):
                         print('Tracker file not found: ' + curr_file)
                         raise TrackEvalException(
@@ -152,11 +174,18 @@ class General(_BaseDataset):
         self.seq_list = []
         self.seq_lengths = {}
         self.seq_sizes = {}
-        if self.benchmark == 'TAO':
+        if self.benchmark == 'tao':
             self.pos_categories = {}
             self.neg_categories = {}
             self.not_exhaustively_labeled = {}
-        seqmap_file = os.path.join(self.gt_fol, 'seqmaps', self.split + '.seqmap')
+        if self.config["SEQMAP_FILE"]:
+            seqmap_file = self.config["SEQMAP_FILE"]
+        else:
+            if self.config["SEQMAP_FOLDER"] is None:
+                seqmap_file = os.path.join(self.config['GT_FOLDER'], self.dataset, 'seqmaps',
+                                           self.benchmark + '_' + self.split + '.seqmap')
+            else:
+                seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], self.benchmark + '_' + self.split + '.seqmap')
         if not os.path.isfile(seqmap_file):
             raise TrackEvalException('no seqmap found: ' + os.path.basename(seqmap_file))
         with open(seqmap_file) as fp:
@@ -177,9 +206,16 @@ class General(_BaseDataset):
 
     def _get_cls_info(self):
         self.class_name_to_class_id = {}
-        if self.benchmark == 'TAO':
+        if self.benchmark == 'tao':
             self.merge_map = {}
-        clsmap_file = os.path.join(self.gt_fol, 'clsmaps', self.split + '.clsmap')
+        if self.config["CLSMAP_FILE"]:
+            clsmap_file = self.config["CLSMAP_FILE"]
+        else:
+            if self.config["CLSMAP_FOLDER"] is None:
+                clsmap_file = os.path.join(self.config['GT_FOLDER'], self.dataset, 'clsmaps',
+                                           self.benchmark + '_' + self.split + '.clsmap')
+            else:
+                clsmap_file = os.path.join(self.config["CLSMAP_FOLDER"], self.benchmark + '_' + self.split + '.clsmap')
         if not os.path.isfile(clsmap_file):
             raise TrackEvalException('no clsmap found: ' + os.path.basename(clsmap_file))
         with open(clsmap_file) as fp:
@@ -191,7 +227,7 @@ class General(_BaseDataset):
                     cls = row[0]
                     self.class_name_to_class_id[cls] = int(row[1])
                 else:
-                    if self.benchmark == 'TAO':
+                    if self.benchmark == 'tao':
                         cls = ' '.join([entry for entry in row[:-2]])
                         self.class_name_to_class_id[cls] = int(row[-2])
                         if row[-2] != row[-1]:
@@ -215,27 +251,31 @@ class General(_BaseDataset):
         # File location
         if self.data_is_zipped:
             if is_gt:
-                zip_file = os.path.join(self.gt_fol, self.split, 'data.zip')
+                zip_file = os.path.join(self.gt_fol, self.config['DATA_LOC_FORMAT'].
+                                        format(dataset=self.dataset, benchmark=self.benchmark, split=self.split),
+                                        'data.zip')
             else:
                 zip_file = os.path.join(self.tracker_fol, tracker, 'data.zip')
             file = seq + '.txt'
         else:
             zip_file = None
             if is_gt:
-                file = os.path.join(self.gt_fol, self.split, 'data', seq + '.txt')
+                file = os.path.join(self.gt_fol, self.config['DATA_LOC_FORMAT'].
+                                    format(dataset=self.dataset, benchmark=self.benchmark, split=self.split),
+                                    'data', seq + '.txt')
             else:
-                file = os.path.join(self.tracker_fol, tracker, 'data', seq + '.txt')
+                file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.txt')
 
         if is_gt:
-            if self.benchmark in ['MOTS', 'KittiMOTS']:
+            if self.benchmark in ['MOTS', 'kitti_mots']:
                 crowd_ignore_filter = {2: [str(self.class_name_to_class_id['ignore'])]}
-            elif self.benchmark == 'Kitti2DBox':
+            elif self.benchmark == 'kitti_2d_box':
                 crowd_ignore_filter = {2: [str(self.class_name_to_class_id['dontcare'])]}
-            elif self.benchmark == 'BDD100K':
+            elif self.benchmark == 'bdd100k_2d_box':
                 distractor_class_names = ['other person', 'trailer', 'other vehicle']
                 crowd_ignore_filter = {10: ['1'], 2: [str(self.class_name_to_class_id[x])
                                                       for x in distractor_class_names]}
-            elif self.benchmark == 'DAVIS':
+            elif self.benchmark == 'davis_unsupervised':
                 crowd_ignore_filter = {2: [str(self.class_name_to_class_id['void'])]}
             else:
                 crowd_ignore_filter = None
@@ -263,10 +303,10 @@ class General(_BaseDataset):
                 try:
                     raw_data['ids'][t] = np.atleast_1d([det[1] for det in read_data[time_key]]).astype(int)
                     raw_data['classes'][t] = np.atleast_1d([det[2] for det in read_data[time_key]]).astype(int)
-                    if self.benchmark == 'TAO':
+                    if self.benchmark == 'tao':
                         raw_data['classes'][t] = np.atleast_1d([self.merge_map.get(cls, cls) for cls
                                                                 in raw_data['classes'][t]]).astype(int)
-                    if self.benchmark in ['DAVIS', 'YouTubeVIS', 'MOTS', 'KittiMOTS']:
+                    if self.benchmark in ['davis_unsupervised', 'youtube_vis', 'MOTS', 'kitti_mots']:
                         raw_data['dets'][t] = [{'size': [int(region[3]), int(region[4])],
                                                 'counts': region[5].encode(encoding='UTF-8')}
                                                for region in read_data[time_key]]
@@ -290,7 +330,7 @@ class General(_BaseDataset):
                 except ValueError:
                     self._raise_value_error(is_gt, tracker, seq)
             else:
-                if self.benchmark in ['DAVIS', 'YouTubeVIS', 'MOTS', 'KittiMOTS']:
+                if self.benchmark in ['davis_unsupervised', 'youtube_vis', 'MOTS', 'kitti_mots']:
                     raw_data['dets'][t] = []
                 else:
                     raw_data['dets'][t] = np.empty((0, 4)).astype(float)
@@ -308,7 +348,7 @@ class General(_BaseDataset):
             if is_gt:
                 if time_key in ignore_data.keys():
                     try:
-                        if self.benchmark in ['DAVIS', 'YouTubeVIS', 'MOTS', 'KittiMOTS']:
+                        if self.benchmark in ['davis_unsupervised', 'youtube_vis', 'MOTS', 'kitti_mots']:
                             time_ignore = [{'size': [int(region[3]), int(region[4])],
                                             'counts': region[5].encode(encoding='UTF-8')}
                                            for region in ignore_data[time_key]]
@@ -323,7 +363,7 @@ class General(_BaseDataset):
                     except ValueError:
                         self._raise_value_error(is_gt, tracker, seq)
                 else:
-                    if self.benchmark in ['DAVIS', 'YouTubeVIS', 'MOTS', 'KittiMOTS']:
+                    if self.benchmark in ['davis_unsupervised', 'youtube_vis', 'MOTS', 'kitti_mots']:
                         raw_data['gt_ignore_regions'][t] = mask_utils.merge([], intersect=False)
                     else:
                         raw_data['gt_ignore_regions'][t] = np.empty((0, 4)).astype(float)
@@ -346,14 +386,14 @@ class General(_BaseDataset):
                        'classes': 'tracker_classes',
                        'dets': 'tracker_dets'}
 
-        if self.benchmark in ['TAO', 'YouTubeVIS']:
+        if self.benchmark in ['tao', 'youtube_vis']:
             raw_data['classes_to_tracks'] = {}
             if not is_gt:
                 raw_data['classes_to_track_scores'] = {}
 
-            if self.benchmark == 'YouTubeVIS' or self.benchmark == 'TAO' and is_gt:
+            if self.benchmark == 'youtube_vis' or self.benchmark == 'tao' and is_gt:
                 classes_to_consider = [self.class_name_to_class_id[cls] for cls in self.class_list]
-            elif self.benchmark == 'TAO' and not is_gt:
+            elif self.benchmark == 'tao' and not is_gt:
                 classes_to_consider = self.pos_categories[seq] + self.neg_categories[seq]
             else:
                 raise TrackEvalException('Track based evaluation undefined for benchmark %s' % self.benchmark)
@@ -383,7 +423,7 @@ class General(_BaseDataset):
                 if not is_gt and cls_id not in raw_data['classes_to_track_scores']:
                     raw_data['classes_to_track_scores'][cls_id] = []
 
-            if self.benchmark == 'YouTubeVIS' and is_gt:
+            if self.benchmark == 'youtube_vis' and is_gt:
                 raw_data['classes_to_gt_track_iscrowd'] = {}
                 for t in range(num_timesteps):
                     for i in range(len(raw_data['ids'][t])):
@@ -414,7 +454,7 @@ class General(_BaseDataset):
         for k, v in key_map.items():
             raw_data[v] = raw_data.pop(k)
 
-        if self.benchmark == 'TAO':
+        if self.benchmark == 'tao':
             raw_data['neg_cat_ids'] = self.neg_categories[seq]
             raw_data['not_exhaustively_labeled_cls'] = self.not_exhaustively_labeled[seq]
         raw_data['num_timesteps'] = num_timesteps
@@ -464,7 +504,7 @@ class General(_BaseDataset):
             distractor_class_names = ['person_on_vehicle', 'static_person', 'distractor', 'reflection']
             if self.benchmark == 'MOT20':
                 distractor_class_names.append('non_mot_vehicle')
-        elif self.benchmark == 'Kitti2DBox':
+        elif self.benchmark == 'kitti_2d_box':
             if cls == 'pedestrian':
                 distractor_class_names = ['person']
             elif cls == 'car':
@@ -476,8 +516,8 @@ class General(_BaseDataset):
         distractor_classes = [self.class_name_to_class_id[x] for x in distractor_class_names]
         cls_id = self.class_name_to_class_id[cls]
 
-        is_neg_category = cls_id in raw_data['neg_cat_ids'] if self.benchmark == 'TAO' else False
-        is_not_exhaustively_labeled = cls_id in raw_data['not_exhaustively_labeled_cls'] if self.benchmark == 'TAO' \
+        is_neg_category = cls_id in raw_data['neg_cat_ids'] if self.benchmark == 'tao' else False
+        is_not_exhaustively_labeled = cls_id in raw_data['not_exhaustively_labeled_cls'] if self.benchmark == 'tao' \
             else False
 
         data_keys = ['gt_ids', 'tracker_ids', 'gt_dets', 'tracker_dets', 'tracker_confidences', 'similarity_scores']
@@ -496,7 +536,7 @@ class General(_BaseDataset):
                 gt_class_mask = np.sum([raw_data['gt_classes'][t] == c for c in [cls_id] + distractor_classes], axis=0)
                 gt_class_mask = gt_class_mask.astype(np.bool)
             gt_ids = raw_data['gt_ids'][t][gt_class_mask]
-            if self.benchmark in ['DAVIS', 'YouTubeVIS', 'KittiMOTS', 'MOTS']:
+            if self.benchmark in ['davis_unsupervised', 'youtube_vis', 'MOTS', 'kitti_mots']:
                 gt_dets = [raw_data['gt_dets'][t][ind] for ind in range(len(gt_class_mask)) if gt_class_mask[ind]]
             else:
                 gt_dets = raw_data['gt_dets'][t][gt_class_mask]
@@ -508,7 +548,7 @@ class General(_BaseDataset):
             tracker_class_mask = np.atleast_1d(raw_data['tracker_classes'][t] == cls_id)
             tracker_class_mask = tracker_class_mask.astype(np.bool)
             tracker_ids = raw_data['tracker_ids'][t][tracker_class_mask]
-            if self.benchmark in ['DAVIS', 'YouTubeVIS', 'KittiMOTS', 'MOTS']:
+            if self.benchmark in ['davis_unsupervised', 'youtube_vis', 'MOTS', 'kitti_mots']:
                 tracker_dets = [raw_data['tracker_dets'][t][ind] for ind in range(len(tracker_class_mask)) if
                                 tracker_class_mask[ind]]
             else:
@@ -516,13 +556,13 @@ class General(_BaseDataset):
             tracker_confidences = raw_data['tracker_confidences'][t][tracker_class_mask]
             similarity_scores = raw_data['similarity_scores'][t][gt_class_mask, :][:, tracker_class_mask]
 
-            if self.benchmark == 'YouTubeVIS':
+            if self.benchmark == 'youtube_vis':
                 data['tracker_ids'][t] = tracker_ids
                 data['tracker_dets'][t] = tracker_dets
                 data['gt_ids'][t] = gt_ids
                 data['gt_dets'][t] = gt_dets
                 data['similarity_scores'][t] = similarity_scores
-            elif self.benchmark == 'DAVIS':
+            elif self.benchmark == 'davis_unsupervised':
                 data['tracker_ids'][t] = tracker_ids
                 data['gt_ids'][t] = gt_ids
                 data['gt_dets'][t] = gt_dets
@@ -556,7 +596,7 @@ class General(_BaseDataset):
                     match_rows = match_rows[actually_matched_mask]
                     match_cols = match_cols[actually_matched_mask]
 
-                    if self.benchmark == 'Kitti2DBox':
+                    if self.benchmark == 'kitti_2d_box':
                         is_distractor_class = np.isin(gt_classes[match_rows], distractor_classes)
                         is_occluded_or_truncated = np.logical_or(gt_occlusion[match_rows] > self.max_occlusion,
                                                                  gt_truncation[match_rows] > self.max_truncation)
@@ -567,7 +607,7 @@ class General(_BaseDataset):
                         to_remove_matched = match_cols[is_distractor_class]
                     unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
 
-                if self.benchmark in ['Kitti2DBox', 'BDD100K']:
+                if self.benchmark in ['kitti_2d_box', 'bdd100k_2d_box']:
                     # For unmatched tracker dets, also remove those that are greater than 50% within a crowd ignore region.
                     unmatched_tracker_dets = tracker_dets[unmatched_indices, :]
                     crowd_ignore_regions = raw_data['gt_ignore_regions'][t]
@@ -576,7 +616,7 @@ class General(_BaseDataset):
                                             do_ioa=True)
                     is_within_ignore_region = np.any(intersection_with_ignore_region > 0.5 + np.finfo('float').eps,
                                                      axis=1)
-                    if self.benchmark == 'Kitti2DBox':
+                    if self.benchmark == 'kitti_2d_box':
                         # For unmatched tracker dets, also remove those smaller than a minimum height.
                         unmatched_heights = unmatched_tracker_dets[:, 3] - unmatched_tracker_dets[:, 1]
                         is_too_small = unmatched_heights <= self.min_height
@@ -586,7 +626,7 @@ class General(_BaseDataset):
                         to_remove_tracker = np.concatenate((to_remove_matched, to_remove_unmatched), axis=0)
                     else:
                         to_remove_tracker = unmatched_indices[is_within_ignore_region]
-                elif self.benchmark in ['KittiMOTS', 'MOTS']:
+                elif self.benchmark in ['kitti_mots', 'MOTS']:
                     unmatched_tracker_dets = [tracker_dets[i] for i in range(len(tracker_dets))
                                               if i in unmatched_indices]
                     ignore_region = raw_data['gt_ignore_regions'][t]
@@ -595,7 +635,7 @@ class General(_BaseDataset):
                     is_within_ignore_region = np.any(intersection_with_ignore_region > 0.5 + np.finfo('float').eps,
                                                      axis=1)
                     to_remove_tracker = unmatched_indices[is_within_ignore_region]
-                elif self.benchmark == 'TAO':
+                elif self.benchmark == 'tao':
                     if gt_ids.shape[0] == 0 and not is_neg_category:
                         to_remove_tracker = unmatched_indices
                     elif is_not_exhaustively_labeled:
@@ -612,8 +652,8 @@ class General(_BaseDataset):
                 data['tracker_confidences'][t] = np.delete(tracker_confidences, to_remove_tracker, axis=0)
                 similarity_scores = np.delete(similarity_scores, to_remove_tracker, axis=1)
 
-                if self.benchmark in ['Kitti2DBox', 'MOT15', 'MOT16', 'MOT17', 'MOT20']:
-                    if self.benchmark == 'Kitti2DBox':
+                if self.benchmark in ['kitti_2d_box', 'MOT15', 'MOT16', 'MOT17', 'MOT20']:
+                    if self.benchmark == 'kitti_2d_box':
                         # Also remove gt dets that were only useful for preprocessing and are not needed for evaluation.
                         # These are those that are occluded, truncated and from distractor objects.
                         gt_to_keep_mask = (np.less_equal(gt_occlusion, self.max_occlusion)) & \
@@ -666,7 +706,7 @@ class General(_BaseDataset):
         # Ensure that ids are unique per timestep.
         self._check_unique_ids(data)
 
-        if self.benchmark in ['TAO', 'YouTubeVIS']:
+        if self.benchmark in ['tao', 'youtube_vis']:
             data['gt_track_ids'] = [key for key in raw_data['classes_to_gt_tracks'][cls_id].keys()]
             data['gt_tracks'] = [raw_data['classes_to_gt_tracks'][cls_id][tid] for tid in data['gt_track_ids']]
             data['gt_track_lengths'] = [len(track.keys()) for track in data['gt_tracks']]
@@ -676,7 +716,7 @@ class General(_BaseDataset):
             data['dt_track_scores'] = [np.mean(raw_data['classes_to_track_scores'][cls_id][tid]) for tid
                                        in data['dt_track_ids']]
 
-            if self.benchmark == 'TAO':
+            if self.benchmark == 'tao':
                 data['iou_type'] = 'bbox'
                 data['boxformat'] = 'x0y0x1y1'
                 data['not_exhaustively_labeled'] = is_not_exhaustively_labeled
@@ -697,7 +737,7 @@ class General(_BaseDataset):
                     else:
                         data['dt_track_areas'].append(0)
 
-            if self.benchmark == 'YouTubeVIS':
+            if self.benchmark == 'youtube_vis':
                 data['iou_type'] = 'mask'
                 data['gt_track_iscrowd'] = [raw_data['classes_to_gt_track_iscrowd'][cls_id][tid]
                                             for tid in data['gt_track_ids']]
@@ -730,7 +770,7 @@ class General(_BaseDataset):
         return data
 
     def _calculate_similarities(self, gt_dets_t, tracker_dets_t):
-        if self.benchmark in ['DAVIS', 'YouTubeVIS', 'MOTS', 'KittiMOTS']:
+        if self.benchmark in ['davis_unsupervised', 'youtube_vis', 'MOTS', 'kitti_mots']:
             similarity_scores = self._calculate_mask_ious(gt_dets_t, tracker_dets_t, is_encoded=True, do_ioa=False)
         else:
             similarity_scores = self._calculate_box_ious(gt_dets_t, tracker_dets_t, box_format='x0y0x1y1')
