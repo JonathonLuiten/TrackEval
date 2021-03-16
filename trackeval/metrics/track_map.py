@@ -306,33 +306,6 @@ class TrackMAP(_BaseMetric):
                     mean = np.mean(values[values > -1])
                 res[field][a_id] = mean
         return res
-        # all_prec = np.array([res['precision'] for res in all_res.values()])
-        # all_rec = np.array([res['recall'] for res in all_res.values()])
-        #
-        # res = {}
-        #
-        # # compute the precision and recall averages for the respective alpha thresholds and ignore masks
-        # for lbl in self.lbls:
-        #     res['AP_' + lbl] = np.zeros((len(self.array_labels)), dtype=np.float)
-        #     res['AR_' + lbl] = np.zeros((len(self.array_labels)), dtype=np.float)
-        #
-        # for a_id, alpha in enumerate(self.array_labels):
-        #     for lbl_idx, lbl in enumerate(self.lbls):
-        #         p = all_prec[:, a_id, :, lbl_idx]
-        #         if len(p[p > -1]) == 0:
-        #             mean_p = -1
-        #         else:
-        #             mean_p = np.mean(p[p > -1])
-        #         res['AP_' + lbl][a_id] = mean_p
-        #
-        #         r = all_rec[:, a_id, lbl_idx]
-        #         if len(r[r > -1]) == 0:
-        #             mean_r = -1
-        #         else:
-        #             mean_r = np.mean(r[r > -1])
-        #         res['AR_' + lbl][a_id] = mean_r
-        #
-        # return res
 
     def _compute_track_ig_masks(self, num_ids, track_lengths=None, track_areas=None, iscrowd=None,
                                 is_not_exhaustively_labeled=False, is_gt=True):
