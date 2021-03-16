@@ -119,7 +119,7 @@ class DAVIS(_BaseDataset):
         if is_gt:
             seq_dir = os.path.join(self.gt_fol, seq)
         else:
-            seq_dir = os.path.join(self.tracker_fol, tracker, 'data', seq)
+            seq_dir = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq)
 
         num_timesteps = self.seq_lengths[seq]
         data_keys = ['ids', 'dets']

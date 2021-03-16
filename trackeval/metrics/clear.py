@@ -83,7 +83,7 @@ class CLEAR(_BaseMetric):
                 np.not_equal(matched_tracker_ids, prev_matched_tracker_ids))
             res['IDSW'] += np.sum(is_idsw)
 
-            # Update counters for MT/ML/PT/Frag and record for IDSS/Frag for next timestep
+            # Update counters for MT/ML/PT/Frag and record for IDSW/Frag for next timestep
             gt_id_count[gt_ids_t] += 1
             gt_matched_count[matched_gt_ids] += 1
             not_previously_tracked = np.isnan(prev_timestep_tracker_id)
