@@ -3,15 +3,13 @@ import os
 import csv
 import numpy as np
 from scipy.optimize import linear_sum_assignment
-from pycocotools import mask as mask_utils
-from pathlib import Path
 from ._base_dataset import _BaseDataset
 from .. import utils
 from ..utils import TrackEvalException
 from .. import _timing
 
 
-class General(_BaseDataset):
+class Unified(_BaseDataset):
 
     @staticmethod
     def get_default_dataset_config():
@@ -45,6 +43,7 @@ class General(_BaseDataset):
         # Fill non-given config values with defaults
         self.config = utils.init_config(config, self.get_default_dataset_config(), self.get_name())
 
+        # associated dataset folder for benchmark
         self.benchmark = self.config['BENCHMARK']
         if self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20', 'MOTS']:
             self.dataset = 'mot_challenge'
@@ -78,18 +77,22 @@ class General(_BaseDataset):
         self.tracker_sub_fol = self.config['TRACKER_SUB_FOLDER']
         self.output_sub_fol = self.config['OUTPUT_SUB_FOLDER']
 
+        # kitti 2d box preprocessing parameters
         if self.benchmark == 'kitti_2d_box':
             self.max_occlusion = 2
             self.max_truncation = 0
             self.min_height = 25
 
+        # read class and sequence maps
         self._get_cls_info()
         self._get_seq_info()
 
         if len(self.seq_list) < 1:
             raise TrackEvalException('No sequences are selected to be evaluated.')
 
+        # get classes
         if self.benchmark == 'tao':
+            # for TAO all classes present in ground truth data are valid
             pos_cat_id_list = list(set([cat for seq, cats in self.pos_categories.items() if seq
                                         in self.seq_list for cat in cats]))
             valid_classes = [cls for cls in self.class_name_to_class_id.keys() if self.class_name_to_class_id[cls]
@@ -115,6 +118,7 @@ class General(_BaseDataset):
                                          ', '.join(valid_classes) + ' are valid.')
 
         self.should_classes_combine = True if self.benchmark in ['tao', 'bdd100k_2d_box', 'youtube_vis'] else False
+        # set super categories for bdd100k evaluation
         if self.benchmark == 'bdd100k_2d_box':
             self.use_super_categories = True
             self.super_categories = {"HUMAN": [cls for cls in ["pedestrian", "rider"] if cls in self.class_list],
@@ -165,7 +169,8 @@ class General(_BaseDataset):
                     if not os.path.isfile(curr_file):
                         print('Tracker file not found: ' + curr_file)
                         raise TrackEvalException(
-                            'Tracker file not found: ' + tracker + '/data/' + os.path.basename(curr_file))
+                            'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol +
+                            '/' + os.path.basename(curr_file))
 
     def get_display_name(self, tracker):
         return self.tracker_to_disp[tracker]
@@ -194,11 +199,15 @@ class General(_BaseDataset):
             reader = csv.reader(fp, dialect)
             for i, row in enumerate(reader):
                 if len(row) >= 4:
+                    # first col: sequence, second col: seqeuence length, third and fourth col: sequence height/width
                     seq = row[0]
                     self.seq_list.append(seq)
                     self.seq_lengths[seq] = int(row[1])
                     self.seq_sizes[seq] = (int(row[2]), int(row[3]))
                 if len(row) >= 7:
+                    # for TAO positive categories (classes present in ground truth data) are listed in column 5,
+                    # negative categories (potential false negatives during evaluation) are listed in column 6,
+                    # not exhaustively labeled categories are listed in column 7
                     self.pos_categories[seq] = [int(cat) for cat in row[4].split(',')]
                     self.neg_categories[seq] = [int(cat) for cat in row[5].split(',')] if len(row[5]) > 0 else []
                     self.not_exhaustively_labeled[seq] = [int(cat) for cat in row[6].split(',')] \
@@ -224,9 +233,12 @@ class General(_BaseDataset):
             reader = csv.reader(fp, dialect)
             for i, row in enumerate(reader):
                 if len(row) == 2:
+                    # column 1: class names, column 2: class IDs
                     cls = row[0]
                     self.class_name_to_class_id[cls] = int(row[1])
                 else:
+                    # row length > 2: class names contain either white spaces or the benchmark is TAO as TAO contains
+                    # an additional field for categories that are to be merged
                     if self.benchmark == 'tao':
                         cls = ' '.join([entry for entry in row[:-2]])
                         self.class_name_to_class_id[cls] = int(row[-2])
@@ -237,17 +249,32 @@ class General(_BaseDataset):
                         self.class_name_to_class_id[cls] = int(row[-1])
 
     def _load_raw_file(self, tracker, seq, is_gt):
-        """Load a file (gt or tracker) in the MOT Challenge 2D box format
+        """Load a file (gt or tracker) in the Unified format
 
         If is_gt, this returns a dict which contains the fields:
         [gt_ids, gt_classes] : list (for each timestep) of 1D NDArrays (for each det).
         [gt_dets, gt_crowd_ignore_regions]: list (for each timestep) of lists of detections.
         [gt_extras] : list (for each timestep) of dicts (for each extra) of 1D NDArrays (for each det).
+        Extra fields for TAO and YouTubeVIS benchmark:
+        [classes_to_gt_tracks]: nested dictionary with class values and track IDs as keys and list of dictionaries
+                                (with frame indices as keys and corresponding detection as values) for each track
+                                as values
+        [classes_to_gt_track_iscrowd]:  nested dictionary with class values and track IDs as keys and
+                                        lists (for each track) as values
 
         if not is_gt, this returns a dict which contains the fields:
         [tracker_ids, tracker_classes, tracker_confidences] : list (for each timestep) of 1D NDArrays (for each det).
         [tracker_dets]: list (for each timestep) of lists of detections.
+        Extra fields for TAO and YouTubeVIS benchmark:
+        [classes_to_dt_tracks]: nested dictionary with class values and track IDs as keys and list of dictionaries
+                                (with frame indices as keys and corresponding detection as values) for each track
+                                as values
+        [classes_to_track_scores]:  nested dictionary with class values and track IDs as keys and
+                                    lists (for each track) as values
         """
+        # import to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+
         # File location
         if self.data_is_zipped:
             if is_gt:
@@ -266,6 +293,7 @@ class General(_BaseDataset):
             else:
                 file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.txt')
 
+        # set crowd ignore filter
         if is_gt:
             if self.benchmark in ['MOTS', 'kitti_mots']:
                 crowd_ignore_filter = {2: [str(self.class_name_to_class_id['ignore'])]}
@@ -275,6 +303,7 @@ class General(_BaseDataset):
                 distractor_class_names = ['other person', 'trailer', 'other vehicle']
                 crowd_ignore_filter = {10: ['1'], 2: [str(self.class_name_to_class_id[x])
                                                       for x in distractor_class_names]}
+            # for davis void pixels are read as crowd ignore
             elif self.benchmark == 'davis_unsupervised':
                 crowd_ignore_filter = {2: [str(self.class_name_to_class_id['void'])]}
             else:
@@ -303,6 +332,7 @@ class General(_BaseDataset):
                 try:
                     raw_data['ids'][t] = np.atleast_1d([det[1] for det in read_data[time_key]]).astype(int)
                     raw_data['classes'][t] = np.atleast_1d([det[2] for det in read_data[time_key]]).astype(int)
+                    # merge categories for TAO
                     if self.benchmark == 'tao':
                         raw_data['classes'][t] = np.atleast_1d([self.merge_map.get(cls, cls) for cls
                                                                 in raw_data['classes'][t]]).astype(int)
@@ -329,6 +359,7 @@ class General(_BaseDataset):
                     self._raise_index_error(is_gt, tracker, seq)
                 except ValueError:
                     self._raise_value_error(is_gt, tracker, seq)
+            # no detection in this timestep
             else:
                 if self.benchmark in ['davis_unsupervised', 'youtube_vis', 'MOTS', 'kitti_mots']:
                     raw_data['dets'][t] = []
@@ -354,7 +385,9 @@ class General(_BaseDataset):
                                            for region in ignore_data[time_key]]
                             raw_data['gt_ignore_regions'][t] = mask_utils.merge([mask for mask in time_ignore],
                                                                                 intersect=False)
-                            all_masks += time_ignore
+                            # for davis ignore data (void pixels) may overlap with other masks
+                            if not self.benchmark == 'davis_unsupervised':
+                                all_masks += time_ignore
                         else:
                             raw_data['gt_ignore_regions'][t] = np.atleast_2d([det[6:10] for det
                                                                               in ignore_data[time_key]]).astype(float)
@@ -362,6 +395,7 @@ class General(_BaseDataset):
                         self._raise_index_error(is_gt, tracker, seq)
                     except ValueError:
                         self._raise_value_error(is_gt, tracker, seq)
+                # no ignore data for this timestep
                 else:
                     if self.benchmark in ['davis_unsupervised', 'youtube_vis', 'MOTS', 'kitti_mots']:
                         raw_data['gt_ignore_regions'][t] = mask_utils.merge([], intersect=False)
@@ -386,11 +420,13 @@ class General(_BaseDataset):
                        'classes': 'tracker_classes',
                        'dets': 'tracker_dets'}
 
+        # assemble per frame detections to tracks for TAO and YouTubeVIS in order to evaluate TrackMAP
         if self.benchmark in ['tao', 'youtube_vis']:
             raw_data['classes_to_tracks'] = {}
             if not is_gt:
                 raw_data['classes_to_track_scores'] = {}
 
+            # classes to consider
             if self.benchmark == 'youtube_vis' or self.benchmark == 'tao' and is_gt:
                 classes_to_consider = [self.class_name_to_class_id[cls] for cls in self.class_list]
             elif self.benchmark == 'tao' and not is_gt:
@@ -398,6 +434,7 @@ class General(_BaseDataset):
             else:
                 raise TrackEvalException('Track based evaluation undefined for benchmark %s' % self.benchmark)
 
+            # assemble tracks and get corresponding track scores
             for t in range(num_timesteps):
                 for i in range(len(raw_data['ids'][t])):
                     tid = raw_data['ids'][t][i]
@@ -416,6 +453,7 @@ class General(_BaseDataset):
                             raw_data['classes_to_track_scores'][cls_id][tid].\
                                 append(raw_data['tracker_confidences'][t][i])
 
+            # fill missing classes with default values
             for cls in self.class_list:
                 cls_id = self.class_name_to_class_id[cls]
                 if cls_id not in raw_data['classes_to_tracks']:
@@ -423,6 +461,7 @@ class General(_BaseDataset):
                 if not is_gt and cls_id not in raw_data['classes_to_track_scores']:
                     raw_data['classes_to_track_scores'][cls_id] = []
 
+            # get crowd ignore data for tracks
             if self.benchmark == 'youtube_vis' and is_gt:
                 raw_data['classes_to_gt_track_iscrowd'] = {}
                 for t in range(num_timesteps):
@@ -437,6 +476,7 @@ class General(_BaseDataset):
                             raw_data['classes_to_gt_track_iscrowd'][cls_id][tid].\
                                 append(raw_data['gt_extras'][t]['crowd'][i])
 
+                # fill missing classes with default values
                 for cls in self.class_list:
                     cls_id = self.class_name_to_class_id[cls]
                     if cls_id not in raw_data['classes_to_gt_track_iscrowd']:
@@ -454,6 +494,7 @@ class General(_BaseDataset):
         for k, v in key_map.items():
             raw_data[v] = raw_data.pop(k)
 
+        # parameters for TAO preprocessing
         if self.benchmark == 'tao':
             raw_data['neg_cat_ids'] = self.neg_categories[seq]
             raw_data['not_exhaustively_labeled_cls'] = self.not_exhaustively_labeled[seq]
@@ -499,7 +540,100 @@ class General(_BaseDataset):
 
     @_timing.time
     def get_preprocessed_seq_data(self, raw_data, cls):
+        """ Preprocess data for a single sequence for a single class ready for evaluation.
+        Inputs:
+             - raw_data is a dict containing the data for the sequence already read in by get_raw_seq_data().
+             - cls is the class to be evaluated.
+        Outputs:
+             - data is a dict containing all of the information that metrics need to perform evaluation.
+                It contains the following fields:
+                    [num_timesteps, num_gt_ids, num_tracker_ids, num_gt_dets, num_tracker_dets] : integers.
+                    [gt_ids, tracker_ids, tracker_confidences]: list (for each timestep) of 1D NDArrays (for each det).
+                    [gt_dets, tracker_dets]: list (for each timestep) of lists of detections.
+                    [similarity_scores]: list (for each timestep) of 2D NDArrays.
+        Notes:
+            General preprocessing (preproc) occurs in 4 steps. Some datasets may not use all of these steps.
+                1) Extract only detections relevant for the class to be evaluated (including distractor detections).
+                2) Match gt dets and tracker dets. Remove tracker dets that are matched to a gt det that is of a
+                    distractor class, or otherwise marked as to be removed.
+                3) Remove unmatched tracker dets if they fall within a crowd ignore region or don't meet a certain
+                    other criteria (e.g. are too small).
+                4) Remove gt dets that were only useful for preprocessing and not for actual evaluation.
+            After the above preprocessing steps, this function also calculates the number of gt and tracker detections
+                and unique track ids. It also relabels gt and tracker ids to be contiguous and checks that ids are
+                unique within each timestep.
 
+        MOT Challenge:
+            In MOT Challenge, the 4 preproc steps are as follow:
+                1) There is only one class (pedestrian) to be evaluated, but all other classes are used for preproc.
+                2) Predictions are matched against all gt boxes (regardless of class), those matching with distractor
+                    objects are removed.
+                3) There is no crowd ignore regions.
+                4) All gt dets except pedestrian are removed, also removes pedestrian gt dets marked with zero_marked.
+
+        KITTI:
+            In KITTI, the 4 preproc steps are as follow:
+                1) There are two classes (pedestrian and car) which are evaluated separately.
+                2) For the pedestrian class, the 'person' class is distractor objects (people sitting).
+                    For the car class, the 'van' class are distractor objects.
+                    GT boxes marked as having occlusion level > 2 or truncation level > 0 are also treated as
+                        distractors.
+                3) Crowd ignore regions are used to remove unmatched detections. Also unmatched detections with
+                    height <= 25 pixels are removed.
+                4) Distractor gt dets (including truncated and occluded) are removed.
+
+        MOTS and KITTI MOTS:
+            In MOTS, the 4 preproc steps are as follow:
+                1) There are two classes (car and pedestrian) which are evaluated separately.
+                2) There are no ground truth detections marked as to be removed/distractor classes.
+                    Therefore also no matched tracker detections are removed.
+                3) Ignore regions are used to remove unmatched detections (at least 50% overlap with ignore region).
+                4) There are no ground truth detections (e.g. those of distractor classes) to be removed.
+
+        TAO:
+            In TAO, the 4 preproc steps are as follow:
+                1) All classes present in the ground truth data are evaluated separately.
+                2) No matched tracker detections are removed.
+                3) Unmatched tracker detections are removed if there is not ground truth data and the class does not
+                    belong to the categories marked as negative for this sequence. Additionally, unmatched tracker
+                    detections for classes which are marked as not exhaustively labeled are removed.
+                4) No gt detections are removed.
+            Further, for TrackMAP computation track representations for the given class are accessed from a dictionary
+            and the tracks from the tracker data are sorted according to the tracker confidence.
+
+        YouTubeVIS:
+            In YouTubeVIS, the 4 preproc steps are as follow:
+                1) There are 40 classes which are evaluated separately.
+                2) No matched tracker dets are removed.
+                3) No unmatched tracker dets are removed.
+                4) No gt dets are removed.
+            Further, for TrackMAP computation track representations for the given class are accessed from a dictionary
+            and the tracks from the tracker data are sorted according to the tracker confidence.
+
+        BDD100K:
+            In BDD100K, the 4 preproc steps are as follow:
+                1) There are eight classes (pedestrian, rider, car, bus, truck, train, motorcycle, bicycle)
+                    which are evaluated separately.
+                2) For BDD100K there is no removal of matched tracker dets.
+                3) Crowd ignore regions are used to remove unmatched detections.
+                4) No removal of gt dets.
+
+        DAVIS:
+            In DAVIS, the 4 preproc steps are as follow:
+                1) There are no classes, all detections are evaluated jointly
+                2) No matched tracker detections are removed.
+                3) No unmatched tracker detections are removed.
+                4) There are no ground truth detections (e.g. those of distractor classes) to be removed.
+            Preprocessing special to DAVIS: Pixels which are marked as void in the ground truth are set to zero in the
+                tracker detections since they are not considered during evaluation.
+        """
+        # import to reduce minimum requirements
+        from pycocotools import mask as mask_utils
+
+        # Check that input data has unique ids
+        self._check_unique_ids(raw_data)
+
+        # get distractor classes
         if self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20']:
             distractor_class_names = ['person_on_vehicle', 'static_person', 'distractor', 'reflection']
             if self.benchmark == 'MOT20':
@@ -516,6 +650,7 @@ class General(_BaseDataset):
         distractor_classes = [self.class_name_to_class_id[x] for x in distractor_class_names]
         cls_id = self.class_name_to_class_id[cls]
 
+        # get preprocessing parameters for TAO
         is_neg_category = cls_id in raw_data['neg_cat_ids'] if self.benchmark == 'tao' else False
         is_not_exhaustively_labeled = cls_id in raw_data['not_exhaustively_labeled_cls'] if self.benchmark == 'tao' \
             else False
@@ -530,6 +665,7 @@ class General(_BaseDataset):
         for t in range(raw_data['num_timesteps']):
 
             if self.benchmark in ['MOT15', 'MOT16', 'MOT17', 'MOT20']:
+                # in MOT all ground truth detections are considered
                 gt_class_mask = np.ones(len(raw_data['gt_classes'][t])).astype(np.bool)
             else:
                 # Only extract relevant dets for this class for preproc and eval (cls + distractor classes)
@@ -557,12 +693,14 @@ class General(_BaseDataset):
             similarity_scores = raw_data['similarity_scores'][t][gt_class_mask, :][:, tracker_class_mask]
 
             if self.benchmark == 'youtube_vis':
+                # no preprocessing for YouTubeVIS
                 data['tracker_ids'][t] = tracker_ids
                 data['tracker_dets'][t] = tracker_dets
                 data['gt_ids'][t] = gt_ids
                 data['gt_dets'][t] = gt_dets
                 data['similarity_scores'][t] = similarity_scores
             elif self.benchmark == 'davis_unsupervised':
+                # for DAVIS only set void pixels to zero
                 data['tracker_ids'][t] = tracker_ids
                 data['gt_ids'][t] = gt_ids
                 data['gt_dets'][t] = gt_dets
@@ -584,8 +722,7 @@ class General(_BaseDataset):
                             tracker_dets[r] = det
                 data['tracker_dets'][t] = tracker_dets
             else:
-                # Match tracker and gt dets (with hungarian algorithm) and remove tracker dets which match with gt dets
-                # which are labeled as truncated, occluded, or belonging to a distractor class.
+                # Match tracker and gt dets (with hungarian algorithm)
                 to_remove_matched = np.array([], np.int)
                 unmatched_indices = np.arange(tracker_ids.shape[0])
                 if self.benchmark != 'MOT15' and gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
@@ -597,18 +734,21 @@ class General(_BaseDataset):
                     match_cols = match_cols[actually_matched_mask]
 
                     if self.benchmark == 'kitti_2d_box':
+                        # remove tracker dets which match with gt dets which are labeled as truncated, occluded,
+                        # or belonging to a distractor class.
                         is_distractor_class = np.isin(gt_classes[match_rows], distractor_classes)
                         is_occluded_or_truncated = np.logical_or(gt_occlusion[match_rows] > self.max_occlusion,
                                                                  gt_truncation[match_rows] > self.max_truncation)
                         to_remove_matched = np.logical_or(is_distractor_class, is_occluded_or_truncated)
                         to_remove_matched = match_cols[to_remove_matched]
                     elif self.benchmark in ['MOT16', 'MOT17', 'MOT20']:
+                        # remove tracker dets which match with gt dets belonging to a distractor class.
                         is_distractor_class = np.isin(gt_classes[match_rows], distractor_classes)
                         to_remove_matched = match_cols[is_distractor_class]
                     unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
 
                 if self.benchmark in ['kitti_2d_box', 'bdd100k_2d_box']:
-                    # For unmatched tracker dets, also remove those that are greater than 50% within a crowd ignore region.
+                    # For unmatched tracker dets remove those that are greater than 50% within a crowd ignore region.
                     unmatched_tracker_dets = tracker_dets[unmatched_indices, :]
                     crowd_ignore_regions = raw_data['gt_ignore_regions'][t]
                     intersection_with_ignore_region = self.\
@@ -627,6 +767,7 @@ class General(_BaseDataset):
                     else:
                         to_remove_tracker = unmatched_indices[is_within_ignore_region]
                 elif self.benchmark in ['kitti_mots', 'MOTS']:
+                    # For unmatched tracker dets remove those that are greater than 50% within a crowd ignore region.
                     unmatched_tracker_dets = [tracker_dets[i] for i in range(len(tracker_dets))
                                               if i in unmatched_indices]
                     ignore_region = raw_data['gt_ignore_regions'][t]
@@ -636,6 +777,8 @@ class General(_BaseDataset):
                                                      axis=1)
                     to_remove_tracker = unmatched_indices[is_within_ignore_region]
                 elif self.benchmark == 'tao':
+                    # for TAO remove unmatched tracker detections if there is no ground truth data and the category
+                    # is not marked as a negative category or the category is not exhaustively labeled
                     if gt_ids.shape[0] == 0 and not is_neg_category:
                         to_remove_tracker = unmatched_indices
                     elif is_not_exhaustively_labeled:
@@ -647,6 +790,7 @@ class General(_BaseDataset):
                 else:
                     to_remove_tracker = np.array([], dtype=np.int)
 
+                # remove all unwanted tracker detections
                 data['tracker_ids'][t] = np.delete(tracker_ids, to_remove_tracker, axis=0)
                 data['tracker_dets'][t] = np.delete(tracker_dets, to_remove_tracker, axis=0)
                 data['tracker_confidences'][t] = np.delete(tracker_confidences, to_remove_tracker, axis=0)
@@ -654,12 +798,14 @@ class General(_BaseDataset):
 
                 if self.benchmark in ['kitti_2d_box', 'MOT15', 'MOT16', 'MOT17', 'MOT20']:
                     if self.benchmark == 'kitti_2d_box':
-                        # Also remove gt dets that were only useful for preprocessing and are not needed for evaluation.
+                        # Remove gt dets that were only useful for preprocessing and are not needed for evaluation.
                         # These are those that are occluded, truncated and from distractor objects.
                         gt_to_keep_mask = (np.less_equal(gt_occlusion, self.max_occlusion)) & \
                                           (np.less_equal(gt_truncation, self.max_truncation)) & \
                                           (np.equal(gt_classes, cls_id))
                     elif self.benchmark in ['MOT16', 'MOT17', 'MOT20']:
+                        # Remove gt detections marked as to remove (zero marked), and also remove gt detections
+                        # not in pedestrian class
                         gt_to_keep_mask = (np.not_equal(gt_zero_marked, 0)) & \
                                           (np.equal(gt_classes, cls_id))
                     else:
@@ -669,6 +815,7 @@ class General(_BaseDataset):
                     data['gt_dets'][t] = gt_dets[gt_to_keep_mask, :]
                     data['similarity_scores'][t] = similarity_scores[gt_to_keep_mask]
                 else:
+                    # for the rest of the benchmarks keep all ground truth detections
                     data['gt_ids'][t] = gt_ids
                     data['gt_dets'][t] = gt_dets
                     data['similarity_scores'][t] = similarity_scores
@@ -706,6 +853,7 @@ class General(_BaseDataset):
         # Ensure that ids are unique per timestep.
         self._check_unique_ids(data)
 
+        # get track based information for TrackMAP evaluation
         if self.benchmark in ['tao', 'youtube_vis']:
             data['gt_track_ids'] = [key for key in raw_data['classes_to_gt_tracks'][cls_id].keys()]
             data['gt_tracks'] = [raw_data['classes_to_gt_tracks'][cls_id][tid] for tid in data['gt_track_ids']]
@@ -759,6 +907,7 @@ class General(_BaseDataset):
                             else:
                                 data[key + '_track_areas'].append(np.array(areas).mean())
 
+            # sort tracker tracks by tracker score
             if data['dt_tracks']:
                 idx = np.argsort([-score for score in data['dt_track_scores']], kind="mergesort")
                 data['dt_track_scores'] = [data['dt_track_scores'][i] for i in idx]

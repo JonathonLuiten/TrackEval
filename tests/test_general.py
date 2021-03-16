@@ -40,7 +40,7 @@ tests = [
 
 for dataset_config in tests:
 
-    dataset_list = [trackeval.datasets.General(dataset_config)]
+    dataset_list = [trackeval.datasets.Unified(dataset_config)]
     if dataset_config['BENCHMARK'] == 'bdd100k_2d_box':
         file_loc = os.path.join('bdd100k', 'bdd100k_2d_box_' + dataset_config['SPLIT_TO_EVAL'])
         metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity()]
