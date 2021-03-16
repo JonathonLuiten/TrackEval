@@ -119,7 +119,7 @@ class DAVIS(_BaseDataset):
         if is_gt:
             seq_dir = os.path.join(self.gt_fol, seq)
         else:
-            seq_dir = os.path.join(self.tracker_fol, tracker, 'data', seq)
+            seq_dir = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq)
 
         num_timesteps = self.seq_lengths[seq]
         data_keys = ['ids', 'dets']
@@ -231,8 +231,7 @@ class DAVIS(_BaseDataset):
         for t in range(num_timesteps):
             void_mask = raw_data['masks_void'][t]
             if mask_utils.area(void_mask) > 0:
-                void_mask_ious = np.atleast_1d(mask_utils.iou(raw_data['tracker_dets'][t], [void_mask],
-                                                              [False for _ in range(len(raw_data['tracker_dets'][t]))]))
+                void_mask_ious = np.atleast_1d(mask_utils.iou(raw_data['tracker_dets'][t], [void_mask], [False]))
                 if void_mask_ious.any():
                     rows, columns = np.where(void_mask_ious > 0)
                     for r in rows:

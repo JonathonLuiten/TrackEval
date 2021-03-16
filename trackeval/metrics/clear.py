@@ -66,11 +66,11 @@ class CLEAR(_BaseMetric):
             similarity = data['similarity_scores'][t]
             score_mat = (tracker_ids_t[np.newaxis, :] == prev_timestep_tracker_id[gt_ids_t[:, np.newaxis]])
             score_mat = 1000 * score_mat + similarity
-            score_mat[similarity < self.threshold] = 0
+            score_mat[similarity < self.threshold - np.finfo('float').eps] = 0
 
             # Hungarian algorithm to find best matches
             match_rows, match_cols = linear_sum_assignment(-score_mat)
-            actually_matched_mask = score_mat[match_rows, match_cols] > 0
+            actually_matched_mask = score_mat[match_rows, match_cols] > 0 + np.finfo('float').eps
             match_rows = match_rows[actually_matched_mask]
             match_cols = match_cols[actually_matched_mask]
 
@@ -83,7 +83,7 @@ class CLEAR(_BaseMetric):
                 np.not_equal(matched_tracker_ids, prev_matched_tracker_ids))
             res['IDSW'] += np.sum(is_idsw)
 
-            # Update counters for MT/ML/PT/Frag and record for IDSS/Frag for next timestep
+            # Update counters for MT/ML/PT/Frag and record for IDSW/Frag for next timestep
             gt_id_count[gt_ids_t] += 1
             gt_matched_count[matched_gt_ids] += 1
             not_previously_tracked = np.isnan(prev_timestep_tracker_id)

@@ -313,9 +313,9 @@ class KittiMOTS(_BaseDataset):
             unmatched_indices = np.arange(tracker_ids.shape[0])
             if gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
                 matching_scores = similarity_scores.copy()
-                matching_scores[matching_scores < 0.5] = -10000
+                matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = -10000
                 match_rows, match_cols = linear_sum_assignment(-matching_scores)
-                actually_matched_mask = matching_scores[match_rows, match_cols] > 0
+                actually_matched_mask = matching_scores[match_rows, match_cols] > 0 + np.finfo('float').eps
                 match_cols = match_cols[actually_matched_mask]
 
                 unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
@@ -325,7 +325,7 @@ class KittiMOTS(_BaseDataset):
             ignore_region = raw_data['gt_ignore_region'][t]
             intersection_with_ignore_region = self._calculate_mask_ious(unmatched_tracker_dets, [ignore_region],
                                                                         is_encoded=True, do_ioa=True)
-            is_within_ignore_region = np.any(intersection_with_ignore_region > 0.5, axis=1)
+            is_within_ignore_region = np.any(intersection_with_ignore_region > 0.5 + np.finfo('float').eps, axis=1)
 
             # Apply preprocessing to remove unwanted tracker dets.
             to_remove_tracker = unmatched_indices[is_within_ignore_region]
@@ -366,6 +366,7 @@ class KittiMOTS(_BaseDataset):
         data['num_gt_ids'] = len(unique_gt_ids)
         data['num_timesteps'] = raw_data['num_timesteps']
         data['seq'] = raw_data['seq']
+        data['cls'] = cls
 
         # Ensure again that ids are unique per timestep after preproc.
         self._check_unique_ids(data, after_preproc=True)

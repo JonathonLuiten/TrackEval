@@ -295,15 +295,16 @@ class Kitti2DBox(_BaseDataset):
             unmatched_indices = np.arange(tracker_ids.shape[0])
             if gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
                 matching_scores = similarity_scores.copy()
-                matching_scores[matching_scores < 0.5] = 0
+                matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = 0
                 match_rows, match_cols = linear_sum_assignment(-matching_scores)
-                actually_matched_mask = matching_scores[match_rows, match_cols] > 0
+                actually_matched_mask = matching_scores[match_rows, match_cols] > 0 + np.finfo('float').eps
                 match_rows = match_rows[actually_matched_mask]
                 match_cols = match_cols[actually_matched_mask]
 
                 is_distractor_class = np.isin(gt_classes[match_rows], distractor_classes)
-                is_occluded_or_truncated = np.logical_or(gt_occlusion[match_rows] > self.max_occlusion,
-                                                         gt_truncation[match_rows] > self.max_truncation)
+                is_occluded_or_truncated = np.logical_or(
+                    gt_occlusion[match_rows] > self.max_occlusion + np.finfo('float').eps,
+                    gt_truncation[match_rows] > self.max_truncation + np.finfo('float').eps)
                 to_remove_matched = np.logical_or(is_distractor_class, is_occluded_or_truncated)
                 to_remove_matched = match_cols[to_remove_matched]
                 unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
@@ -311,13 +312,13 @@ class Kitti2DBox(_BaseDataset):
             # For unmatched tracker dets, also remove those smaller than a minimum height.
             unmatched_tracker_dets = tracker_dets[unmatched_indices, :]
             unmatched_heights = unmatched_tracker_dets[:, 3] - unmatched_tracker_dets[:, 1]
-            is_too_small = unmatched_heights <= self.min_height
+            is_too_small = unmatched_heights <= self.min_height + np.finfo('float').eps
 
             # For unmatched tracker dets, also remove those that are greater than 50% within a crowd ignore region.
             crowd_ignore_regions = raw_data['gt_crowd_ignore_regions'][t]
             intersection_with_ignore_region = self._calculate_box_ious(unmatched_tracker_dets, crowd_ignore_regions,
                                                                        box_format='x0y0x1y1', do_ioa=True)
-            is_within_crowd_ignore_region = np.any(intersection_with_ignore_region > 0.5, axis=1)
+            is_within_crowd_ignore_region = np.any(intersection_with_ignore_region > 0.5 + np.finfo('float').eps, axis=1)
 
             # Apply preprocessing to remove all unwanted tracker dets.
             to_remove_unmatched = unmatched_indices[np.logical_or(is_too_small, is_within_crowd_ignore_region)]

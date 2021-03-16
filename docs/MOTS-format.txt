@@ -24,6 +24,8 @@ When using a TensorFlow input pipeline for reading the annotations, you can use
 
 ann_data = tf.read_file(ann_filename)
 ann = tf.image.decode_image(ann_data, dtype=tf.uint16, channels=1)
+
+
 txt format
 Each line of an annotation txt file is structured like this (where rle means run-length encoding from COCO):
 

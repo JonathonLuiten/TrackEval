@@ -4,33 +4,38 @@
 
 This codebase provides code for a number of different tracking evaluation metrics (including the [HOTA metrics](https://link.springer.com/article/10.1007/s11263-020-01375-2)), as well as supporting running all of these metrics on a number of different tracking benchmarks. Plus plotting of results and other things one may want to do for tracking evaluation.
 
+## **NEW**: RobMOTS Challenge 2021
+
+Call for submission to our [RobMOTS Challenge](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110) (Robust Multi-Object Tracking and Segmentation) held in conjunction with our [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/). Robust tracking evaluation against 8 tracking benchmarks. Submission deadline May 27th. Also check out our workshop [call for papers](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=74).
+
 ## Currently implemented metrics
 
 The following metrics are currently implemented:
 
- - [HOTA metrics](https://link.springer.com/article/10.1007/s11263-020-01375-2) - **Recommended tracking metric** ([code](trackeval/metrics/hota.py))
- - [CLEARMOT metrics](https://link.springer.com/article/10.1155/2008/246309) (MOTA / MOTP / etc.) ([code](trackeval/metrics/clear.py))
- - [Identity metrics](https://arxiv.org/abs/1609.01775) (IDF1 / IDP / IDR / etc.) ([code](trackeval/metrics/identity.py))
- - [J & F metrics](https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Perazzi_A_Benchmark_Dataset_CVPR_2016_paper.pdf) ([code](trackeval/metrics/j_and_f.py))
- - [Track mAP metrics](https://arxiv.org/abs/1905.04804) ([code](trackeval/metrics/track_map.py))
+ - **[HOTA metrics](https://link.springer.com/article/10.1007/s11263-020-01375-2)** - **Recommended tracking metric** ([code](trackeval/metrics/hota.py))
+ - **[CLEARMOT metrics](https://link.springer.com/article/10.1155/2008/246309)** (MOTA / MOTP / etc.) ([code](trackeval/metrics/clear.py))
+ - **[Identity metrics](https://arxiv.org/abs/1609.01775)** (IDF1 / IDP / IDR / etc.) ([code](trackeval/metrics/identity.py))
+ - **[J & F metrics](https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Perazzi_A_Benchmark_Dataset_CVPR_2016_paper.pdf)** ([code](trackeval/metrics/j_and_f.py))
+ - **[Track mAP metrics](https://arxiv.org/abs/1905.04804)** ([code](trackeval/metrics/track_map.py))
 
 ## Currently implemented benchmarks
 
 The following benchmarks are currently implemented:
 
- - [MOTChallenge](https://motchallenge.net/) (MOT15/16/17/20) ([code](trackeval/datasets/mot_challenge_2d_box.py), [format](docs/MOTChallenge-format.txt))
- - [KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php) ([code](trackeval/datasets/kitti_2d_box.py), [format](docs/KITTI-format.txt))
- - [MOTS](https://www.vision.rwth-aachen.de/page/mots) ([KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php) and [MOTS Challenge](https://motchallenge.net/results/MOTS/)) ([code](trackeval/datasets/mots_challenge.py) and [code](trackeval/datasets/kitti_mots.py), [format](docs/MOTS-format.txt))
- - [BDD-100k](https://bdd-data.berkeley.edu/) ([code](trackeval/datasets/bdd100k.py), [format](docs/BDD100k-format.txt))
- - [DAVIS](https://davischallenge.org/) ([code](trackeval/datasets/davis.py), [format](docs/DAVIS-format.txt))
- - [TAO](https://taodataset.org/) ([code](trackeval/datasets/tao.py), [format](docs/TAO-format.txt))
+ - **[MOTChallenge](https://motchallenge.net/)** (MOT15/16/17/20) ([code](trackeval/datasets/mot_challenge_2d_box.py), [format](docs/MOTChallenge-format.txt))
+ - **[KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)** ([code](trackeval/datasets/kitti_2d_box.py), [format](docs/KITTI-format.txt))
+ - **[MOTS](https://www.vision.rwth-aachen.de/page/mots)** ([KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php) and [MOTS Challenge](https://motchallenge.net/results/MOTS/))** ([code](trackeval/datasets/mots_challenge.py) and [code](trackeval/datasets/kitti_mots.py), [format](docs/MOTS-format.txt))
+ - **[BDD-100k](https://bdd-data.berkeley.edu/)** ([code](trackeval/datasets/bdd100k.py), [format](docs/BDD100k-format.txt))
+ - **[DAVIS](https://davischallenge.org/)** ([code](trackeval/datasets/davis.py), [format](docs/DAVIS-format.txt))
+ - **[TAO](https://taodataset.org/)** ([code](trackeval/datasets/tao.py), [format](docs/TAO-format.txt))
+ - **[YouTube-VIS](https://youtube-vos.org/dataset/vis/)** ([code](trackeval/datasets/youtube_vis.py), [format](docs/YouTube-VIS-format.txt))
 
 ## Benchmarks which use TrackEval as their official evaluation code
 
 The following benchmarks use TrackEval as their official evaluation code, check out the links to see TrackEval in action:
 
- - [KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)
- - [KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php)
+ - **[KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)**
+ - **[KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php)**
 
 If you run a tracking benchmark and want to use TrackEval as your official evaluation code, please contact Jonathon (contact details below).
 
@@ -70,11 +75,11 @@ The code can be run in one of two ways:
 ## Quickly evaluate on supported benchmarks
 
 To enable you to use TrackEval for evaluation as quickly and easily as possible, we provide ground-truth data, meta-data and example trackers for all currently supported benchmarks.
-You can download this here: [data.zip](https://omnomnom.vision.rwth-aachen.de/data/TrackEval/data.zip) (~125mb).
+You can download this here: [data.zip](https://omnomnom.vision.rwth-aachen.de/data/TrackEval/data.zip) (~150mb).
 
 The easiest way to begin is to extract this zip into the repository root folder such that the file paths look like: TrackEval/data/gt/...
 
-This then corresponds to the default paths in the code. You can now run each of the scripts [here](scripts/) without providing any arguments and they will by default evaluate all trackers present in the supplied file structure. To evaluate your own tracking results, simply copy your files as a new tracker folder into the file structure at the same level as the example trackers (MPNTrack, CIWT, track_rcnn), ensuring the same file structure for your trackers as in the example.
+This then corresponds to the default paths in the code. You can now run each of the scripts [here](scripts/) without providing any arguments and they will by default evaluate all trackers present in the supplied file structure. To evaluate your own tracking results, simply copy your files as a new tracker folder into the file structure at the same level as the example trackers (MPNTrack, CIWT, track_rcnn, qdtrack, ags, Tracktor++, STEm_Seg), ensuring the same file structure for your trackers as in the example.
 
 Of course, if your ground-truth and tracker files are located somewhere else you can simply use the script arguments to point the code toward your data.
 
@@ -94,7 +99,7 @@ By default, we would recommend the MOTChallenge format, although any implemented
 
  - Minimum requirements: numpy, scipy
  - For plotting: matplotlib
- - For segmentation datasets (KITTI MOTS, MOTS-Challenge, DAVIS): pycocotools
+ - For segmentation datasets (KITTI MOTS, MOTS-Challenge, DAVIS, YouTube-VIS): pycocotools
  - For DAVIS dataset: Pillow
  - For J & F metric: opencv_python, scikit_image
 
@@ -159,7 +164,7 @@ If you use this code in your research, please use the following BibTeX entry:
 Furthermore, if you use the HOTA metrics, please cite the following paper:
 
 ```
-@article{luiten2020hota,
+@article{luiten2020IJCV,
   title={HOTA: A Higher Order Metric for Evaluating Multi-Object Tracking},
   author={Luiten, Jonathon and Osep, Aljosa and Dendorfer, Patrick and Torr, Philip and Geiger, Andreas and Leal-Taix{\'e}, Laura and Leibe, Bastian},
   journal={International Journal of Computer Vision},

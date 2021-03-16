@@ -67,7 +67,9 @@ for tracker in trackers:
         res_dict = dict(zip(res_fields, res_values))
 
         for field in test_data[seq].keys():
-            assert np.isclose(res_dict[field], test_data[seq][field]), field
+            if not np.isclose(res_dict[field], test_data[seq][field]):
+                print(tracker, seq, res_dict[field], test_data[seq][field], field)
+                raise AssertionError
 
     print('Tracker %s tests passed' % tracker)
 print('All tests passed')

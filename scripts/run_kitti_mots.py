@@ -2,7 +2,7 @@
 """ run_kitti_mots.py
 
 Run example:
-run_kitti_mots.py --USE_PARALLEL False --METRICS Hota --TRACKERS_TO_EVAL trackrcnn
+run_kitti_mots.py --USE_PARALLEL False --METRICS HOTA --TRACKERS_TO_EVAL trackrcnn
 
 Command Line Arguments: Defaults, # Comments
     Eval arguments:
@@ -33,7 +33,7 @@ Command Line Arguments: Defaults, # Comments
         'SEQ_INFO': None,  # If not None, directly specify sequences to eval and their number of timesteps
         'GT_LOC_FORMAT': '{gt_folder}/instances_txt/{seq}.txt',  # format of gt localization
     Metric arguments:
-        'METRICS': ['Hota','Clear', 'ID', 'Count']
+        'METRICS': ['HOTA', 'CLEAR', 'Identity']
 """
 
 import sys
