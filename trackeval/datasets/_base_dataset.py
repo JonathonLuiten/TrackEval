@@ -151,7 +151,7 @@ class _BaseDataset(ABC):
             # check if file is empty
             if fp.tell():
                 fp.seek(0)
-                dialect = csv.Sniffer().sniff(fp.read(10240), delimiters=force_delimiters)  # Auto determine structure.
+                dialect = csv.Sniffer().sniff(fp.readline(), delimiters=force_delimiters)  # Auto determine structure.
                 dialect.skipinitialspace = True  # Deal with extra spaces between columns
                 fp.seek(0)
                 reader = csv.reader(fp, dialect)
@@ -160,7 +160,7 @@ class _BaseDataset(ABC):
                         # Deal with extra trailing spaces at the end of rows
                         if row[-1] in '':
                             row = row[:-1]
-                        timestep = row[time_col]
+                        timestep = str(int(float(row[time_col])))
                         # Read ignore regions separately.
                         is_ignored = False
                         for ignore_key, ignore_value in crowd_ignore_filter.items():
