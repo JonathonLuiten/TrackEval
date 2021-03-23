@@ -17,7 +17,7 @@ class VACE(_BaseMetric):
 
     def __init__(self):
         super().__init__()
-        self.integer_fields = ['VACE_IDs', 'VACE_GT_IDs', 'num_frames_non_empty']
+        self.integer_fields = ['VACE_IDs', 'VACE_GT_IDs', 'num_non_empty_timesteps']
         self.float_fields = ['STDA', 'ATA', 'FDA', 'SFDA']
         self.fields = self.integer_fields + self.float_fields
         self.summary_fields = ['SFDA', 'ATA']
@@ -87,7 +87,7 @@ class VACE(_BaseMetric):
             overlap_ratio = spatial_overlap[match_rows, match_cols].sum()
             fda += overlap_ratio / (0.5 * (n_g + n_d))
         res['FDA'] = fda
-        res['num_frames_non_empty'] = non_empty_count
+        res['num_non_empty_timesteps'] = non_empty_count
 
         res.update(self._compute_final_fields(res))
         return res
@@ -122,5 +122,5 @@ class VACE(_BaseMetric):
         with np.errstate(invalid='ignore'):  # Permit nan results.
             final['ATA'] = (additive['STDA'] /
                             (0.5 * (additive['VACE_IDs'] + additive['VACE_GT_IDs'])))
-            final['SFDA'] = additive['FDA'] / additive['num_frames_non_empty']
+            final['SFDA'] = additive['FDA'] / additive['num_non_empty_timesteps']
         return final
