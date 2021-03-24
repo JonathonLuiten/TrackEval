@@ -59,10 +59,14 @@ class TAO(_BaseDataset):
         self._merge_categories(self.gt_data['annotations'] + self.gt_data['tracks'])
 
         # Get sequences to eval and sequence information
-        self.seq_list = [vid['name'] for vid in self.gt_data['videos']]
-        self.seq_name_to_seq_id = {vid['name']: vid['id'] for vid in self.gt_data['videos']}
+        self.seq_list = [vid['name'].replace('/', '-') for vid in self.gt_data['videos']]
+        self.seq_name_to_seq_id = {vid['name'].replace('/', '-'): vid['id'] for vid in self.gt_data['videos']}
+        # compute mappings from videos to annotation data
         self.videos_to_gt_tracks, self.videos_to_gt_images = self._compute_vid_mappings(self.gt_data['annotations'])
-        self.seq_lengths = {vid_id: len(images) for vid_id, images in self.videos_to_gt_images.items()}
+        # compute sequence lengths
+        self.seq_lengths = {vid['id']: 0 for vid in self.gt_data['videos']}
+        for img in self.gt_data['images']:
+            self.seq_lengths[img['video_id']] += 1
         self.seq_to_images_to_timestep = self._compute_image_to_timestep_mappings()
         self.seq_to_classes = {vid['id']: {'pos_cat_ids': list({track['category_id'] for track
                                                                 in self.videos_to_gt_tracks[vid['id']]}),
@@ -141,10 +145,19 @@ class TAO(_BaseDataset):
         If is_gt, this returns a dict which contains the fields:
         [gt_ids, gt_classes] : list (for each timestep) of 1D NDArrays (for each det).
         [gt_dets]: list (for each timestep) of lists of detections.
+        [classes_to_gt_tracks]: dictionary with class values as keys and list of dictionaries (with frame indices as
+                                keys and corresponding segmentations as values) for each track
+        [classes_to_gt_track_ids, classes_to_gt_track_areas, classes_to_gt_track_lengths]: dictionary with class values
+                                as keys and lists (for each track) as values
 
         if not is_gt, this returns a dict which contains the fields:
         [tracker_ids, tracker_classes, tracker_confidences] : list (for each timestep) of 1D NDArrays (for each det).
         [tracker_dets]: list (for each timestep) of lists of detections.
+        [classes_to_dt_tracks]: dictionary with class values as keys and list of dictionaries (with frame indices as
+                                keys and corresponding segmentations as values) for each track
+        [classes_to_dt_track_ids, classes_to_dt_track_areas, classes_to_dt_track_lengths]: dictionary with class values
+                                                                                           as keys and lists as values
+        [classes_to_dt_track_scores]: dictionary with class values as keys and 1D numpy arrays as values
         """
         seq_id = self.seq_name_to_seq_id[seq]
         # File location
@@ -205,7 +218,7 @@ class TAO(_BaseDataset):
                              if cls in classes_to_consider else [] for cls in all_classes}
 
         # mapping from classes to track information
-        raw_data['classes_to_tracks'] = {cls: [{det['image_id']: det['bbox']
+        raw_data['classes_to_tracks'] = {cls: [{det['image_id']: np.atleast_1d(det['bbox'])
                                                 for det in track['annotations']} for track in tracks]
                                          for cls, tracks in classes_to_tracks.items()}
         raw_data['classes_to_track_ids'] = {cls: [track['id'] for track in tracks]
@@ -237,6 +250,7 @@ class TAO(_BaseDataset):
         raw_data['num_timesteps'] = num_timesteps
         raw_data['neg_cat_ids'] = self.seq_to_classes[seq_id]['neg_cat_ids']
         raw_data['not_exhaustively_labeled_cls'] = self.seq_to_classes[seq_id]['not_exhaustively_labeled_cat_ids']
+        raw_data['seq'] = seq
         return raw_data
 
     @_timing.time
@@ -263,7 +277,6 @@ class TAO(_BaseDataset):
             After the above preprocessing steps, this function also calculates the number of gt and tracker detections
                 and unique track ids. It also relabels gt and tracker ids to be contiguous and checks that ids are
                 unique within each timestep.
-
         TAO:
             In TAO, the 4 preproc steps are as follow:
                 1) All classes present in the ground truth data are evaluated separately.
@@ -354,6 +367,7 @@ class TAO(_BaseDataset):
         data['num_tracker_ids'] = len(unique_tracker_ids)
         data['num_gt_ids'] = len(unique_gt_ids)
         data['num_timesteps'] = raw_data['num_timesteps']
+        data['seq'] = raw_data['seq']
 
         # get track representations
         data['gt_tracks'] = raw_data['classes_to_gt_tracks'][cls_id]
