@@ -16,7 +16,7 @@ class KittiMOTS(_BaseDataset):
         """Default class config values"""
         code_path = utils.get_code_path()
         default_config = {
-            'GT_FOLDER': os.path.join(code_path, 'data/gt/kitti/kitti_mots_train'),  # Location of GT data
+            'GT_FOLDER': os.path.join(code_path, 'data/gt/kitti/kitti_mots_val'),  # Location of GT data
             'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/kitti/kitti_mots_val'),  # Trackers location
             'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
