@@ -17,6 +17,7 @@ The following metrics are currently implemented:
  - **[Identity metrics](https://arxiv.org/abs/1609.01775)** (IDF1 / IDP / IDR / etc.) ([code](trackeval/metrics/identity.py))
  - **[J & F metrics](https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Perazzi_A_Benchmark_Dataset_CVPR_2016_paper.pdf)** ([code](trackeval/metrics/j_and_f.py))
  - **[Track mAP metrics](https://arxiv.org/abs/1905.04804)** ([code](trackeval/metrics/track_map.py))
+ - **[VACE metrics](https://link.springer.com/chapter/10.1007/11612704_16)** ([code](trackeval/metrics/vace.py))
 
 ## Currently implemented benchmarks
 
@@ -102,6 +103,7 @@ By default, we would recommend the MOTChallenge format, although any implemented
  - For segmentation datasets (KITTI MOTS, MOTS-Challenge, DAVIS, YouTube-VIS): pycocotools
  - For DAVIS dataset: Pillow
  - For J & F metric: opencv_python, scikit_image
+ - For simples test-cases for metrics: pytest
 
 use ```pip3 -r install requirements.txt``` to install all possible requirements.
 
