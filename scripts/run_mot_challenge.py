@@ -22,7 +22,7 @@ Command Line Arguments: Defaults, # Comments
         'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
         'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
         'CLASSES_TO_EVAL': ['pedestrian'],  # Valid: ['pedestrian']
-        'BENCHMARK': 'MOT17',  # Valid: 'MOT17', 'MOT16', 'MOT20', '2D_MOT_2015'
+        'BENCHMARK': 'MOT17',  # Valid: 'MOT17', 'MOT16', 'MOT20', 'MOT15'
         'SPLIT_TO_EVAL': 'train',  # Valid: 'train', 'test', 'all'
         'INPUT_AS_ZIP': False,  # Whether tracker input files are zipped
         'PRINT_CONFIG': True,  # Whether to print current config
@@ -30,7 +30,7 @@ Command Line Arguments: Defaults, # Comments
         'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
         'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
     Metric arguments:
-        'METRICS': ['Hota','Clear', 'ID', 'Count']
+        'METRICS': ['HOTA', 'CLEAR', 'Identity', 'VACE']
 """
 
 import sys
@@ -80,8 +80,7 @@ if __name__ == '__main__':
     evaluator = trackeval.Evaluator(eval_config)
     dataset_list = [trackeval.datasets.MotChallenge2DBox(dataset_config)]
     metrics_list = []
-    for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity,
-                   trackeval.metrics.VACE]:
+    for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity, trackeval.metrics.VACE]:
         if metric.get_name() in metrics_config['METRICS']:
             metrics_list.append(metric())
     if len(metrics_list) == 0:
