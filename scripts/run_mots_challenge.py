@@ -34,7 +34,7 @@ Command Line Arguments: Defaults, # Comments
                                     # TRACKERS_FOLDER/MOTS-SPLIT_TO_EVAL/tracker/
                                     # If True, then the middle 'MOTS-split' folder is skipped for both.
     Metric arguments:
-        'METRICS': ['Hota','Clear', 'ID', 'Count']
+        'METRICS': ['HOTA','CLEAR', 'Identity', 'VACE', 'JAndF']
 """
 
 import sys
@@ -84,7 +84,8 @@ if __name__ == '__main__':
     evaluator = trackeval.Evaluator(eval_config)
     dataset_list = [trackeval.datasets.MOTSChallenge(dataset_config)]
     metrics_list = []
-    for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity]:
+    for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity, trackeval.metrics.VACE,
+                   trackeval.metrics.JAndF]:
         if metric.get_name() in metrics_config['METRICS']:
             metrics_list.append(metric())
     if len(metrics_list) == 0:

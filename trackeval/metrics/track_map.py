@@ -89,7 +89,9 @@ class TrackMAP(_BaseMetric):
         dt_ig_masks = self._compute_track_ig_masks(len(dt_ids), track_lengths=dt_tr_lengths, track_areas=dt_tr_areas,
                                                    is_not_exhaustively_labeled=is_nel, is_gt=False)
 
-        ious = self._compute_track_ious(data['dt_tracks'], data['gt_tracks'], iou_function=data['iou_type'])
+        boxformat = data.get('boxformat', 'xywh')
+        ious = self._compute_track_ious(data['dt_tracks'], data['gt_tracks'], iou_function=data['iou_type'],
+                                        boxformat=boxformat)
 
         for mask_idx in range(self.num_ig_masks):
             gt_ig_mask = gt_ig_masks[mask_idx]
@@ -290,32 +292,19 @@ class TrackMAP(_BaseMetric):
 
     def combine_classes_det_averaged(self, all_res):
         """Combines metrics across all classes by averaging over the detection values"""
-        all_prec = np.array([res['precision'] for res in all_res.values()])
-        all_rec = np.array([res['recall'] for res in all_res.values()])
 
         res = {}
+        for field in self.fields:
+            res[field] = np.zeros((len(self.array_labels)), dtype=np.float)
+            field_stacked = np.array([res[field] for res in all_res.values()])
 
-        # compute the precision and recall averages for the respective alpha thresholds and ignore masks
-        for lbl in self.lbls:
-            res['AP_' + lbl] = np.zeros((len(self.array_labels)), dtype=np.float)
-            res['AR_' + lbl] = np.zeros((len(self.array_labels)), dtype=np.float)
-
-        for a_id, alpha in enumerate(self.array_labels):
-            for lbl_idx, lbl in enumerate(self.lbls):
-                p = all_prec[:, a_id, :, lbl_idx]
-                if len(p[p > -1]) == 0:
-                    mean_p = -1
+            for a_id, alpha in enumerate(self.array_labels):
+                values = field_stacked[:, a_id]
+                if len(values[values > -1]) == 0:
+                    mean = -1
                 else:
-                    mean_p = np.mean(p[p > -1])
-                res['AP_' + lbl][a_id] = mean_p
-
-                r = all_rec[:, a_id, lbl_idx]
-                if len(r[r > -1]) == 0:
-                    mean_r = -1
-                else:
-                    mean_r = np.mean(r[r > -1])
-                res['AR_' + lbl][a_id] = mean_r
-
+                    mean = np.mean(values[values > -1])
+                res[field][a_id] = mean
         return res
 
     def _compute_track_ig_masks(self, num_ids, track_lengths=None, track_areas=None, iscrowd=None,
@@ -362,7 +351,7 @@ class TrackMAP(_BaseMetric):
         :param dt_track: the detected track (format: dictionary with frame index as keys and
                             numpy arrays as values)
         :param gt_track: the ground truth track (format: dictionary with frame index as keys and
-                            numpy arrays as values)
+                        numpy array as values)
         :param boxformat: the format of the boxes
         :return: the track IoU
         """
@@ -373,7 +362,7 @@ class TrackMAP(_BaseMetric):
             g = gt_track.get(image, None)
             d = dt_track.get(image, None)
             if boxformat == 'xywh':
-                if d and g:
+                if d is not None and g is not None:
                     dx, dy, dw, dh = d
                     gx, gy, gw, gh = g
                     w = max(min(dx + dw, gx + gw) - max(dx, gx), 0)
@@ -382,12 +371,26 @@ class TrackMAP(_BaseMetric):
                     u = dw * dh + gw * gh - i
                     intersect += i
                     union += u
-                elif not d and g:
+                elif d is None and g is not None:
                     union += g[2] * g[3]
-                elif d and not g:
+                elif d is not None and g is None:
                     union += d[2] * d[3]
+            elif boxformat == 'x0y0x1y1':
+                if d is not None and g is not None:
+                    dx0, dy0, dx1, dy1 = d
+                    gx0, gy0, gx1, gy1 = g
+                    w = max(min(dx1, gx1) - max(dx0, gx0), 0)
+                    h = max(min(dy1, gy1) - max(dy0, gy0), 0)
+                    i = w * h
+                    u = (dx1 - dx0) * (dy1 - dy0) + (gx1 - gx0) * (gy1 - gy0) - i
+                    intersect += i
+                    union += u
+                elif d is None and g is not None:
+                    union += (g[2] - g[0]) * (g[3] - g[1])
+                elif d is not None and g is None:
+                    union += (d[2] - d[0]) * (d[3] - d[1])
             else:
-                raise (TrackEvalException('BoxFormat not implemented'))
+                raise TrackEvalException('BoxFormat not implemented')
         if intersect > union:
             raise TrackEvalException("Intersection value > union value. Are the box values corrupted?")
         return intersect / union if union > 0 else 0
@@ -407,7 +410,10 @@ class TrackMAP(_BaseMetric):
 
         intersect = .0
         union = .0
-        for d, g in zip(dt_track.values(), gt_track.values()):
+        image_ids = set(gt_track.keys()) | set(dt_track.keys())
+        for image in image_ids:
+            g = gt_track.get(image, None)
+            d = dt_track.get(image, None)
             if d and g:
                 intersect += mask_utils.area(mask_utils.merge([d, g], True))
                 union += mask_utils.area(mask_utils.merge([d, g], False))
