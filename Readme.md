@@ -8,14 +8,14 @@ This codebase provides code for a number of different tracking evaluation metric
 
 Call for submission to our [RobMOTS Challenge](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110) (Robust Multi-Object Tracking and Segmentation) held in conjunction with our [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/). Robust tracking evaluation against 8 tracking benchmarks. Submission deadline May 27th. Also check out our workshop [call for papers](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=74).
 
-## Official Evalaution Code
+## Official Evaluation Code
 
 The following benchmarks use TrackEval as their official evaluation code, check out the links to see TrackEval in action:
 
  - **[KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)**
  - **[KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php)**
- - **[MOTChallenge](https://motchallenge.net/)** ([Readme](TrackEval/docs/MOTChallenge-Official/Readme.md))
- - **[MOTS-Challenge](https://motchallenge.net/data/MOTS/)** ([Readme](TrackEval/docs/MOTS-Challenge-Official/Readme.md))
+ - **[MOTChallenge](https://motchallenge.net/)** ([Official Readme](TrackEval/docs/MOTChallenge-Official/Readme.md))
+ - **[MOTS-Challenge](https://motchallenge.net/data/MOTS/)** ([Official Readme](TrackEval/docs/MOTS-Challenge-Official/Readme.md))
 
 If you run a tracking benchmark and want to use TrackEval as your official evaluation code, please contact Jonathon (contact details below).
 
