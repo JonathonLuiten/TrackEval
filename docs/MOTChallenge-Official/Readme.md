@@ -1,78 +1,57 @@
 ![Test Image 4](https://motchallenge.net/img/header-bg/mot_bannerthin.png)
 ![MOT_PIC](https://motchallenge.net/sequenceVideos/MOT17-04-SDP-gt.jpg)
-# Official MOTChallenge Evaluation Kit
+# MOTChallenge Official Evaluation Kit - Multi-Object Tracking - MOT15, MOT16, MOT17, MOT20
+
 TrackEval is now the Official Evaluation Kit for MOTChallenge.
-This repository contains the evaluation scripts for the challenges available at www.MOTChallenge.net.
+
+This repository contains the evaluation scripts for the MOT challenges available at www.MOTChallenge.net.
+
 This codebase replaces the previous version that used to be accessible at https://github.com/dendorferpatrick/MOTChallengeEvalKit and is no longer maintained.
+
+Challenge Name | Data url |
+|----- | ----------- |
+|2D MOT 15| https://motchallenge.net/data/MO15/ |
+|MOT 16| https://motchallenge.net/data/MOT16/       |
+|MOT 17| https://motchallenge.net/data/MOT17/       |
+|MOT 20| https://motchallenge.net/data/MOT20/       |
 
 ## Requirements 
 * Python (3.5 or newer)
 * Numpy and Scipy
 
-## Directories
-The default MOTChallenge directory structure is as follows: 
+## Directories and Data
+The easiest way to get started is to simply download the TrackEval example data from here: [data.zip](https://omnomnom.vision.rwth-aachen.de/data/TrackEval/data.zip) (~150mb).
 
-### ./res
-This directory contains the tracking results (for each sequence); result files should be placed to subfolders
+This contains all the ground-truth, example trackers and meta-data that you will need.
 
-### ./seqmaps
-Sequence lists for all supported different benchmarks
- 
-### ./data
-This directory contains the ground truth data (for several different sequences/challenges)
+Extract this zip into the repository root folder such that the file paths look like: TrackEval/data/gt/...
 
-<!---
-### ./vid 
-This directory is for the visualization of results or annotations
---->
-
-## Evaluation Scripts
-This repo provides the official evaluation scripts for the following challenges of www.motchallenge.net:
-
-### MOT - Multi-Object Tracking - MOT15, MOT16, MOT17, MOT20
-
-Challenge Name | Data url |
-|----- | ----------- |
-|2D MOT 15| https://motchallenge.net/data/2D_MOT_2015/ |
-|MOT 16| https://motchallenge.net/data/MOT16/       |
-|MOT 17| https://motchallenge.net/data/MOT17/       |
-|MOT 20| https://motchallenge.net/data/MOT20/       |
-
-<!---
-### MOTS - Multi-Object Tracking and Segmentation - MOTS20
-[MOTS Evaluation](MOTS/README.md)
-|Challenge Name | Data url | 
-|----- | ---------------|
-|MOTS | https://motchallenge.net/data/MOTS/ |
-### TAO - Tracking Any Object Challenge 
-[TAO Evaluation](https://github.com/TAO-Dataset/tao)
-|Challenge Name | Data url |
-|----- | ---------------------- |
-|TAO | https://github.com/TAO-Dataset/tao |
---->
-
-<!---
 ## Evaluation
-To run the evaluation for your method please adjust the file ```MOT/evalMOT.py``` using the following arguments:
-```benchmark_name```: Name of the benchmark, e.g. MOT17  
-```gt_dir```: Directory containing ground truth files in ```<gt_dir>/<sequence>/gt/gt.txt```    
-```res_dir```: The folder containing the tracking results. Each one should be saved in a separate .txt file with the name of the respective sequence (see ./res/data)    
-```save_pkl```: path to output directory for final results (pickle)  (default: False)  
-```eval_mode```: Mode of evaluation out of ```["train", "test", "all"]``` (default : "train")
+To run the evaluation for your method please run the script at ```TrackEval/scripts/run_mot_challenge.py```.
 
+Some of the basic arguments are described below. For more arguments, please see the script itself.
+
+```BENCHMARK```: Name of the benchmark, e.g. MOT15, MO16, MOT17 or MOT20  (default : MOT17)
+
+```SPLIT_TO_EVAL```: Data split on which to evalute e.g. train, test (default : train)
+
+```TRACKERS_TO_EVAL```: List of tracker names for which you wish to run evaluation. e.g. MPNTrack (default: all trackers in tracker folder)
+
+```METRICS```: List of metric families which you wish to compute. e.g. HOTA CLEAR Identity VACE (default: HOTA CLEAR Identity)
+
+```USE_PARALLEL```: Whether to run evaluation in parallel on multiple cores. (default: False)
+
+```NUM_PARALLEL_CORES```: Number of cores to use when running in parallel. (default: 8)
+
+An example is below (this will work on the supplied example data above):
 ```
-eval.run(
-    benchmark_name = benchmark_name,
-    gt_dir = gt_dir,
-    res_dir = res_dir,
-    eval_mode = eval_mode
-    )
+python scripts/run_mot_challenge.py --BENCHMARK MOT17 --SPLIT_TO_EVAL train --TRACKERS_TO_EVAL MPNTrack --METRICS HOTA CLEAR Identity VACE --USE_PARALLEL False --NUM_PARALLEL_CORES 1  
 ```
---->
+
 
 ## Data Format
 <p>
-The file format should be the same as the ground truth file, 
+The tracker file format should be the same as the ground truth file, 
 which is a CSV text-file containing one object instance per line.
 Each line must contain 10 values:
 </p>
@@ -110,27 +89,22 @@ All frame numbers, target IDs and bounding boxes are 1-based. Here is an example
 ## Evaluating on your own Data
 The repository also allows you to include your own datasets and evaluate your method on your own challenge ```<YourChallenge>```.  To do so, follow these two steps:  
 ***1. Ground truth data preparation***  
-Prepare your sequences in directory ```~/data/<YourChallenge>``` following this structure:
+Prepare your sequences in directory ```TrackEval/data/gt/mot_challenge/<YourChallenge>``` following this structure:
 
 ```
 .
 |—— <SeqName01>
 	|—— gt
 		|—— gt.txt
-	|—— det
-		|—— det.txt
-	|—— img1
-		|—— 000001.jpg
-		|—— 000002.jpg
-		|—— ….
+	|—— seqinfo.ini
 |—— <SeqName02>
 	|—— ……
 |—— <SeqName03>
 	|—— …...
 ```
-If you have different image sources for the same sequence or do not provide public detections you can adjust the structure accordingly.  
+
 ***2. Sequence file***  
-Create text files containing the sequence names; ```<YourChallenge>-train.txt```, ```<YourChallenge>-test.txt```,  ```<YourChallenge>-test.txt``` inside ```~/seqmaps```, e.g.:
+Create text files containing the sequence names; ```<YourChallenge>-train.txt```, ```<YourChallenge>-test.txt```,  ```<YourChallenge>-test.txt``` inside the ```seqmaps``` folder, e.g.:
 ```<YourChallenge>-all.txt```
 ```
 name
@@ -152,12 +126,22 @@ name
 <seqName3>
 ```
 
-<!---
-To run the evaluation for your method adjust the file ```MOT/evalMOT.py``` and set ```benchmark_name = <YourChallenge>``` and ```eval_mode```: Mode of evaluation out of ```["train", "test", "all"]``` (default : "train")
---->
+
+To run the evaluation for your method adjust the file ```scripts/run_mot_challenge.py``` and set ```BENCHMARK = <YourChallenge>```
+
 
 ## Citation
 If you work with the code and the benchmark, please cite:
+
+***TrackEval***
+```
+@misc{luiten2020trackeval,
+  author =       {Jonathon Luiten, Arne Hoffhues},
+  title =        {TrackEval},
+  howpublished = {\url{https://github.com/JonathonLuiten/TrackEval}},
+  year =         {2020}
+}
+```
 
 ***MOT 15***
 ```
@@ -199,6 +183,17 @@ If you work with the code and the benchmark, please cite:
 	year = {2020},
 	note = {arXiv: 2003.09003},
 	keywords = {Computer Science - Computer Vision and Pattern Recognition}
+}
+```
+***HOTA metrics***
+```
+@article{luiten2020IJCV,
+  title={HOTA: A Higher Order Metric for Evaluating Multi-Object Tracking},
+  author={Luiten, Jonathon and Osep, Aljosa and Dendorfer, Patrick and Torr, Philip and Geiger, Andreas and Leal-Taix{\'e}, Laura and Leibe, Bastian},
+  journal={International Journal of Computer Vision},
+  pages={1--31},
+  year={2020},
+  publisher={Springer}
 }
 ```
 
