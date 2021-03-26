@@ -157,6 +157,17 @@ If you work with the code and the benchmark, please cite:
 	keywords = {Computer Science - Computer Vision and Pattern Recognition}
 }
 ```
+***MOTChallenge Journal***
+```
+@article{dendorfer2020motchallenge,
+  title={MOTChallenge: A Benchmark for Single-camera Multiple Target Tracking},
+  author={Dendorfer, Patrick and Osep, Aljosa and Milan, Anton and Schindler, Konrad and Cremers, Daniel and Reid, Ian and Roth, Stefan and Leal-Taix{\'e}, Laura},
+  journal={International Journal of Computer Vision},
+  pages={1--37},
+  year={2020},
+  publisher={Springer}
+}
+```
 ***MOT 16, MOT 17***
 ```
 @article{MOT16,
