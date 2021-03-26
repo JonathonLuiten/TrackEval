@@ -8,6 +8,17 @@ This codebase provides code for a number of different tracking evaluation metric
 
 Call for submission to our [RobMOTS Challenge](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110) (Robust Multi-Object Tracking and Segmentation) held in conjunction with our [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/). Robust tracking evaluation against 8 tracking benchmarks. Submission deadline May 27th. Also check out our workshop [call for papers](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=74).
 
+## Official Evaluation Code
+
+The following benchmarks use TrackEval as their official evaluation code, check out the links to see TrackEval in action:
+
+ - **[KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)**
+ - **[KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php)**
+ - **[MOTChallenge](https://motchallenge.net/)** ([Official Readme](TrackEval/docs/MOTChallenge-Official/Readme.md))
+ <!--- **[MOTS-Challenge](https://motchallenge.net/data/MOTS/)** ([Official Readme](TrackEval/docs/MOTS-Challenge-Official/Readme.md)) --->
+
+If you run a tracking benchmark and want to use TrackEval as your official evaluation code, please contact Jonathon (contact details below).
+
 ## Currently implemented metrics
 
 The following metrics are currently implemented:
@@ -37,15 +48,6 @@ Benchmark | Sub-benchmarks | Type | Website | Code | Data Format |
 |**MOTS**|KITTI-MOTS, MOTS-Challenge|Seg Mask|[website](https://www.vision.rwth-aachen.de/page/mots)|[code](trackeval/datasets/mots_challenge.py) and [code](trackeval/datasets/kitti_mots.py)|[format](docs/MOTS-format.txt)|
 |**DAVIS**|Unsupervised|Seg Mask|[website](https://davischallenge.org/)|[code](trackeval/datasets/davis.py)|[format](docs/DAVIS-format.txt)|
 |**YouTube-VIS**| |Seg Mask|[website](https://youtube-vos.org/dataset/vis/)|[code](trackeval/datasets/youtube_vis.py)|[format](docs/YouTube-VIS-format.txt)|
-
-## Benchmarks which use TrackEval as their official evaluation code
-
-The following benchmarks use TrackEval as their official evaluation code, check out the links to see TrackEval in action:
-
- - **[KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)**
- - **[KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php)**
-
-If you run a tracking benchmark and want to use TrackEval as your official evaluation code, please contact Jonathon (contact details below).
 
 ## HOTA metrics
 
@@ -128,7 +130,7 @@ Num Cores|TrackEval|MOTChallenge|Speedup vs MOTChallenge|py-motmetrics|Speedup v
 *using a different number of cores as py-motmetrics doesn't allow multiprocessing.
 				
 ```
-python scripts/run_mot_challenge.py --BENCHMARK MOT17 --TRACKERS_TO_EVAL Lif_T --METRICS Clear ID --USE_PARALLEL False --NUM_PARALLEL_CORES 1  
+python scripts/run_mot_challenge.py --BENCHMARK MOT17 --TRACKERS_TO_EVAL Lif_T --METRICS CLEAR Identity --USE_PARALLEL False --NUM_PARALLEL_CORES 1  
 ```
 				
 Evaluating CLEAR + ID metrics on LPC_MOT tracker on MOT20-train (seconds) on a i7-9700K CPU with 8 physical cores (median of 3 runs):	
@@ -137,7 +139,7 @@ Num Cores|TrackEval|MOTChallenge|Speedup vs MOTChallenge|py-motmetrics|Speedup v
 1|18.63|105.3|5.65x|175.17|9.40x
 
 ```
-python scripts/run_mot_challenge.py --BENCHMARK MOT20 --TRACKERS_TO_EVAL LPC_MOT --METRICS Clear ID --USE_PARALLEL False --NUM_PARALLEL_CORES 1
+python scripts/run_mot_challenge.py --BENCHMARK MOT20 --TRACKERS_TO_EVAL LPC_MOT --METRICS CLEAR Identity --USE_PARALLEL False --NUM_PARALLEL_CORES 1
 ```
 
 ## License
