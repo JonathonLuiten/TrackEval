@@ -1,3 +1,4 @@
+import heapq
 import os
 
 import numpy as np
@@ -210,18 +211,58 @@ def _match_by_score(confidence, similarity, similarity_threshold):
 
     Assumes confidence scores are unique.
     """
+    num_gt, num_pred = similarity.shape
     # Sort descending by confidence, preserve order of repeated elements.
     order = np.argsort(-confidence, kind='stable')
-    is_matched = np.full(confidence.shape, False)
+
+    # pred_matched = np.full(confidence.shape, False)
+    # feasible = (similarity >= similarity_threshold)
+    # for pr_id in order:
+    #     if not np.any(feasible[:, pr_id]):
+    #         continue
+    #     subset, = np.nonzero(feasible[:, pr_id])
+    #     gt_id = subset[np.argmax(similarity[subset, pr_id])]
+    #     feasible[gt_id, h] = False
+    #     pred_matched[pr_id] = True
+
+    # similarity = similarity[:, order].T
+    # feasible = (similarity >= similarity_threshold)
+    # pred_matched = np.full(confidence.shape, False)
+    # gt_subset = np.arange(num_gt)
+    # for pr_id in range(num_pred):
+    #     feasible_inds, = np.nonzero(feasible[0, :])
+    #     if len(feasible_inds) > 0:
+    #         ind = feasible_inds[np.argmax(similarity[0, feasible_inds])]
+    #         gt_id = gt_subset[ind]
+    #         # Eliminate gt_id from matrix.
+    #         keep_mask = (gt_subset != gt_id)
+    #         gt_subset = gt_subset[keep_mask]
+    #         feasible = feasible[1:, keep_mask]
+    #     else:
+    #         feasible = feasible[1:, :]
+    #     pred_matched[pr_id] = True
+
+    # Construct priority queue for each prediction.
     feasible = (similarity >= similarity_threshold)
-    for j in order:
-        if not np.any(feasible[:, j]):
-            continue
-        subset, = np.nonzero(feasible[:, j])
-        i = subset[np.argmax(similarity[subset, j])]
-        feasible[i, :] = False
-        is_matched[j] = True
-    return is_matched
+    candidates = {}
+    for pr_id in range(num_pred):
+        gt_subset, = np.nonzero(feasible[:, pr_id])
+        candidates[pr_id] = [(-similarity[gt_id, pr_id], gt_id) for gt_id in gt_subset]
+        heapq.heapify(candidates[pr_id])
+    # Proceed by popping elements from priority queue.
+    gt_matched = [False for _ in range(num_gt)]
+    pred_matched = [False for _ in range(num_pred)]
+    for pr_id in order:
+        while not pred_matched[pr_id] and candidates[pr_id]:
+            _, gt_id = candidates[pr_id][0]  # Take element at top of heap.
+            # Skip elements that are already matched.
+            if gt_matched[gt_id]:
+                heapq.heappop(candidates[pr_id])
+                continue
+            pred_matched[pr_id] = True
+            gt_matched[gt_id] = True
+
+    return pred_matched
 
 
 def _find_prec_at_recall(num_gt, scores, correct, thresholds):
