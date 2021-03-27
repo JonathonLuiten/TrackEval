@@ -192,7 +192,7 @@ class KittiMOTS(_BaseDataset):
         raw_data = {key: [None] * num_timesteps for key in data_keys}
 
         # Check for any extra time keys
-        extra_time_keys = [x for x in read_data.keys() if x not in [str(t+1) for t in range(num_timesteps)]]
+        extra_time_keys = [x for x in read_data.keys() if x not in [str(t) for t in range(num_timesteps)]]
         if len(extra_time_keys) > 0:
             if is_gt:
                 text = 'Ground-truth'
