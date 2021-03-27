@@ -1,5 +1,6 @@
 from .hota import HOTA
 from .clear import CLEAR
+from .clear_det import CLEARDet
 from .identity import Identity
 from .count import Count
 from .j_and_f import JAndF
