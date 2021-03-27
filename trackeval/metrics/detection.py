@@ -16,14 +16,19 @@ class Detection(_BaseMetric):
         super().__init__()
         self.plottable = False  # TODO
         self.array_labels = np.arange(5, 95 + 1, 5) / 100.
-        self.integer_fields = ['Det_Frames']
+        self.integer_fields = ['Det_Frames', 'Det_Sequences']
         self.integer_array_fields = ['Det_TP', 'Det_FP', 'Det_FN']
+        self.float_fields = ['Det_AP_50_95']
         # TODO: The name Det_MODP_sum with mixed case and underscores is not pretty?
-        self.float_array_fields = ['Det_MODA', 'Det_MODP', 'Det_MODP_sum', 'Det_FAF', 'Det_Re', 'Det_Pr', 'Det_F1']
+        self.float_array_fields = ['Det_AP', 'Det_AP_sum',
+                                   'Det_MODA', 'Det_MODP', 'Det_MODP_sum', 'Det_FAF',
+                                   'Det_Re', 'Det_Pr', 'Det_F1']
         self.fields = self.integer_fields + self.integer_array_fields + self.float_array_fields
-        self.summary_fields = ['Det_MODA', 'Det_MODP', 'Det_FAF', 'Det_Re', 'Det_Pr', 'Det_F1']
+        self.summary_fields = ['Det_AP', 'Det_AP_50_95',
+                               'Det_MODA', 'Det_MODP', 'Det_FAF',
+                               'Det_Re', 'Det_Pr', 'Det_F1']
 
-        self._summed_fields = self.integer_fields + self.integer_array_fields + ['Det_MODP_sum']
+        self._summed_fields = self.integer_fields + self.integer_array_fields + ['Det_AP_sum', 'Det_MODP_sum']
 
     @_timing.time
     def eval_sequence(self, data):
@@ -38,9 +43,22 @@ class Detection(_BaseMetric):
             else:
                 res[field] = 0
         res['Det_Frames'] = data['num_timesteps']
+        res['Det_Sequences'] = 1
 
         # Find per-frame correspondence (without accounting for switches).
         for i, sim_threshold in enumerate(self.array_labels):
+            # Find per-frame correspondence by priority of score.
+            correct = [None for _ in range(data['num_timesteps'])]
+            for t in range(data['num_timesteps']):
+                correct[t] = _match_by_score(data['tracker_confidences'][t],
+                                             data['similarity_scores'][t],
+                                             sim_threshold)
+            # Concatenate results from all frames to compute AUC.
+            scores = np.concatenate(data['tracker_confidences'])
+            correct = np.concatenate(correct)
+            # TODO: Compute precision-recall curve over all sequences, not per sequence?
+            res['Det_AP_sum'][i] = _compute_average_precision(data['num_gt_dets'], scores, correct)
+
             for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(data['gt_ids'], data['tracker_ids'])):
                 # Deal with the case that there are no gt_det/tracker_det in a timestep.
                 if len(gt_ids_t) == 0:
@@ -78,6 +96,8 @@ class Detection(_BaseMetric):
         This function is used both for both per-sequence calculation, and in combining values across sequences.
         """
         res = dict(res)
+        res['Det_AP'] = res['Det_AP_sum'] / res['Det_Sequences']
+        res['Det_AP_50_95'] = np.mean(res['Det_AP'][(np.arange(50, 95 + 1, 5) - 5) // 5])
         res['Det_MODA'] = (res['Det_TP'] - res['Det_FP']) / np.maximum(1.0, res['Det_TP'] + res['Det_FN'])
         res['Det_MODP'] = res['Det_MODP_sum'] / np.maximum(1.0, res['Det_TP'])
         res['Det_Re'] = res['Det_TP'] / np.maximum(1.0, res['Det_TP'] + res['Det_FN'])
@@ -115,7 +135,7 @@ class DetectionConfidence(_BaseMetric):
         # TODO: Use sample frequency of 0.01 instead of 0.1? (virtually free)
         # TODO: Eliminate 0% recall? (noisy)
         self.array_labels = np.arange(0, 100 + 1, 10) / 100.  # Recall thresholds.
-        self.integer_fields = ['Det_Sequences']
+        self.integer_fields = ['Det_Sequences_PrAtRe']
         self.float_array_fields = ['Det_PrAtRe', 'Det_PrAtRe_sum']
         self.fields = self.integer_fields + self.float_array_fields
         self.summary_fields = ['Det_PrAtRe']
@@ -134,7 +154,7 @@ class DetectionConfidence(_BaseMetric):
                 res[field] = np.zeros((len(self.array_labels),), dtype=np.float)
             else:
                 res[field] = 0
-        res['Det_Sequences'] = 1
+        res['Det_Sequences_PrAtRe'] = 1
 
         # Find per-frame correspondence by priority of score.
         correct = [None for _ in range(data['num_timesteps'])]
@@ -156,7 +176,7 @@ class DetectionConfidence(_BaseMetric):
         This function is used both for both per-sequence calculation, and in combining values across sequences.
         """
         res = dict(res)
-        res['Det_PrAtRe'] = res['Det_PrAtRe_sum'] / res['Det_Sequences']
+        res['Det_PrAtRe'] = res['Det_PrAtRe_sum'] / res['Det_Sequences_PrAtRe']
         return res
 
     def combine_sequences(self, all_res):
@@ -233,3 +253,26 @@ def _find_prec_at_recall(num_gt, scores, correct, thresholds):
     # TODO: Use maximum precision at equal or better recall?
     # https://jonathan-hui.medium.com/map-mean-average-precision-for-object-detection-45c121a31173
     return np.asarray([prec[np.argmax(recall >= threshold)] for threshold in thresholds])
+
+
+def _compute_average_precision(num_gt, scores, correct):
+    # TODO: Could use sklearn.average_precision_score?
+    # However, it doesn't seem to have nice support for:
+    # (1) detections that were completely missed
+    # (2) max precision at equal or greater recall
+
+    # Sort descending by score.
+    order = np.argsort(-scores, kind='stable')
+    correct = correct[order]
+    tp = np.cumsum(correct)
+    num_pred = 1 + np.arange(len(scores))
+    recall = np.true_divide(tp, num_gt)
+    prec = np.true_divide(tp, num_pred)
+    # Extend recall to [0, 1].
+    recall = np.concatenate([[0.], recall, [1.]])
+    prec = np.concatenate([[np.nan], prec, [0.]])  # The nan will not be used.
+    # Take max precision available at equal or greater recall.
+    prec = np.maximum.accumulate(prec[::-1])[::-1]
+    # Take integral.
+    assert np.all(np.diff(recall) >= 0)
+    return np.dot(prec[1:], (recall[1:] - recall[:-1]))
