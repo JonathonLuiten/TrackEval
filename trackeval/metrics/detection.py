@@ -211,11 +211,11 @@ def _match_by_score(confidence, similarity, similarity_threshold):
 
     Assumes confidence scores are unique.
     """
-    num_gt, num_pred = similarity.shape
+    num_gt, num_pr = similarity.shape
     # Sort descending by confidence, preserve order of repeated elements.
     order = np.argsort(-confidence, kind='stable')
 
-    # pred_matched = np.full(confidence.shape, False)
+    # pr_matched = np.full(confidence.shape, False)
     # feasible = (similarity >= similarity_threshold)
     # for pr_id in order:
     #     if not np.any(feasible[:, pr_id]):
@@ -223,13 +223,13 @@ def _match_by_score(confidence, similarity, similarity_threshold):
     #     subset, = np.nonzero(feasible[:, pr_id])
     #     gt_id = subset[np.argmax(similarity[subset, pr_id])]
     #     feasible[gt_id, h] = False
-    #     pred_matched[pr_id] = True
+    #     pr_matched[pr_id] = True
 
     # similarity = similarity[:, order].T
     # feasible = (similarity >= similarity_threshold)
-    # pred_matched = np.full(confidence.shape, False)
+    # pr_matched = np.full(confidence.shape, False)
     # gt_subset = np.arange(num_gt)
-    # for pr_id in range(num_pred):
+    # for pr_id in range(num_pr):
     #     feasible_inds, = np.nonzero(feasible[0, :])
     #     if len(feasible_inds) > 0:
     #         ind = feasible_inds[np.argmax(similarity[0, feasible_inds])]
@@ -240,29 +240,75 @@ def _match_by_score(confidence, similarity, similarity_threshold):
     #         feasible = feasible[1:, keep_mask]
     #     else:
     #         feasible = feasible[1:, :]
-    #     pred_matched[pr_id] = True
+    #     pr_matched[pr_id] = True
 
     # Construct priority queue for each prediction.
     feasible = (similarity >= similarity_threshold)
     candidates = {}
-    for pr_id in range(num_pred):
+    for pr_id in range(num_pr):
         gt_subset, = np.nonzero(feasible[:, pr_id])
         candidates[pr_id] = [(-similarity[gt_id, pr_id], gt_id) for gt_id in gt_subset]
         heapq.heapify(candidates[pr_id])
     # Proceed by popping elements from priority queue.
     gt_matched = [False for _ in range(num_gt)]
-    pred_matched = [False for _ in range(num_pred)]
+    pr_matched = [False for _ in range(num_pr)]
     for pr_id in order:
-        while not pred_matched[pr_id] and candidates[pr_id]:
+        while not pr_matched[pr_id] and candidates[pr_id]:
             _, gt_id = candidates[pr_id][0]  # Take element at top of heap.
             # Skip elements that are already matched.
             if gt_matched[gt_id]:
                 heapq.heappop(candidates[pr_id])
                 continue
-            pred_matched[pr_id] = True
+            pr_matched[pr_id] = True
             gt_matched[gt_id] = True
 
-    return pred_matched
+    # # Make multiple matches at once to reduce iterations in python.
+    # pr_matched = np.full(confidence.shape, False)
+    # gt_subset = np.arange(num_gt)
+    # pr_subset = np.arange(num_pr)
+    # feasible = (similarity >= similarity_threshold)
+    # feasible_confidence = np.where(feasible, confidence[np.newaxis, :], -np.inf)
+    # similarity = np.where(feasible, similarity, -np.inf)
+    # # Take feasible subset.
+    # gt_mask = np.any(feasible, axis=1)
+    # pr_mask = np.any(feasible, axis=0)
+    # gt_subset, pr_subset = gt_subset[gt_mask], pr_subset[pr_mask]
+    # feasible = feasible[gt_mask, :][:, pr_mask]
+    # feasible_confidence = feasible_confidence[gt_mask, :][:, pr_mask]
+    # similarity = similarity[gt_mask, :][:, pr_mask]
+    # while np.size(feasible):
+    #     # Find max score prediction for each ground-truth.
+    #     # Find max similarity ground-truth for each prediction.
+    #     # All exclusive matches can be made immediately.
+    #     num_rows, num_cols = feasible.shape
+    #     is_best_for_gt = np.full(feasible.shape, False)
+    #     is_best_for_pr = np.full(feasible.shape, False)
+    #     best_for_gt = np.argmax(feasible_confidence, axis=1)
+    #     best_for_pr = np.argmax(similarity, axis=0)
+    #     is_best_for_gt[np.arange(num_rows), best_for_gt] = True
+    #     is_best_for_pr[best_for_pr, np.arange(num_cols)] = True
+    #     is_match = (is_best_for_gt & is_best_for_pr)
+    #     assert np.sum(is_match) > 0
+    #     gt_is_match = np.any(is_match, axis=1)
+    #     pr_is_match = np.any(is_match, axis=0)
+    #     # Update list of matched elements.
+    #     pr_matched[pr_subset[pr_is_match]] = True
+    #     # Eliminate matched elements.
+    #     gt_mask = ~gt_is_match
+    #     pr_mask = ~pr_is_match
+    #     gt_subset, pr_subset = gt_subset[gt_mask], pr_subset[pr_mask]
+    #     feasible = feasible[gt_mask, :][:, pr_mask]
+    #     feasible_confidence = feasible_confidence[gt_mask, :][:, pr_mask]
+    #     similarity = similarity[gt_mask, :][:, pr_mask]
+    #     # Eliminate elements without a feasible match.
+    #     gt_mask = np.any(feasible, axis=1)
+    #     pr_mask = np.any(feasible, axis=0)
+    #     gt_subset, pr_subset = gt_subset[gt_mask], pr_subset[pr_mask]
+    #     feasible = feasible[gt_mask, :][:, pr_mask]
+    #     feasible_confidence = feasible_confidence[gt_mask, :][:, pr_mask]
+    #     similarity = similarity[gt_mask, :][:, pr_mask]
+
+    return pr_matched
 
 
 def _find_prec_at_recall(num_gt, scores, correct, thresholds):
