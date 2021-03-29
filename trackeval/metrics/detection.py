@@ -19,12 +19,12 @@ class Det(_BaseMetric):
         # TODO: Eliminate 0% recall? (noisy)
         self.array_labels = np.arange(0, 100 + 1) / 100.
         self.integer_fields = ['Det_Frames', 'Det_Sequences', 'Det_TP', 'Det_FP', 'Det_FN']
-        self.float_fields = ['Det_AP', 'Det_AP_sum', 'Det_AP_10',
+        self.float_fields = ['Det_AP', 'Det_AP_sum', 'Det_AP_coarse',
                              'Det_MODA', 'Det_MODP', 'Det_MODP_sum', 'Det_FAF',
                              'Det_Re', 'Det_Pr', 'Det_F1']
         self.float_array_fields = ['Det_PrAtRe', 'Det_PrAtRe_sum']
         self.fields = self.integer_fields + self.float_fields + self.float_array_fields
-        self.summary_fields = ['Det_AP', 'Det_PrAtRe', 'Det_AP_10',
+        self.summary_fields = ['Det_AP', 'Det_PrAtRe', 'Det_AP_coarse',
                                'Det_MODA', 'Det_MODP', 'Det_FAF',
                                'Det_Re', 'Det_Pr', 'Det_F1']
 
@@ -104,8 +104,9 @@ class Det(_BaseMetric):
         res = dict(res)
         res['Det_AP'] = res['Det_AP_sum'] / res['Det_Sequences']
         res['Det_PrAtRe'] = res['Det_PrAtRe_sum'] / res['Det_Sequences']
+        # Coarse integral matches implementation in matlab toolkit.
         # TODO: Eliminate 0% recall? (noisy)
-        res['Det_AP_10'] = np.mean(res['Det_PrAtRe'][::10])
+        res['Det_AP_coarse'] = np.mean(res['Det_PrAtRe'][::10])
         res['Det_MODA'] = (res['Det_TP'] - res['Det_FP']) / np.maximum(1.0, res['Det_TP'] + res['Det_FN'])
         res['Det_MODP'] = res['Det_MODP_sum'] / np.maximum(1.0, res['Det_TP'])
         res['Det_FAF'] = res['Det_FP'] / res['Det_Frames']
@@ -143,12 +144,13 @@ class DetLoc(_BaseMetric):
         self.array_labels = np.arange(5, 95 + 1, 5) / 100.
         self.integer_fields = ['DetLoc_Frames', 'DetLoc_Sequences']
         self.integer_array_fields = ['DetLoc_TP', 'DetLoc_FP', 'DetLoc_FN']
-        self.float_fields = ['DetLoc_AP_50_95']
+        self.float_fields = ['DetLoc_AP_50', 'DetLoc_AP_75', 'DetLoc_AP_95', 'DetLoc_AP_50_95']
         self.float_array_fields = ['DetLoc_AP', 'DetLoc_AP_sum',
                                    'DetLoc_MODA', 'DetLoc_MODP', 'DetLoc_MODP_sum', 'DetLoc_FAF',
                                    'DetLoc_Re', 'DetLoc_Pr', 'DetLoc_F1']
         self.fields = self.integer_fields + self.integer_array_fields + self.float_array_fields
-        self.summary_fields = ['DetLoc_AP', 'DetLoc_AP_50_95',
+        self.summary_fields = ['DetLoc_AP',
+                               'DetLoc_AP_50', 'DetLoc_AP_75', 'DetLoc_AP_95', 'DetLoc_AP_50_95',
                                'DetLoc_MODA', 'DetLoc_MODP', 'DetLoc_FAF',
                                'DetLoc_Re', 'DetLoc_Pr', 'DetLoc_F1']
 
@@ -222,6 +224,9 @@ class DetLoc(_BaseMetric):
         """
         res = dict(res)
         res['DetLoc_AP'] = res['DetLoc_AP_sum'] / res['DetLoc_Sequences']
+        res['DetLoc_AP_50'] = res['DetLoc_AP'][(50 - 5) // 5]
+        res['DetLoc_AP_75'] = res['DetLoc_AP'][(75 - 5) // 5]
+        res['DetLoc_AP_95'] = res['DetLoc_AP'][(95 - 5) // 5]
         res['DetLoc_AP_50_95'] = np.mean(res['DetLoc_AP'][(np.arange(50, 95 + 1, 5) - 5) // 5])
         res['DetLoc_MODA'] = (res['DetLoc_TP'] - res['DetLoc_FP']) / (
                 np.maximum(1.0, res['DetLoc_TP'] + res['DetLoc_FN']))
