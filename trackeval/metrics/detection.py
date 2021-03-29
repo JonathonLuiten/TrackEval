@@ -144,13 +144,13 @@ class DetLoc(_BaseMetric):
         self.array_labels = np.arange(5, 95 + 1, 5) / 100.
         self.integer_fields = ['DetLoc_Frames', 'DetLoc_Sequences']
         self.integer_array_fields = ['DetLoc_TP', 'DetLoc_FP', 'DetLoc_FN']
-        self.float_fields = ['DetLoc_AP_50', 'DetLoc_AP_75', 'DetLoc_AP_95', 'DetLoc_AP_50_95']
+        self.float_fields = ['DetLoc_AP_50', 'DetLoc_AP_75', 'DetLoc_AP_50_95']
         self.float_array_fields = ['DetLoc_AP', 'DetLoc_AP_sum',
                                    'DetLoc_MODA', 'DetLoc_MODP', 'DetLoc_MODP_sum', 'DetLoc_FAF',
                                    'DetLoc_Re', 'DetLoc_Pr', 'DetLoc_F1']
         self.fields = self.integer_fields + self.integer_array_fields + self.float_array_fields
         self.summary_fields = ['DetLoc_AP',
-                               'DetLoc_AP_50', 'DetLoc_AP_75', 'DetLoc_AP_95', 'DetLoc_AP_50_95',
+                               'DetLoc_AP_50', 'DetLoc_AP_75', 'DetLoc_AP_50_95',
                                'DetLoc_MODA', 'DetLoc_MODP', 'DetLoc_FAF',
                                'DetLoc_Re', 'DetLoc_Pr', 'DetLoc_F1']
 
@@ -226,7 +226,6 @@ class DetLoc(_BaseMetric):
         res['DetLoc_AP'] = res['DetLoc_AP_sum'] / res['DetLoc_Sequences']
         res['DetLoc_AP_50'] = res['DetLoc_AP'][(50 - 5) // 5]
         res['DetLoc_AP_75'] = res['DetLoc_AP'][(75 - 5) // 5]
-        res['DetLoc_AP_95'] = res['DetLoc_AP'][(95 - 5) // 5]
         res['DetLoc_AP_50_95'] = np.mean(res['DetLoc_AP'][(np.arange(50, 95 + 1, 5) - 5) // 5])
         res['DetLoc_MODA'] = (res['DetLoc_TP'] - res['DetLoc_FP']) / (
                 np.maximum(1.0, res['DetLoc_TP'] + res['DetLoc_FN']))
@@ -272,6 +271,7 @@ def _match_by_score(confidence, similarity, similarity_threshold):
     order = np.argsort(-confidence, kind='stable')
 
     # Sort gt decreasing by similarity for each pred.
+    # Note: Could save some time by re-using for different thresholds.
     gt_order = np.argsort(-similarity, kind='stable', axis=0)
     # Create a sorted list of matches for each prediction.
     feasible = (similarity >= similarity_threshold)
