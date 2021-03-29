@@ -7,9 +7,9 @@ from .. import _timing
 
 
 class Det(_BaseMetric):
-    """Class which implements detection metrics.
+    """Implements detection metrics.
 
-    Metrics are parameterized by IOU threshold.
+    The array-valued metrics use confidence-based matching and are parameterized by recall.
     """
 
     def __init__(self):
@@ -133,7 +133,7 @@ class Det(_BaseMetric):
 
 
 class DetLoc(_BaseMetric):
-    """Class which implements detection metrics.
+    """Implements detection metrics.
 
     Metrics are parameterized by IOU threshold.
     """
