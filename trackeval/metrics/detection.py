@@ -58,6 +58,7 @@ class Detection(_BaseMetric):
             scores = np.concatenate(data['tracker_confidences'])
             correct = np.concatenate(correct)
             # TODO: Compute precision-recall curve over all sequences, not per sequence?
+            # The MOT Challenge seems to do it per-sequence.
             res['Det_AP_sum'][i] = _compute_average_precision(data['num_gt_dets'], scores, correct)
 
             for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(data['gt_ids'], data['tracker_ids'])):
@@ -135,6 +136,7 @@ class DetectionConfidence(_BaseMetric):
         self.plottable = False  # TODO
         # TODO: Use sample frequency of 0.01 instead of 0.1? (virtually free)
         # TODO: Eliminate 0% recall? (noisy)
+        # MOT Challenge averages at 0, 10, 20, ..., 90, 100%.
         self.array_labels = np.arange(0, 100 + 1, 10) / 100.  # Recall thresholds.
         self.integer_fields = ['Det_Sequences_PrAtRe']
         self.float_array_fields = ['Det_PrAtRe', 'Det_PrAtRe_sum']
@@ -215,98 +217,24 @@ def _match_by_score(confidence, similarity, similarity_threshold):
     # Sort descending by confidence, preserve order of repeated elements.
     order = np.argsort(-confidence, kind='stable')
 
-    # pr_matched = np.full(confidence.shape, False)
-    # feasible = (similarity >= similarity_threshold)
-    # for pr_id in order:
-    #     if not np.any(feasible[:, pr_id]):
-    #         continue
-    #     subset, = np.nonzero(feasible[:, pr_id])
-    #     gt_id = subset[np.argmax(similarity[subset, pr_id])]
-    #     feasible[gt_id, h] = False
-    #     pr_matched[pr_id] = True
-
-    # similarity = similarity[:, order].T
-    # feasible = (similarity >= similarity_threshold)
-    # pr_matched = np.full(confidence.shape, False)
-    # gt_subset = np.arange(num_gt)
-    # for pr_id in range(num_pr):
-    #     feasible_inds, = np.nonzero(feasible[0, :])
-    #     if len(feasible_inds) > 0:
-    #         ind = feasible_inds[np.argmax(similarity[0, feasible_inds])]
-    #         gt_id = gt_subset[ind]
-    #         # Eliminate gt_id from matrix.
-    #         keep_mask = (gt_subset != gt_id)
-    #         gt_subset = gt_subset[keep_mask]
-    #         feasible = feasible[1:, keep_mask]
-    #     else:
-    #         feasible = feasible[1:, :]
-    #     pr_matched[pr_id] = True
-
-    # Construct priority queue for each prediction.
+    # Sort gt decreasing by similarity for each pred.
+    gt_order = np.argsort(-similarity, kind='stable', axis=0)
+    # Create a sorted list of matches for each prediction.
     feasible = (similarity >= similarity_threshold)
     candidates = {}
-    for pr_id in range(num_pr):
-        gt_subset, = np.nonzero(feasible[:, pr_id])
-        candidates[pr_id] = [(-similarity[gt_id, pr_id], gt_id) for gt_id in gt_subset]
-        heapq.heapify(candidates[pr_id])
-    # Proceed by popping elements from priority queue.
+    for pr_id, conf in enumerate(confidence):
+        # Take feasible subset.
+        candidates[pr_id] = gt_order[feasible[gt_order[:, pr_id], pr_id], pr_id]
     gt_matched = [False for _ in range(num_gt)]
     pr_matched = [False for _ in range(num_pr)]
     for pr_id in order:
-        while not pr_matched[pr_id] and candidates[pr_id]:
-            _, gt_id = candidates[pr_id][0]  # Take element at top of heap.
-            # Skip elements that are already matched.
+        # Find first gt_id which is still available.
+        for gt_id in candidates[pr_id]:
             if gt_matched[gt_id]:
-                heapq.heappop(candidates[pr_id])
                 continue
-            pr_matched[pr_id] = True
             gt_matched[gt_id] = True
-
-    # # Make multiple matches at once to reduce iterations in python.
-    # pr_matched = np.full(confidence.shape, False)
-    # gt_subset = np.arange(num_gt)
-    # pr_subset = np.arange(num_pr)
-    # feasible = (similarity >= similarity_threshold)
-    # feasible_confidence = np.where(feasible, confidence[np.newaxis, :], -np.inf)
-    # similarity = np.where(feasible, similarity, -np.inf)
-    # # Take feasible subset.
-    # gt_mask = np.any(feasible, axis=1)
-    # pr_mask = np.any(feasible, axis=0)
-    # gt_subset, pr_subset = gt_subset[gt_mask], pr_subset[pr_mask]
-    # feasible = feasible[gt_mask, :][:, pr_mask]
-    # feasible_confidence = feasible_confidence[gt_mask, :][:, pr_mask]
-    # similarity = similarity[gt_mask, :][:, pr_mask]
-    # while np.size(feasible):
-    #     # Find max score prediction for each ground-truth.
-    #     # Find max similarity ground-truth for each prediction.
-    #     # All exclusive matches can be made immediately.
-    #     num_rows, num_cols = feasible.shape
-    #     is_best_for_gt = np.full(feasible.shape, False)
-    #     is_best_for_pr = np.full(feasible.shape, False)
-    #     best_for_gt = np.argmax(feasible_confidence, axis=1)
-    #     best_for_pr = np.argmax(similarity, axis=0)
-    #     is_best_for_gt[np.arange(num_rows), best_for_gt] = True
-    #     is_best_for_pr[best_for_pr, np.arange(num_cols)] = True
-    #     is_match = (is_best_for_gt & is_best_for_pr)
-    #     assert np.sum(is_match) > 0
-    #     gt_is_match = np.any(is_match, axis=1)
-    #     pr_is_match = np.any(is_match, axis=0)
-    #     # Update list of matched elements.
-    #     pr_matched[pr_subset[pr_is_match]] = True
-    #     # Eliminate matched elements.
-    #     gt_mask = ~gt_is_match
-    #     pr_mask = ~pr_is_match
-    #     gt_subset, pr_subset = gt_subset[gt_mask], pr_subset[pr_mask]
-    #     feasible = feasible[gt_mask, :][:, pr_mask]
-    #     feasible_confidence = feasible_confidence[gt_mask, :][:, pr_mask]
-    #     similarity = similarity[gt_mask, :][:, pr_mask]
-    #     # Eliminate elements without a feasible match.
-    #     gt_mask = np.any(feasible, axis=1)
-    #     pr_mask = np.any(feasible, axis=0)
-    #     gt_subset, pr_subset = gt_subset[gt_mask], pr_subset[pr_mask]
-    #     feasible = feasible[gt_mask, :][:, pr_mask]
-    #     feasible_confidence = feasible_confidence[gt_mask, :][:, pr_mask]
-    #     similarity = similarity[gt_mask, :][:, pr_mask]
+            pr_matched[pr_id] = True
+            break
 
     return pr_matched
 
