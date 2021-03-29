@@ -16,7 +16,7 @@ class Det(_BaseMetric):
         super().__init__()
         self.plottable = False
         # Use array labels for recall.
-        # TODO: Eliminate 0% recall? (noisy)
+        # TODO: Eliminate 0% recall? (noisy if not using max-prec)
         self.array_labels = np.arange(0, 100 + 1) / 100.
         self.integer_fields = ['Det_Frames', 'Det_Sequences', 'Det_TP', 'Det_FP', 'Det_FN']
         self.float_fields = ['Det_AP', 'Det_AP_sum', 'Det_AP_coarse',
@@ -53,7 +53,6 @@ class Det(_BaseMetric):
         # Concatenate results from all frames to compute AUC.
         scores = np.concatenate(data['tracker_confidences'])
         correct = np.concatenate(correct)
-        # TODO: Use coarse integral like MOT challenge?
         # TODO: Compute AUC without taking max precision with at least given recall?
         # TODO: Compute precision-recall curve over all sequences, not per sequence?
         # MOT Challenge seems to do it per-sequence.
@@ -105,7 +104,7 @@ class Det(_BaseMetric):
         res['Det_AP'] = res['Det_AP_sum'] / res['Det_Sequences']
         res['Det_PrAtRe'] = res['Det_PrAtRe_sum'] / res['Det_Sequences']
         # Coarse integral matches implementation in matlab toolkit.
-        # TODO: Eliminate 0% recall? (noisy)
+        # TODO: Eliminate 0% recall? (see above)
         res['Det_AP_coarse'] = np.mean(res['Det_PrAtRe'][::10])
         res['Det_MODA'] = (res['Det_TP'] - res['Det_FP']) / np.maximum(1.0, res['Det_TP'] + res['Det_FN'])
         res['Det_MODP'] = res['Det_MODP_sum'] / np.maximum(1.0, res['Det_TP'])
