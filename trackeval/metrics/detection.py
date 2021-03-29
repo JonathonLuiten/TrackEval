@@ -142,19 +142,13 @@ class DetLoc(_BaseMetric):
         super().__init__()
         self.plottable = False  # TODO
         self.array_labels = np.arange(5, 95 + 1, 5) / 100.
-        self.integer_fields = ['DetLoc_Frames', 'DetLoc_Sequences']
-        self.integer_array_fields = ['DetLoc_TP', 'DetLoc_FP', 'DetLoc_FN']
+        self.integer_fields = ['DetLoc_Sequences']
         self.float_fields = ['DetLoc_AP_50', 'DetLoc_AP_75', 'DetLoc_AP_50_95']
-        self.float_array_fields = ['DetLoc_AP', 'DetLoc_AP_sum',
-                                   'DetLoc_MODA', 'DetLoc_MODP', 'DetLoc_MODP_sum', 'DetLoc_FAF',
-                                   'DetLoc_Re', 'DetLoc_Pr', 'DetLoc_F1']
-        self.fields = self.integer_fields + self.integer_array_fields + self.float_array_fields
-        self.summary_fields = ['DetLoc_AP',
-                               'DetLoc_AP_50', 'DetLoc_AP_75', 'DetLoc_AP_50_95',
-                               'DetLoc_MODA', 'DetLoc_MODP', 'DetLoc_FAF',
-                               'DetLoc_Re', 'DetLoc_Pr', 'DetLoc_F1']
+        self.float_array_fields = ['DetLoc_AP', 'DetLoc_AP_sum']
+        self.fields = self.integer_fields + self.float_fields + self.float_array_fields
+        self.summary_fields = ['DetLoc_AP', 'DetLoc_AP_50', 'DetLoc_AP_75', 'DetLoc_AP_50_95']
 
-        self._summed_fields = self.integer_fields + self.integer_array_fields + ['DetLoc_AP_sum', 'DetLoc_MODP_sum']
+        self._summed_fields = self.integer_fields + ['DetLoc_AP_sum']
 
     @_timing.time
     def eval_sequence(self, data):
@@ -162,13 +156,10 @@ class DetLoc(_BaseMetric):
         # Initialise results
         res = {}
         for field in self.fields:
-            if field in self.integer_array_fields:
-                res[field] = np.zeros((len(self.array_labels),), dtype=np.int)
-            elif field in self.float_array_fields:
+            if field in self.float_array_fields:
                 res[field] = np.zeros((len(self.array_labels),), dtype=np.float)
             else:
                 res[field] = 0
-        res['DetLoc_Frames'] = data['num_timesteps']
         res['DetLoc_Sequences'] = 1
 
         # Find per-frame correspondence (without accounting for switches).
@@ -186,34 +177,6 @@ class DetLoc(_BaseMetric):
             # MOT Challenge seems to do it per-sequence.
             res['DetLoc_AP_sum'][i] = _compute_average_precision(data['num_gt_dets'], scores, correct)
 
-            for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(data['gt_ids'], data['tracker_ids'])):
-                # Deal with the case that there are no gt_det/tracker_det in a timestep.
-                if len(gt_ids_t) == 0:
-                    res['DetLoc_FP'] += len(tracker_ids_t)
-                    continue
-                if len(tracker_ids_t) == 0:
-                    res['DetLoc_FN'] += len(gt_ids_t)
-                    continue
-
-                # Construct score matrix to optimize number of matches and then localization.
-                similarity = data['similarity_scores'][t]
-                assert np.all(~(similarity < 0))
-                assert np.all(~(similarity > 1))
-                eps = 1. / (max(similarity.shape) + 1.)
-                overlap_mask = (similarity >= sim_threshold)
-                score_mat = overlap_mask.astype(np.float) + eps * (similarity * overlap_mask)
-                # Hungarian algorithm to find best matches
-                match_rows, match_cols = linear_sum_assignment(-score_mat)
-                num_matches = np.sum(overlap_mask[match_rows, match_cols])
-                # Ensure that similarity could not have overwhelmed a match.
-                assert np.sum(score_mat[match_rows, match_cols]) - num_matches < 1
-
-                # Calculate and accumulate basic statistics
-                res['DetLoc_TP'][i] += num_matches
-                res['DetLoc_FN'][i] += len(gt_ids_t) - num_matches
-                res['DetLoc_FP'][i] += len(tracker_ids_t) - num_matches
-                res['DetLoc_MODP_sum'][i] += np.sum(similarity[match_rows, match_cols])
-
         res = self._compute_final_fields(res)
         return res
 
@@ -227,14 +190,6 @@ class DetLoc(_BaseMetric):
         res['DetLoc_AP_50'] = res['DetLoc_AP'][(50 - 5) // 5]
         res['DetLoc_AP_75'] = res['DetLoc_AP'][(75 - 5) // 5]
         res['DetLoc_AP_50_95'] = np.mean(res['DetLoc_AP'][(np.arange(50, 95 + 1, 5) - 5) // 5])
-        res['DetLoc_MODA'] = (res['DetLoc_TP'] - res['DetLoc_FP']) / (
-                np.maximum(1.0, res['DetLoc_TP'] + res['DetLoc_FN']))
-        res['DetLoc_MODP'] = res['DetLoc_MODP_sum'] / np.maximum(1.0, res['DetLoc_TP'])
-        res['DetLoc_Re'] = res['DetLoc_TP'] / np.maximum(1.0, res['DetLoc_TP'] + res['DetLoc_FN'])
-        res['DetLoc_Pr'] = res['DetLoc_TP'] / np.maximum(1.0, res['DetLoc_TP'] + res['DetLoc_FP'])
-        res['DetLoc_F1'] = res['DetLoc_TP'] / (
-                np.maximum(1.0, res['DetLoc_TP'] + 0.5*res['DetLoc_FN'] + 0.5*res['DetLoc_FP']))
-        res['DetLoc_FAF'] = res['DetLoc_FP'] / res['DetLoc_Frames']
         return res
 
     def combine_sequences(self, all_res):
