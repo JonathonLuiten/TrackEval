@@ -106,7 +106,8 @@ To convert formats, check out the format specifications defined [here](docs).
 By default, we would recommend the MOTChallenge format, although any implemented format should work. Note that for many cases you will want to use the argument ```--DO_PREPROC False``` unless you want to run preprocessing to remove distractor objects.
 
 ## Requirments
-
+ Code tested on Python 3.7.
+ 
  - Minimum requirements: numpy, scipy
  - For plotting: matplotlib
  - For segmentation datasets (KITTI MOTS, MOTS-Challenge, DAVIS, YouTube-VIS): pycocotools
