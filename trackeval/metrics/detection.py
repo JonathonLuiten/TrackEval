@@ -1,4 +1,3 @@
-import heapq
 import os
 
 import numpy as np
@@ -7,7 +6,7 @@ from ._base_metric import _BaseMetric
 from .. import _timing
 
 
-class Detection(_BaseMetric):
+class Det(_BaseMetric):
     """Class which implements detection metrics.
 
     Metrics are parameterized by IOU threshold.
@@ -15,21 +14,22 @@ class Detection(_BaseMetric):
 
     def __init__(self):
         super().__init__()
-        self.plottable = False  # TODO
-        self.array_labels = np.arange(5, 95 + 1, 5) / 100.
-        self.integer_fields = ['Det_Frames', 'Det_Sequences']
-        self.integer_array_fields = ['Det_TP', 'Det_FP', 'Det_FN']
-        self.float_fields = ['Det_AP_50_95']
-        # TODO: The name Det_MODP_sum with mixed case and underscores is not pretty?
-        self.float_array_fields = ['Det_AP', 'Det_AP_sum',
-                                   'Det_MODA', 'Det_MODP', 'Det_MODP_sum', 'Det_FAF',
-                                   'Det_Re', 'Det_Pr', 'Det_F1']
-        self.fields = self.integer_fields + self.integer_array_fields + self.float_array_fields
-        self.summary_fields = ['Det_AP', 'Det_AP_50_95',
+        self.plottable = False
+        # Use array labels for recall.
+        # TODO: Eliminate 0% recall? (noisy)
+        self.array_labels = np.arange(0, 100 + 1) / 100.
+        self.integer_fields = ['Det_Frames', 'Det_Sequences', 'Det_TP', 'Det_FP', 'Det_FN']
+        self.float_fields = ['Det_AP', 'Det_AP_sum', 'Det_AP_10',
+                             'Det_MODA', 'Det_MODP', 'Det_MODP_sum', 'Det_FAF',
+                             'Det_Re', 'Det_Pr', 'Det_F1']
+        self.float_array_fields = ['Det_PrAtRe', 'Det_PrAtRe_sum']
+        self.fields = self.integer_fields + self.float_fields + self.float_array_fields
+        self.summary_fields = ['Det_AP', 'Det_PrAtRe', 'Det_AP_10',
                                'Det_MODA', 'Det_MODP', 'Det_FAF',
                                'Det_Re', 'Det_Pr', 'Det_F1']
 
-        self._summed_fields = self.integer_fields + self.integer_array_fields + ['Det_AP_sum', 'Det_MODP_sum']
+        self.threshold = 0.5
+        self._summed_fields = self.integer_fields + ['Det_AP_sum', 'Det_MODP_sum', 'Det_PrAtRe_sum']
 
     @_timing.time
     def eval_sequence(self, data):
@@ -37,57 +37,61 @@ class Detection(_BaseMetric):
         # Initialise results
         res = {}
         for field in self.fields:
-            if field in self.integer_array_fields:
-                res[field] = np.zeros((len(self.array_labels),), dtype=np.int)
-            elif field in self.float_array_fields:
+            if field in self.float_array_fields:
                 res[field] = np.zeros((len(self.array_labels),), dtype=np.float)
             else:
                 res[field] = 0
         res['Det_Frames'] = data['num_timesteps']
         res['Det_Sequences'] = 1
 
+        # Find per-frame correspondence by priority of score.
+        correct = [None for _ in range(data['num_timesteps'])]
+        for t in range(data['num_timesteps']):
+            correct[t] = _match_by_score(data['tracker_confidences'][t],
+                                         data['similarity_scores'][t],
+                                         self.threshold)
+        # Concatenate results from all frames to compute AUC.
+        scores = np.concatenate(data['tracker_confidences'])
+        correct = np.concatenate(correct)
+        # TODO: Use coarse integral like MOT challenge?
+        # TODO: Compute AUC without taking max precision with at least given recall?
+        # TODO: Compute precision-recall curve over all sequences, not per sequence?
+        # MOT Challenge seems to do it per-sequence.
+        res['Det_AP_sum'] = _compute_average_precision(data['num_gt_dets'], scores, correct)
+        # TODO: Take max precision with at least given recall?
+        res['Det_PrAtRe_sum'] = _find_prec_at_recall(data['num_gt_dets'], scores, correct,
+                                                     self.array_labels)
+
         # Find per-frame correspondence (without accounting for switches).
-        for i, sim_threshold in enumerate(self.array_labels):
-            # Find per-frame correspondence by priority of score.
-            correct = [None for _ in range(data['num_timesteps'])]
-            for t in range(data['num_timesteps']):
-                correct[t] = _match_by_score(data['tracker_confidences'][t],
-                                             data['similarity_scores'][t],
-                                             sim_threshold)
-            # Concatenate results from all frames to compute AUC.
-            scores = np.concatenate(data['tracker_confidences'])
-            correct = np.concatenate(correct)
-            # TODO: Compute precision-recall curve over all sequences, not per sequence?
-            # The MOT Challenge seems to do it per-sequence.
-            res['Det_AP_sum'][i] = _compute_average_precision(data['num_gt_dets'], scores, correct)
+        for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(data['gt_ids'], data['tracker_ids'])):
+            # Deal with the case that there are no gt_det/tracker_det in a timestep.
+            if len(gt_ids_t) == 0:
+                res['Det_FP'] += len(tracker_ids_t)
+                continue
+            if len(tracker_ids_t) == 0:
+                res['Det_FN'] += len(gt_ids_t)
+                continue
 
-            for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(data['gt_ids'], data['tracker_ids'])):
-                # Deal with the case that there are no gt_det/tracker_det in a timestep.
-                if len(gt_ids_t) == 0:
-                    res['Det_FP'] += len(tracker_ids_t)
-                    continue
-                if len(tracker_ids_t) == 0:
-                    res['Det_FN'] += len(gt_ids_t)
-                    continue
+            # Construct score matrix to optimize number of matches and then localization.
+            similarity = data['similarity_scores'][t]
+            assert np.all(~(similarity < 0))
+            assert np.all(~(similarity > 1))
+            eps = 1. / (max(similarity.shape) + 1.)
+            overlap_mask = (similarity >= self.threshold)
+            score_mat = overlap_mask.astype(np.float) + eps * (similarity * overlap_mask)
+            # Hungarian algorithm to find best matches
+            match_rows, match_cols = linear_sum_assignment(-score_mat)
+            num_matches = np.sum(overlap_mask[match_rows, match_cols])
+            # Ensure that similarity could not have overwhelmed a match.
+            delta = np.sum(score_mat[match_rows, match_cols]) - num_matches
+            assert 0 <= delta
+            assert delta < 1
 
-                # Construct score matrix to optimize number of matches and then localization.
-                similarity = data['similarity_scores'][t]
-                assert np.all(~(similarity < 0))
-                assert np.all(~(similarity > 1))
-                eps = 1. / (max(similarity.shape) + 1.)
-                overlap_mask = (similarity >= sim_threshold)
-                score_mat = overlap_mask.astype(np.float) + eps * (similarity * overlap_mask)
-                # Hungarian algorithm to find best matches
-                match_rows, match_cols = linear_sum_assignment(-score_mat)
-                num_matches = np.sum(overlap_mask[match_rows, match_cols])
-                # Ensure that similarity could not have overwhelmed a match.
-                assert np.sum(score_mat[match_rows, match_cols]) - num_matches < 1
-
-                # Calculate and accumulate basic statistics
-                res['Det_TP'][i] += num_matches
-                res['Det_FN'][i] += len(gt_ids_t) - num_matches
-                res['Det_FP'][i] += len(tracker_ids_t) - num_matches
-                res['Det_MODP_sum'][i] += np.sum(similarity[match_rows, match_cols])
+            # Calculate and accumulate basic statistics
+            res['Det_TP'] += num_matches
+            res['Det_FN'] += len(gt_ids_t) - num_matches
+            res['Det_FP'] += len(tracker_ids_t) - num_matches
+            res['Det_MODP_sum'] += np.sum(similarity[match_rows, match_cols])
 
         res = self._compute_final_fields(res)
         return res
@@ -99,14 +103,16 @@ class Detection(_BaseMetric):
         """
         res = dict(res)
         res['Det_AP'] = res['Det_AP_sum'] / res['Det_Sequences']
-        res['Det_AP_50_95'] = np.mean(res['Det_AP'][(np.arange(50, 95 + 1, 5) - 5) // 5])
+        res['Det_PrAtRe'] = res['Det_PrAtRe_sum'] / res['Det_Sequences']
+        # TODO: Eliminate 0% recall? (noisy)
+        res['Det_AP_10'] = np.mean(res['Det_PrAtRe'][::10])
         res['Det_MODA'] = (res['Det_TP'] - res['Det_FP']) / np.maximum(1.0, res['Det_TP'] + res['Det_FN'])
         res['Det_MODP'] = res['Det_MODP_sum'] / np.maximum(1.0, res['Det_TP'])
+        res['Det_FAF'] = res['Det_FP'] / res['Det_Frames']
         res['Det_Re'] = res['Det_TP'] / np.maximum(1.0, res['Det_TP'] + res['Det_FN'])
         res['Det_Pr'] = res['Det_TP'] / np.maximum(1.0, res['Det_TP'] + res['Det_FP'])
         res['Det_F1'] = res['Det_TP'] / (
                 np.maximum(1.0, res['Det_TP'] + 0.5*res['Det_FN'] + 0.5*res['Det_FP']))
-        res['Det_FAF'] = res['Det_FP'] / res['Det_Frames']
         return res
 
     def combine_sequences(self, all_res):
@@ -125,27 +131,28 @@ class Detection(_BaseMetric):
         raise NotImplementedError
 
 
-class DetectionConfidence(_BaseMetric):
-    """Class which implements detection metrics using confidence scores.
+class DetLoc(_BaseMetric):
+    """Class which implements detection metrics.
 
-    Metrics are parameterized by recall.
+    Metrics are parameterized by IOU threshold.
     """
 
     def __init__(self):
         super().__init__()
         self.plottable = False  # TODO
-        # TODO: Use sample frequency of 0.01 instead of 0.1? (virtually free)
-        # TODO: Eliminate 0% recall? (noisy)
-        # MOT Challenge averages at 0, 10, 20, ..., 90, 100%.
-        self.array_labels = np.arange(0, 100 + 1, 10) / 100.  # Recall thresholds.
-        self.integer_fields = ['Det_Sequences_PrAtRe']
-        self.float_array_fields = ['Det_PrAtRe', 'Det_PrAtRe_sum']
-        self.fields = self.integer_fields + self.float_array_fields
-        self.summary_fields = ['Det_PrAtRe']
+        self.array_labels = np.arange(5, 95 + 1, 5) / 100.
+        self.integer_fields = ['DetLoc_Frames', 'DetLoc_Sequences']
+        self.integer_array_fields = ['DetLoc_TP', 'DetLoc_FP', 'DetLoc_FN']
+        self.float_fields = ['DetLoc_AP_50_95']
+        self.float_array_fields = ['DetLoc_AP', 'DetLoc_AP_sum',
+                                   'DetLoc_MODA', 'DetLoc_MODP', 'DetLoc_MODP_sum', 'DetLoc_FAF',
+                                   'DetLoc_Re', 'DetLoc_Pr', 'DetLoc_F1']
+        self.fields = self.integer_fields + self.integer_array_fields + self.float_array_fields
+        self.summary_fields = ['DetLoc_AP', 'DetLoc_AP_50_95',
+                               'DetLoc_MODA', 'DetLoc_MODP', 'DetLoc_FAF',
+                               'DetLoc_Re', 'DetLoc_Pr', 'DetLoc_F1']
 
-        self._summed_fields = self.integer_fields + ['Det_PrAtRe_sum']
-
-        self.threshold = 0.5
+        self._summed_fields = self.integer_fields + self.integer_array_fields + ['DetLoc_AP_sum', 'DetLoc_MODP_sum']
 
     @_timing.time
     def eval_sequence(self, data):
@@ -153,22 +160,57 @@ class DetectionConfidence(_BaseMetric):
         # Initialise results
         res = {}
         for field in self.fields:
-            if field in self.float_array_fields:
+            if field in self.integer_array_fields:
+                res[field] = np.zeros((len(self.array_labels),), dtype=np.int)
+            elif field in self.float_array_fields:
                 res[field] = np.zeros((len(self.array_labels),), dtype=np.float)
             else:
                 res[field] = 0
-        res['Det_Sequences_PrAtRe'] = 1
+        res['DetLoc_Frames'] = data['num_timesteps']
+        res['DetLoc_Sequences'] = 1
 
-        # Find per-frame correspondence by priority of score.
-        correct = [None for _ in range(data['num_timesteps'])]
-        for t in range(data['num_timesteps']):
-            correct[t] = _match_by_score(data['tracker_confidences'][t],
-                                         data['similarity_scores'][t],
-                                         self.threshold)
-        # Concatenate results from all frames to compute AUC.
-        scores = np.concatenate(data['tracker_confidences'])
-        correct = np.concatenate(correct)
-        res['Det_PrAtRe_sum'] = _find_prec_at_recall(data['num_gt_dets'], scores, correct, self.array_labels)
+        # Find per-frame correspondence (without accounting for switches).
+        for i, sim_threshold in enumerate(self.array_labels):
+            # Find per-frame correspondence by priority of score.
+            correct = [None for _ in range(data['num_timesteps'])]
+            for t in range(data['num_timesteps']):
+                correct[t] = _match_by_score(data['tracker_confidences'][t],
+                                             data['similarity_scores'][t],
+                                             sim_threshold)
+            # Concatenate results from all frames to compute AUC.
+            scores = np.concatenate(data['tracker_confidences'])
+            correct = np.concatenate(correct)
+            # TODO: Compute precision-recall curve over all sequences, not per sequence?
+            # MOT Challenge seems to do it per-sequence.
+            res['DetLoc_AP_sum'][i] = _compute_average_precision(data['num_gt_dets'], scores, correct)
+
+            for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(data['gt_ids'], data['tracker_ids'])):
+                # Deal with the case that there are no gt_det/tracker_det in a timestep.
+                if len(gt_ids_t) == 0:
+                    res['DetLoc_FP'] += len(tracker_ids_t)
+                    continue
+                if len(tracker_ids_t) == 0:
+                    res['DetLoc_FN'] += len(gt_ids_t)
+                    continue
+
+                # Construct score matrix to optimize number of matches and then localization.
+                similarity = data['similarity_scores'][t]
+                assert np.all(~(similarity < 0))
+                assert np.all(~(similarity > 1))
+                eps = 1. / (max(similarity.shape) + 1.)
+                overlap_mask = (similarity >= sim_threshold)
+                score_mat = overlap_mask.astype(np.float) + eps * (similarity * overlap_mask)
+                # Hungarian algorithm to find best matches
+                match_rows, match_cols = linear_sum_assignment(-score_mat)
+                num_matches = np.sum(overlap_mask[match_rows, match_cols])
+                # Ensure that similarity could not have overwhelmed a match.
+                assert np.sum(score_mat[match_rows, match_cols]) - num_matches < 1
+
+                # Calculate and accumulate basic statistics
+                res['DetLoc_TP'][i] += num_matches
+                res['DetLoc_FN'][i] += len(gt_ids_t) - num_matches
+                res['DetLoc_FP'][i] += len(tracker_ids_t) - num_matches
+                res['DetLoc_MODP_sum'][i] += np.sum(similarity[match_rows, match_cols])
 
         res = self._compute_final_fields(res)
         return res
@@ -179,12 +221,19 @@ class DetectionConfidence(_BaseMetric):
         This function is used both for both per-sequence calculation, and in combining values across sequences.
         """
         res = dict(res)
-        res['Det_PrAtRe'] = res['Det_PrAtRe_sum'] / res['Det_Sequences_PrAtRe']
+        res['DetLoc_AP'] = res['DetLoc_AP_sum'] / res['DetLoc_Sequences']
+        res['DetLoc_AP_50_95'] = np.mean(res['DetLoc_AP'][(np.arange(50, 95 + 1, 5) - 5) // 5])
+        res['DetLoc_MODA'] = (res['DetLoc_TP'] - res['DetLoc_FP']) / (
+                np.maximum(1.0, res['DetLoc_TP'] + res['DetLoc_FN']))
+        res['DetLoc_MODP'] = res['DetLoc_MODP_sum'] / np.maximum(1.0, res['DetLoc_TP'])
+        res['DetLoc_Re'] = res['DetLoc_TP'] / np.maximum(1.0, res['DetLoc_TP'] + res['DetLoc_FN'])
+        res['DetLoc_Pr'] = res['DetLoc_TP'] / np.maximum(1.0, res['DetLoc_TP'] + res['DetLoc_FP'])
+        res['DetLoc_F1'] = res['DetLoc_TP'] / (
+                np.maximum(1.0, res['DetLoc_TP'] + 0.5*res['DetLoc_FN'] + 0.5*res['DetLoc_FP']))
+        res['DetLoc_FAF'] = res['DetLoc_FP'] / res['DetLoc_Frames']
         return res
 
     def combine_sequences(self, all_res):
-        # TODO: Compute precision-recall curve for detections in all sequences together?
-        # TODO: Plot "fine" precision-recall curve?
         res = {}
         for field in self._summed_fields:
             res[field] = self._combine_sum(all_res, field)
@@ -290,4 +339,4 @@ def _compute_average_precision(num_gt, scores, correct):
     prec = np.maximum.accumulate(prec[::-1])[::-1]
     # Take integral.
     assert np.all(np.diff(recall) >= 0)
-    return np.dot(prec[1:], (recall[1:] - recall[:-1]))
+    return np.dot(prec[1:], recall[1:] - recall[:-1])
