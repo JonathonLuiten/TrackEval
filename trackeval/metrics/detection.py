@@ -130,6 +130,31 @@ class Det(_BaseMetric):
         # TODO: Implement.
         raise NotImplementedError
 
+    def plot_single_tracker_results(self, table_res, tracker, cls, output_folder):
+        """Create plot of results"""
+
+        # Only loaded when run to reduce minimum requirements
+        from matplotlib import pyplot as plt
+
+        res = table_res['COMBINED_SEQ']
+        styles_to_plot = ['r', 'b', 'g', 'b--', 'b:', 'g--', 'g:', 'm']
+        plot_fields = [x for x in self.summary_fields if x in self.float_array_fields]
+        for name, style in zip(plot_fields, styles_to_plot):
+            plt.plot(self.array_labels, res[name], style)
+        plt.xlabel('recall')
+        plt.ylabel('score')
+        plt.title(tracker + ' - ' + cls)
+        plt.axis([0, 1, 0, 1])
+        legend = []
+        for name in self.float_array_fields:
+            legend += [name + ' (' + str(np.round(np.mean(res[name]), 2)) + ')']
+        plt.legend(legend, loc='lower left')
+        out_file = os.path.join(output_folder, cls + '_plot.pdf')
+        os.makedirs(os.path.dirname(out_file), exist_ok=True)
+        plt.savefig(out_file)
+        plt.savefig(out_file.replace('.pdf', '.png'))
+        plt.clf()
+
 
 class DetLoc(_BaseMetric):
     """Implements detection metrics.
@@ -205,6 +230,31 @@ class DetLoc(_BaseMetric):
     def combine_classes_class_averaged(self, all_res):
         # TODO: Implement.
         raise NotImplementedError
+
+    def plot_single_tracker_results(self, table_res, tracker, cls, output_folder):
+        """Create plot of results"""
+
+        # Only loaded when run to reduce minimum requirements
+        from matplotlib import pyplot as plt
+
+        res = table_res['COMBINED_SEQ']
+        styles_to_plot = ['r', 'b', 'g', 'b--', 'b:', 'g--', 'g:', 'm']
+        plot_fields = [x for x in self.summary_fields if x in self.float_array_fields]
+        for name, style in zip(plot_fields, styles_to_plot):
+            plt.plot(self.array_labels, res[name], style)
+        plt.xlabel('recall')
+        plt.ylabel('score')
+        plt.title(tracker + ' - ' + cls)
+        plt.axis([0, 1, 0, 1])
+        legend = []
+        for name in self.float_array_fields:
+            legend += [name + ' (' + str(np.round(np.mean(res[name]), 2)) + ')']
+        plt.legend(legend, loc='lower left')
+        out_file = os.path.join(output_folder, cls + '_plot.pdf')
+        os.makedirs(os.path.dirname(out_file), exist_ok=True)
+        plt.savefig(out_file)
+        plt.savefig(out_file.replace('.pdf', '.png'))
+        plt.clf()
 
 
 def _match_by_score(confidence, similarity, similarity_threshold):
