@@ -43,8 +43,7 @@ The sub-folders are structured as follows:
   - label_02/ contains the left color camera label files (plain text files)
   - calib/ contains the calibration for all four cameras (plain text files)
 
-The label files contain the following information, which can be read and
-written using the matlab tools (readLabels.m) provided within this devkit. 
+The label files contain the following information. 
 All values (numerical or strings) are separated via spaces, each row 
 corresponds to one object. The 17 columns represent:
 
@@ -121,14 +120,12 @@ Therefore, only 'Tr_imu_velo' is constant for all sequences.
 Note that while all this information is available for the training data,
 only the data which is actually needed for the particular benchmark must
 be provided to the evaluation server. However, all 17 values must be provided
-at all times, with the unused ones set to their default values (=invalid) as
-specified in writeLabels.m. Additionally a 18'th value must be provided
+at all times, with the unused ones set to their default values (=invalid).
+Additionally a 18'th value must be provided
 with a floating value of the score for a particular tracked detection, where 
 higher indicates higher confidence in the detection. The range of your scores 
 will be automatically determined by our evaluation server, you don't have to
-normalize it, but it should be roughly linear. If you use writeLabels.m for
-writing your results, this function will take care of storing all required
-data correctly.
+normalize it, but it should be roughly linear.
 
 Tracking Benchmark
 ==================
