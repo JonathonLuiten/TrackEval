@@ -10,7 +10,7 @@ This codebase replaces the previous version that used to be accessible at https:
 
 Challenge Name | Data url |
 |----- | ----------- |
-|2D MOT 15| https://motchallenge.net/data/MO15/ |
+|2D MOT 15| https://motchallenge.net/data/MOT15/ |
 |MOT 16| https://motchallenge.net/data/MOT16/       |
 |MOT 17| https://motchallenge.net/data/MOT17/       |
 |MOT 20| https://motchallenge.net/data/MOT20/       |
