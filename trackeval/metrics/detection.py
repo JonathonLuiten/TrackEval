@@ -15,25 +15,28 @@ class Det(_BaseMetric):
     def __init__(self):
         super().__init__()
         self.plottable = True
-        # Use array labels for recall.
-        self.array_labels = np.arange(0, 100 + 1) / 100.
+        self.array_labels = self._get_array_labels()
         self.integer_fields = ['Det_Frames', 'Det_Sequences', 'Det_TP', 'Det_FP', 'Det_FN']
-        self.float_fields = ['Det_AP', 'Det_AP_sum', 'Det_AP_coarse', 'Det_AP_coarse_naive',
+        self.float_fields = ['Det_AP', 'Det_AP_sum', 'Det_AP_union', 'Det_AP_coarse', 'Det_AP_coarse_naive',
                              'Det_MODA', 'Det_MODP', 'Det_MODP_sum', 'Det_FAF',
-                             'Det_Re', 'Det_Pr', 'Det_F1']
+                             'Det_Re', 'Det_Pr', 'Det_F1',
+                             'Det_num_gt_dets']
         self.float_array_fields = ['Det_PrAtRe', 'Det_PrAtRe_sum',
-                                   'Det_PrAtRe_naive', 'Det_PrAtRe_naive_sum']
+                                   'Det_PrAtRe_naive', 'Det_PrAtRe_naive_sum',
+                                   'Det_PrAtRe_union']
         self.fields = self.integer_fields + self.float_fields + self.float_array_fields
-        self.summary_fields = ['Det_AP',
-                               'Det_PrAtRe', 'Det_AP_coarse',
+        self.summary_fields = ['Det_AP', 'Det_PrAtRe', 'Det_AP_coarse',
                                'Det_PrAtRe_naive', 'Det_AP_coarse_naive',
+                               'Det_AP_union', 'Det_PrAtRe_union',
                                'Det_MODA', 'Det_MODP', 'Det_FAF',
                                'Det_Re', 'Det_Pr', 'Det_F1']
 
         self.threshold = 0.5
         self.summed_fields = (
                 self.integer_fields +
-                ['Det_AP_sum', 'Det_MODP_sum', 'Det_PrAtRe_sum', 'Det_PrAtRe_naive_sum'])
+                ['Det_AP_sum', 'Det_MODP_sum', 'Det_PrAtRe_sum', 'Det_PrAtRe_naive_sum',
+                 'Det_num_gt_dets'])
+        self.concat_fields = ['Det_scores', 'Det_correct']
 
     @_timing.time
     def eval_sequence(self, data):
@@ -65,6 +68,10 @@ class Det(_BaseMetric):
         # TODO: Remove naive precision after comparison.
         res['Det_PrAtRe_naive_sum'] = _find_prec_at_recall(
                 data['num_gt_dets'], scores, correct, self.array_labels)
+
+        res['Det_num_gt_dets'] = data['num_gt_dets']
+        res['Det_scores'] = scores
+        res['Det_correct'] = correct
 
         # Find per-frame correspondence (without accounting for switches).
         for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(data['gt_ids'], data['tracker_ids'])):
@@ -101,12 +108,21 @@ class Det(_BaseMetric):
         return res
 
     @staticmethod
-    def _compute_final_fields(res):
+    def _get_array_labels():
+        return np.arange(0, 100 + 1) / 100.
+
+    @classmethod
+    def _compute_final_fields(cls, res):
         """Calculate sub-metric ('field') values which only depend on other sub-metric values.
         This function is used both for both per-sequence calculation, and in combining values across sequences.
         """
         res = dict(res)
         res['Det_AP'] = res['Det_AP_sum'] / res['Det_Sequences']
+        res['Det_AP_union'] = _compute_average_precision(
+                res['Det_num_gt_dets'], res['Det_scores'], res['Det_correct'])
+        res['Det_PrAtRe_union'] = _find_max_prec_at_recall(
+                res['Det_num_gt_dets'], res['Det_scores'], res['Det_correct'],
+                cls._get_array_labels())
         res['Det_PrAtRe'] = res['Det_PrAtRe_sum'] / res['Det_Sequences']
         res['Det_PrAtRe_naive'] = res['Det_PrAtRe_naive_sum'] / res['Det_Sequences']
         # TODO: This average may assign too much importance to 0% and 100% recall?
@@ -129,16 +145,14 @@ class Det(_BaseMetric):
         res = {}
         for field in self.summed_fields:
             res[field] = self._combine_sum(all_res, field)
+        for field in self.concat_fields:
+            res[field] = np.concatenate([all_res[k][field] for k in all_res.keys()])
         res = self._compute_final_fields(res)
         return res
 
     def combine_classes_det_averaged(self, all_res):
         """Combines metrics across all classes by averaging over the detection values"""
-        res = {}
-        for field in self.summed_fields:
-            res[field] = self._combine_sum(all_res, field)
-        res = self._compute_final_fields(res)
-        return res
+        return self.combine_sequences(all_res)
 
     def combine_classes_class_averaged(self, all_res):
         raise NotImplementedError
@@ -239,11 +253,7 @@ class DetLoc(_BaseMetric):
 
     def combine_classes_det_averaged(self, all_res):
         """Combines metrics across all classes by averaging over the detection values"""
-        res = {}
-        for field in self.summed_fields:
-            res[field] = self._combine_sum(all_res, field)
-        res = self._compute_final_fields(res)
-        return res
+        return self.combine_sequences(all_res)
 
     def combine_classes_class_averaged(self, all_res):
         raise NotImplementedError
