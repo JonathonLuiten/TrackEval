@@ -14,22 +14,26 @@ class Det(_BaseMetric):
 
     def __init__(self):
         super().__init__()
-        self.plottable = False
+        self.plottable = True
         # Use array labels for recall.
-        # TODO: Eliminate 0% recall? (noisy if not using max-prec)
         self.array_labels = np.arange(0, 100 + 1) / 100.
         self.integer_fields = ['Det_Frames', 'Det_Sequences', 'Det_TP', 'Det_FP', 'Det_FN']
-        self.float_fields = ['Det_AP', 'Det_AP_sum', 'Det_AP_coarse',
+        self.float_fields = ['Det_AP', 'Det_AP_sum', 'Det_AP_coarse', 'Det_AP_coarse_naive',
                              'Det_MODA', 'Det_MODP', 'Det_MODP_sum', 'Det_FAF',
                              'Det_Re', 'Det_Pr', 'Det_F1']
-        self.float_array_fields = ['Det_PrAtRe', 'Det_PrAtRe_sum']
+        self.float_array_fields = ['Det_PrAtRe', 'Det_PrAtRe_sum',
+                                   'Det_PrAtRe_naive', 'Det_PrAtRe_naive_sum']
         self.fields = self.integer_fields + self.float_fields + self.float_array_fields
-        self.summary_fields = ['Det_AP', 'Det_PrAtRe', 'Det_AP_coarse',
+        self.summary_fields = ['Det_AP',
+                               'Det_PrAtRe', 'Det_AP_coarse',
+                               'Det_PrAtRe_naive', 'Det_AP_coarse_naive',
                                'Det_MODA', 'Det_MODP', 'Det_FAF',
                                'Det_Re', 'Det_Pr', 'Det_F1']
 
         self.threshold = 0.5
-        self._summed_fields = self.integer_fields + ['Det_AP_sum', 'Det_MODP_sum', 'Det_PrAtRe_sum']
+        self.summed_fields = (
+                self.integer_fields +
+                ['Det_AP_sum', 'Det_MODP_sum', 'Det_PrAtRe_sum', 'Det_PrAtRe_naive_sum'])
 
     @_timing.time
     def eval_sequence(self, data):
@@ -53,13 +57,14 @@ class Det(_BaseMetric):
         # Concatenate results from all frames to compute AUC.
         scores = np.concatenate(data['tracker_confidences'])
         correct = np.concatenate(correct)
-        # TODO: Compute AUC without taking max precision with at least given recall?
-        # TODO: Compute precision-recall curve over all sequences, not per sequence?
-        # MOT Challenge seems to do it per-sequence.
+        # MOT Challenge devkit computes AP per sequence, not over all sequences.
+        # TODO: Change this? Not consistent with standard detection metrics.
         res['Det_AP_sum'] = _compute_average_precision(data['num_gt_dets'], scores, correct)
-        # TODO: Take max precision with at least given recall?
-        res['Det_PrAtRe_sum'] = _find_prec_at_recall(data['num_gt_dets'], scores, correct,
-                                                     self.array_labels)
+        res['Det_PrAtRe_sum'] = _find_max_prec_at_recall(
+                data['num_gt_dets'], scores, correct, self.array_labels)
+        # TODO: Remove naive precision after comparison.
+        res['Det_PrAtRe_naive_sum'] = _find_prec_at_recall(
+                data['num_gt_dets'], scores, correct, self.array_labels)
 
         # Find per-frame correspondence (without accounting for switches).
         for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(data['gt_ids'], data['tracker_ids'])):
@@ -103,9 +108,12 @@ class Det(_BaseMetric):
         res = dict(res)
         res['Det_AP'] = res['Det_AP_sum'] / res['Det_Sequences']
         res['Det_PrAtRe'] = res['Det_PrAtRe_sum'] / res['Det_Sequences']
-        # Coarse integral matches implementation in matlab toolkit.
-        # TODO: Eliminate 0% recall? (see above)
-        res['Det_AP_coarse'] = np.mean(res['Det_PrAtRe'][::10])
+        res['Det_PrAtRe_naive'] = res['Det_PrAtRe_naive_sum'] / res['Det_Sequences']
+        # TODO: This average may assign too much importance to 0% and 100% recall?
+        # res['Det_AP_coarse'] = np.mean(res['Det_PrAtRe'][::10], )
+        # res['Det_AP_coarse_naive'] = np.mean(res['Det_PrAtRe_naive'][::10])
+        res['Det_AP_coarse'] = np.trapz(res['Det_PrAtRe'][::10], dx=0.1)
+        res['Det_AP_coarse_naive'] = np.trapz(res['Det_PrAtRe_naive'][::10], dx=0.1)
         res['Det_MODA'] = (res['Det_TP'] - res['Det_FP']) / np.maximum(1.0, res['Det_TP'] + res['Det_FN'])
         res['Det_MODP'] = res['Det_MODP_sum'] / np.maximum(1.0, res['Det_TP'])
         res['Det_FAF'] = res['Det_FP'] / res['Det_Frames']
@@ -113,21 +121,27 @@ class Det(_BaseMetric):
         res['Det_Pr'] = res['Det_TP'] / np.maximum(1.0, res['Det_TP'] + res['Det_FP'])
         res['Det_F1'] = res['Det_TP'] / (
                 np.maximum(1.0, res['Det_TP'] + 0.5*res['Det_FN'] + 0.5*res['Det_FP']))
+        assert np.all(res['Det_PrAtRe_naive'] <= res['Det_PrAtRe'])
         return res
 
     def combine_sequences(self, all_res):
+        """Combines metrics across all sequences"""
         res = {}
-        for field in self._summed_fields:
+        for field in self.summed_fields:
             res[field] = self._combine_sum(all_res, field)
+        import ipdb; ipdb.set_trace()
         res = self._compute_final_fields(res)
         return res
 
     def combine_classes_det_averaged(self, all_res):
-        # TODO: Implement.
-        raise NotImplementedError
+        """Combines metrics across all classes by averaging over the detection values"""
+        res = {}
+        for field in self.summed_fields:
+            res[field] = self._combine_sum(all_res, field)
+        res = self._compute_final_fields(res)
+        return res
 
     def combine_classes_class_averaged(self, all_res):
-        # TODO: Implement.
         raise NotImplementedError
 
     def plot_single_tracker_results(self, table_res, tracker, cls, output_folder):
@@ -146,7 +160,7 @@ class Det(_BaseMetric):
         plt.title(tracker + ' - ' + cls)
         plt.axis([0, 1, 0, 1])
         legend = []
-        for name in self.float_array_fields:
+        for name in plot_fields:
             legend += [name + ' (' + str(np.round(np.mean(res[name]), 2)) + ')']
         plt.legend(legend, loc='lower left')
         out_file = os.path.join(output_folder, cls + '_plot.pdf')
@@ -164,7 +178,7 @@ class DetLoc(_BaseMetric):
 
     def __init__(self):
         super().__init__()
-        self.plottable = False  # TODO
+        self.plottable = True
         self.array_labels = np.arange(5, 95 + 1, 5) / 100.
         self.integer_fields = ['DetLoc_Sequences']
         self.float_fields = ['DetLoc_AP_50', 'DetLoc_AP_75', 'DetLoc_AP_50_95']
@@ -172,7 +186,7 @@ class DetLoc(_BaseMetric):
         self.fields = self.integer_fields + self.float_fields + self.float_array_fields
         self.summary_fields = ['DetLoc_AP', 'DetLoc_AP_50', 'DetLoc_AP_75', 'DetLoc_AP_50_95']
 
-        self._summed_fields = self.integer_fields + ['DetLoc_AP_sum']
+        self.summed_fields = self.integer_fields + ['DetLoc_AP_sum']
 
     @_timing.time
     def eval_sequence(self, data):
@@ -217,18 +231,22 @@ class DetLoc(_BaseMetric):
         return res
 
     def combine_sequences(self, all_res):
+        """Combines metrics across all sequences"""
         res = {}
-        for field in self._summed_fields:
+        for field in self.summed_fields:
             res[field] = self._combine_sum(all_res, field)
         res = self._compute_final_fields(res)
         return res
 
     def combine_classes_det_averaged(self, all_res):
-        # TODO: Implement.
-        raise NotImplementedError
+        """Combines metrics across all classes by averaging over the detection values"""
+        res = {}
+        for field in self.summed_fields:
+            res[field] = self._combine_sum(all_res, field)
+        res = self._compute_final_fields(res)
+        return res
 
     def combine_classes_class_averaged(self, all_res):
-        # TODO: Implement.
         raise NotImplementedError
 
     def plot_single_tracker_results(self, table_res, tracker, cls, output_folder):
@@ -242,12 +260,12 @@ class DetLoc(_BaseMetric):
         plot_fields = [x for x in self.summary_fields if x in self.float_array_fields]
         for name, style in zip(plot_fields, styles_to_plot):
             plt.plot(self.array_labels, res[name], style)
-        plt.xlabel('recall')
+        plt.xlabel('similarity')
         plt.ylabel('score')
         plt.title(tracker + ' - ' + cls)
         plt.axis([0, 1, 0, 1])
         legend = []
-        for name in self.float_array_fields:
+        for name in plot_fields:
             legend += [name + ' (' + str(np.round(np.mean(res[name]), 2)) + ')']
         plt.legend(legend, loc='lower left')
         out_file = os.path.join(output_folder, cls + '_plot.pdf')
@@ -297,6 +315,7 @@ def _match_by_score(confidence, similarity, similarity_threshold):
     return pr_matched
 
 
+# TODO: Remove after testing.
 def _find_prec_at_recall(num_gt, scores, correct, thresholds):
     """Computes precision at a given minimum recall threshold.
 
@@ -306,7 +325,7 @@ def _find_prec_at_recall(num_gt, scores, correct, thresholds):
         correct: Whether or not each prediction is correct.
         thresholds: Recall thresholds at which to evaluate.
 
-    Follows implementation from Piotr Dollar toolbox.
+    Follows implementation from Piotr Dollar toolbox (used by Matlab devkit).
     """
     # Sort descending by score.
     order = np.argsort(-scores, kind='stable')
@@ -328,24 +347,49 @@ def _find_prec_at_recall(num_gt, scores, correct, thresholds):
     return np.asarray([prec[np.argmax(recall >= threshold)] for threshold in thresholds])
 
 
-def _compute_average_precision(num_gt, scores, correct):
-    # TODO: Could use sklearn.average_precision_score?
-    # However, it doesn't seem to have nice support for:
-    # (1) detections that were completely missed
-    # (2) max precision at equal or greater recall
+def _find_max_prec_at_recall(num_gt, scores, correct, thresholds):
+    """Computes precision at a given minimum recall threshold.
 
-    # Sort descending by score.
-    order = np.argsort(-scores, kind='stable')
-    correct = correct[order]
-    tp = np.cumsum(correct)
-    num_pred = 1 + np.arange(len(scores))
-    recall = np.true_divide(tp, num_gt)
-    prec = np.true_divide(tp, num_pred)
-    # Extend recall to [0, 1].
-    recall = np.concatenate([[0.], recall, [1.]])
-    prec = np.concatenate([[np.nan], prec, [0.]])  # The nan will not be used.
-    # Take max precision available at equal or greater recall.
-    prec = np.maximum.accumulate(prec[::-1])[::-1]
+    Args:
+        num_gt: Number of ground-truth elements.
+        scores: Score of each prediction.
+        correct: Whether or not each prediction is correct.
+        thresholds: Recall thresholds at which to evaluate.
+
+    Follows implementation from Piotr Dollar toolbox (used by Matlab devkit).
+    """
+    recall, prec = _prec_recall_curve(num_gt, scores, correct)
+    # Find first element with minimum recall.
+    # Use argmax() to take first element that satisfies criterion.
+    # TODO: Use maximum precision at equal or better recall?
+    # https://jonathan-hui.medium.com/map-mean-average-precision-for-object-detection-45c121a31173
+    return np.asarray([prec[np.argmax(recall >= threshold)] for threshold in thresholds])
+
+
+def _compute_average_precision(num_gt, scores, correct):
+    recall, prec = _prec_recall_curve(num_gt, scores, correct)
     # Take integral.
     assert np.all(np.diff(recall) >= 0)
     return np.dot(prec[1:], recall[1:] - recall[:-1])
+
+
+def _prec_recall_curve(num_gt, scores, correct):
+    # Sort descending by score.
+    order = np.argsort(-scores, kind='stable')
+    correct = correct[order]
+    tp = np.empty(len(scores) + 1)
+    tp[0] = 0
+    tp[1:] = np.cumsum(correct)
+    num_pred = np.arange(len(scores) + 1)
+    # Add an extra element for 100% recall, zero precision.
+    recall = np.empty(len(scores) + 2)
+    recall[:-1] = np.true_divide(tp, num_gt)
+    recall[-1] = 1.
+    prec = np.empty(len(scores) + 2)
+    prec[:-1] = np.true_divide(tp, num_pred)
+    prec[-1] = 0.
+    # Avoid nan in prec[0]. This will be replaced with max prec.
+    prec[0] = 0.
+    # Take max precision available at equal or greater recall.
+    prec = np.maximum.accumulate(prec[::-1])[::-1]
+    return recall, prec
