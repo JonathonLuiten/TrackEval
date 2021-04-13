@@ -129,7 +129,6 @@ class Det(_BaseMetric):
         res = {}
         for field in self.summed_fields:
             res[field] = self._combine_sum(all_res, field)
-        import ipdb; ipdb.set_trace()
         res = self._compute_final_fields(res)
         return res
 
