@@ -342,7 +342,6 @@ def _find_prec_at_recall(num_gt, scores, correct, thresholds):
     # Find first element with minimum recall.
     # Use argmax() to take first element that satisfies criterion.
     # TODO: Use maximum precision at equal or better recall?
-    # https://jonathan-hui.medium.com/map-mean-average-precision-for-object-detection-45c121a31173
     return np.asarray([prec[np.argmax(recall >= threshold)] for threshold in thresholds])
 
 
@@ -358,10 +357,10 @@ def _find_max_prec_at_recall(num_gt, scores, correct, thresholds):
     Follows implementation from Piotr Dollar toolbox (used by Matlab devkit).
     """
     recall, prec = _prec_recall_curve(num_gt, scores, correct)
+    assert np.all(thresholds >= 0), thresholds
+    assert np.all(thresholds <= 1), thresholds
     # Find first element with minimum recall.
     # Use argmax() to take first element that satisfies criterion.
-    # TODO: Use maximum precision at equal or better recall?
-    # https://jonathan-hui.medium.com/map-mean-average-precision-for-object-detection-45c121a31173
     return np.asarray([prec[np.argmax(recall >= threshold)] for threshold in thresholds])
 
 
@@ -390,5 +389,6 @@ def _prec_recall_curve(num_gt, scores, correct):
     # Avoid nan in prec[0]. This will be replaced with max prec.
     prec[0] = 0.
     # Take max precision available at equal or greater recall.
+    # https://jonathan-hui.medium.com/map-mean-average-precision-for-object-detection-45c121a31173
     prec = np.maximum.accumulate(prec[::-1])[::-1]
     return recall, prec
