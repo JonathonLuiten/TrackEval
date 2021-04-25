@@ -19,7 +19,7 @@ class CLEAR(_BaseMetric):
         self.summed_fields = self.integer_fields + ['MOTP_sum']
         self.summary_fields = main_float_fields + main_integer_fields
 
-        self.threshold = 0.5
+        self.threshold = 0.4
 
     @_timing.time
     def eval_sequence(self, data):

@@ -14,7 +14,7 @@ class Identity(_BaseMetric):
         self.fields = self.float_fields + self.integer_fields
         self.summary_fields = self.fields
 
-        self.threshold = 0.5
+        self.threshold = 0.4
 
     @_timing.time
     def eval_sequence(self, data):
