@@ -3,7 +3,7 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from ._base_metric import _BaseMetric
 from .. import _timing
-
+from collections import defaultdict
 
 class Identity(_BaseMetric):
     """Class which implements the ID metrics"""
@@ -64,6 +64,54 @@ class Identity(_BaseMetric):
         fn_mat[:num_gt_ids, :num_tracker_ids] -= potential_matches_count
         fp_mat[:num_gt_ids, :num_tracker_ids] -= potential_matches_count
 
+        # ID Eucl metric
+        data['centroid'] = []
+        for t, gt_det in enumerate(data['gt_dets']):
+            data['centroid'].append(self._compute_centroid(gt_det))
+
+        oid_hid_cent = defaultdict(list)
+        oid_cent = defaultdict(list)
+        for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(data['gt_ids'], data['tracker_ids'])):
+            matches_mask = np.greater_equal(data['similarity_scores'][t], self.threshold)
+
+            # I hope the orders of ids and boxes are maintained in `data`
+            for ind, gid in enumerate(gt_ids_t):
+                oid_cent[gid].append(data['centroid'][t][ind])
+
+            match_idx_gt, match_idx_tracker = np.nonzero(matches_mask)
+            for m_gid, m_tid in zip(match_idx_gt, match_idx_tracker):
+                oid_hid_cent[gt_ids_t[m_gid], tracker_ids_t[m_tid]].append(data['centroid'][t][m_gid])
+
+        oid_hid_dist = {k : np.sum(np.linalg.norm(np.diff(np.array(v), axis=0), axis=1)) for k, v in oid_hid_cent.items()}
+        oid_dist = {int(k) : np.sum(np.linalg.norm(np.diff(np.array(v), axis=0), axis=1)) for k, v in oid_cent.items()}
+
+        unique_oid = np.unique([i[0] for i in oid_hid_dist.keys()]).tolist()
+        unique_hid = np.unique([i[1] for i in oid_hid_dist.keys()]).tolist()
+        o_len = len(unique_oid)
+        h_len = len(unique_hid)
+        dist_matrix = np.zeros((o_len, h_len))
+        for ((oid, hid), dist) in oid_hid_dist.items():
+            oid_ind = unique_oid.index(oid)
+            hid_ind = unique_hid.index(hid)
+            dist_matrix[oid_ind, hid_ind] = dist
+
+
+        
+        # opt_hyp_dist contains GT ID : max dist covered by track
+        opt_hyp_dist = dict.fromkeys(oid_dist.keys(), 0.)
+        cost_matrix = np.max(dist_matrix) - dist_matrix
+        rows, cols = linear_sum_assignment(cost_matrix)
+        for (row, col) in zip(rows, cols):
+            value = dist_matrix[row, col]
+            opt_hyp_dist[int(unique_oid[row])] = value
+
+        assert len(opt_hyp_dist.keys()) == len(oid_dist.keys())
+        hyp_length = np.sum(list(opt_hyp_dist.values()))
+        gt_length = np.sum(list(oid_dist.values()))
+        res['IDEucl'] = hyp_length / gt_length
+        ## End of IDEucl metric
+
+        #for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(data['gt_ids'], data['tracker_ids'])):
         # Hungarian algorithm
         match_rows, match_cols = linear_sum_assignment(fn_mat + fp_mat)
 
@@ -102,6 +150,17 @@ class Identity(_BaseMetric):
             res[field] = self._combine_sum(all_res, field)
         res = self._compute_final_fields(res)
         return res
+
+
+    @staticmethod
+    def _compute_centroid(box):
+        box = np.array(box)
+        if len(box.shape) == 1:
+            centroid = (box[0:2] + box[2:4])/2
+        else:
+            centroid = (box[:, 0:2] + box[:, 2:4])/2
+        return centroid
+
 
     @staticmethod
     def _compute_final_fields(res):
