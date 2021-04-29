@@ -10,7 +10,8 @@ class HOTA(_BaseMetric):
     """Class which implements the HOTA metrics.
     See: https://link.springer.com/article/10.1007/s11263-020-01375-2
     """
-    def __init__(self):
+
+    def __init__(self, config=None):
         super().__init__()
         self.plottable = True
         self.array_labels = np.arange(0.05, 0.99, 0.05)

@@ -15,7 +15,7 @@ class VACE(_BaseMetric):
     where an overlap threshold is applied in each frame.
     """
 
-    def __init__(self):
+    def __init__(self, config=None):
         super().__init__()
         self.integer_fields = ['VACE_IDs', 'VACE_GT_IDs', 'num_non_empty_timesteps']
         self.float_fields = ['STDA', 'ATA', 'FDA', 'SFDA']

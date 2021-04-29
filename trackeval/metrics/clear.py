@@ -3,11 +3,21 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from ._base_metric import _BaseMetric
 from .. import _timing
-
+from .. import utils
 
 class CLEAR(_BaseMetric):
     """Class which implements the CLEAR metrics"""
-    def __init__(self):
+
+    @staticmethod
+    def get_default_config():
+        """Default class config values"""
+        default_config = {
+            'THRESHOLD': 0.5,  # Similarity score threshold required for a TP match. Default 0.5.
+            'PRINT_CONFIG': True,  # Whether to print the config information on init. Default: False.
+        }
+        return default_config
+
+    def __init__(self, config=None):
         super().__init__()
         main_integer_fields = ['CLR_TP', 'CLR_FN', 'CLR_FP', 'IDSW', 'MT', 'PT', 'ML', 'Frag']
         extra_integer_fields = ['CLR_Frames']
@@ -19,7 +29,9 @@ class CLEAR(_BaseMetric):
         self.summed_fields = self.integer_fields + ['MOTP_sum']
         self.summary_fields = main_float_fields + main_integer_fields
 
-        self.threshold = 0.5
+        # Configuration options:
+        self.config = utils.init_config(config, self.get_default_config(), self.get_name())
+        self.threshold = float(self.config['THRESHOLD'])
 
     @_timing.time
     def eval_sequence(self, data):

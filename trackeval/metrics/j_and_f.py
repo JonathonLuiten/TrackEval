@@ -9,7 +9,7 @@ from .. import _timing
 
 class JAndF(_BaseMetric):
     """Class which implements the J&F metrics"""
-    def __init__(self):
+    def __init__(self, config=None):
         super().__init__()
         self.integer_fields = ['num_gt_tracks']
         self.float_fields = ['J-Mean', 'J-Recall', 'J-Decay', 'F-Mean', 'F-Recall', 'F-Decay', 'J&F']
