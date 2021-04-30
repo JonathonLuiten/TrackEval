@@ -274,8 +274,10 @@ class TrackMAP(_BaseMetric):
 
         return res
 
-    def combine_classes_class_averaged(self, all_res):
-        """Combines metrics across all classes by averaging over the class values"""
+    def combine_classes_class_averaged(self, all_res, ignore_empty_classes=True):
+        """Combines metrics across all classes by averaging over the class values
+        Note mAP is not well defined for 'empty classes' so 'ignore empty classes' is always true here.
+        """
         res = {}
         for field in self.fields:
             res[field] = np.zeros((len(self.array_labels)), dtype=np.float)

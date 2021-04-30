@@ -92,12 +92,17 @@ class VACE(_BaseMetric):
         res.update(self._compute_final_fields(res))
         return res
 
-    def combine_classes_class_averaged(self, all_res):
-        """Combines metrics across all classes by averaging over the class values"""
+    def combine_classes_class_averaged(self, all_res, ignore_empty_classes=True):
+        """Combines metrics across all classes by averaging over the class values.
+        If 'ignore_empty_classes' is True, then it only sums over classes with at least one gt or predicted detection.
+        """
         res = {}
         for field in self.fields:
-            res[field] = np.mean([v[field] for v in all_res.values()
+            if ignore_empty_classes:
+                res[field] = np.mean([v[field] for v in all_res.values()
                                   if v['VACE_GT_IDs'] > 0 or v['VACE_IDs'] > 0], axis=0)
+            else:
+                res[field] = np.mean([v[field] for v in all_res.values()], axis=0)
         return res
 
     def combine_classes_det_averaged(self, all_res):

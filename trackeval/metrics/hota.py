@@ -128,21 +128,26 @@ class HOTA(_BaseMetric):
         res = self._compute_final_fields(res)
         return res
 
-    def combine_classes_class_averaged(self, all_res):
-        """Combines metrics across all classes by averaging over the class values"""
+    def combine_classes_class_averaged(self, all_res, ignore_empty_classes=False):
+        """Combines metrics across all classes by averaging over the class values.
+        If 'ignore_empty_classes' is True, then it only sums over classes with at least one gt or predicted detection.
+        """
         res = {}
         for field in self.integer_array_fields:
-            res[field] = self._combine_sum(
-                {k: v for k, v in all_res.items()
-                 if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0 + np.finfo('float').eps).any()}, field)
-        for field in self.float_fields:
-            res[field] = np.mean([v[field] for v in all_res.values()
-                                  if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0 + np.finfo('float').eps).any()],
-                                 axis=0)
-        for field in self.float_array_fields:
-            res[field] = np.mean([v[field] for v in all_res.values()
-                                  if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0 + np.finfo('float').eps).any()],
-                                 axis=0)
+            if ignore_empty_classes:
+                res[field] = self._combine_sum(
+                    {k: v for k, v in all_res.items()
+                     if (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0 + np.finfo('float').eps).any()}, field)
+            else:
+                res[field] = self._combine_sum({k: v for k, v in all_res.items()}, field)
+
+        for field in self.float_fields + self.float_array_fields:
+            if ignore_empty_classes:
+                res[field] = np.mean([v[field] for v in all_res.values() if
+                                      (v['HOTA_TP'] + v['HOTA_FN'] + v['HOTA_FP'] > 0 + np.finfo('float').eps).any()],
+                                     axis=0)
+            else:
+                res[field] = np.mean([v[field] for v in all_res.values()], axis=0)
         return res
 
     def combine_classes_det_averaged(self, all_res):

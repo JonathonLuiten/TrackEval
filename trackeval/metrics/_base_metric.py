@@ -31,7 +31,7 @@ class _BaseMetric(ABC):
         ...
 
     @abstractmethod
-    def combine_classes_class_averaged(self, all_res):
+    def combine_classes_class_averaged(self, all_res, ignore_empty_classes=False):
         ...
 
     @ abstractmethod

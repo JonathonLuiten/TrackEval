@@ -128,8 +128,10 @@ class JAndF(_BaseMetric):
             res[field] = self._combine_weighted_av(all_res, field, res, weight_field='num_gt_tracks')
         return res
 
-    def combine_classes_class_averaged(self, all_res):
-        """Combines metrics across all classes by averaging over the class values"""
+    def combine_classes_class_averaged(self, all_res, ignore_empty_classes=False):
+        """Combines metrics across all classes by averaging over the class values
+        'ignore empty classes' is not yet implemented here.
+        """
         res = {'num_gt_tracks': self._combine_sum(all_res, 'num_gt_tracks')}
         for field in self.float_fields:
             res[field] = np.mean([v[field] for v in all_res.values()])
