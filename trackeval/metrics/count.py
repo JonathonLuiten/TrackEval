@@ -5,7 +5,7 @@ from .. import _timing
 
 class Count(_BaseMetric):
     """Class which simply counts the number of tracker and gt detections and ids."""
-    def __init__(self):
+    def __init__(self, config=None):
         super().__init__()
         self.integer_fields = ['Dets', 'GT_Dets', 'IDs', 'GT_IDs']
         self.fields = self.integer_fields
@@ -29,7 +29,7 @@ class Count(_BaseMetric):
             res[field] = self._combine_sum(all_res, field)
         return res
 
-    def combine_classes_class_averaged(self, all_res):
+    def combine_classes_class_averaged(self, all_res, ignore_empty_classes=None):
         """Combines metrics across all classes by averaging over the class values"""
         res = {}
         for field in self.integer_fields:

@@ -281,6 +281,17 @@ class _BaseDataset(ABC):
             return ious
 
     @staticmethod
+    def _calculate_euclidean_similarity(dets1, dets2, zero_distance=2.0):
+        """ Calculates the euclidean distance between two sets of detections, and then converts this into a similarity
+        measure with values between 0 and 1 using the following formula: sim = max(0, 1 - dist/zero_distance).
+        The default zero_distance of 2.0, corresponds to the default used in MOT15_3D, such that a 0.5 similarity
+        threshold corresponds to a 1m distance threshold for TPs.
+        """
+        dist = np.linalg.norm(dets1[:, np.newaxis]-dets2[np.newaxis, :], axis=2)
+        sim = np.maximum(0, 1 - dist/zero_distance)
+        return sim
+
+    @staticmethod
     def _check_unique_ids(data, after_preproc=False):
         """Check the requirement that the tracker_ids and gt_ids are unique per timestep"""
         gt_ids = data['gt_ids']

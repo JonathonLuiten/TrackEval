@@ -48,7 +48,7 @@ if __name__ == '__main__':
     default_eval_config = trackeval.Evaluator.get_default_eval_config()
     default_eval_config['DISPLAY_LESS_PROGRESS'] = False
     default_dataset_config = trackeval.datasets.MotChallenge2DBox.get_default_dataset_config()
-    default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity']}
+    default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity'], 'THRESHOLD': 0.5}
     config = {**default_eval_config, **default_dataset_config, **default_metrics_config}  # Merge default configs
     parser = argparse.ArgumentParser()
     for setting in config.keys():
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     metrics_list = []
     for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity, trackeval.metrics.VACE]:
         if metric.get_name() in metrics_config['METRICS']:
-            metrics_list.append(metric())
+            metrics_list.append(metric(metrics_config))
     if len(metrics_list) == 0:
         raise Exception('No metrics selected for evaluation')
     evaluator.evaluate(dataset_list, metrics_list)

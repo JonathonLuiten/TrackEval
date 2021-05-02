@@ -15,7 +15,7 @@ class VACE(_BaseMetric):
     where an overlap threshold is applied in each frame.
     """
 
-    def __init__(self):
+    def __init__(self, config=None):
         super().__init__()
         self.integer_fields = ['VACE_IDs', 'VACE_GT_IDs', 'num_non_empty_timesteps']
         self.float_fields = ['STDA', 'ATA', 'FDA', 'SFDA']
@@ -92,12 +92,17 @@ class VACE(_BaseMetric):
         res.update(self._compute_final_fields(res))
         return res
 
-    def combine_classes_class_averaged(self, all_res):
-        """Combines metrics across all classes by averaging over the class values"""
+    def combine_classes_class_averaged(self, all_res, ignore_empty_classes=True):
+        """Combines metrics across all classes by averaging over the class values.
+        If 'ignore_empty_classes' is True, then it only sums over classes with at least one gt or predicted detection.
+        """
         res = {}
         for field in self.fields:
-            res[field] = np.mean([v[field] for v in all_res.values()
+            if ignore_empty_classes:
+                res[field] = np.mean([v[field] for v in all_res.values()
                                   if v['VACE_GT_IDs'] > 0 or v['VACE_IDs'] > 0], axis=0)
+            else:
+                res[field] = np.mean([v[field] for v in all_res.values()], axis=0)
         return res
 
     def combine_classes_det_averaged(self, all_res):
