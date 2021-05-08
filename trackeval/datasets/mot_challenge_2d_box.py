@@ -207,9 +207,6 @@ class MotChallenge2DBox(_BaseDataset):
             data_keys += ['gt_crowd_ignore_regions', 'gt_extras']
         else:
             data_keys += ['tracker_confidences']
-
-        if self.benchmark == 'HT':
-            data_keys += ['visibility']
         raw_data = {key: [None] * num_timesteps for key in data_keys}
 
         # Check for any extra time keys
@@ -250,7 +247,6 @@ class MotChallenge2DBox(_BaseDataset):
                               'columns in the data.' % (tracker, seq)
                         raise TrackEvalException(err)
                 if time_data.shape[1] >= 8:
-                    raw_data['visibility'][t] = np.atleast_1d(time_data[:, 8]).astype(float)
                     raw_data['classes'][t] = np.atleast_1d(time_data[:, 7]).astype(int)
                 else:
                     if not is_gt:
@@ -327,9 +323,8 @@ class MotChallenge2DBox(_BaseDataset):
         self._check_unique_ids(raw_data)
 
         distractor_class_names = ['person_on_vehicle', 'static_person', 'distractor', 'reflection']
-        if self.benchmark == 'MOT20' and self.benchmark == 'HT':
+        if self.benchmark == 'MOT20':
             distractor_class_names.append('non_mot_vehicle')
-
         distractor_classes = [self.class_name_to_class_id[x] for x in distractor_class_names]
         cls_id = self.class_name_to_class_id[cls]
 
@@ -345,7 +340,6 @@ class MotChallenge2DBox(_BaseDataset):
             gt_ids = raw_data['gt_ids'][t]
             gt_dets = raw_data['gt_dets'][t]
             gt_classes = raw_data['gt_classes'][t]
-            gt_visibility = raw_data['visibility'][t]
             gt_zero_marked = raw_data['gt_extras'][t]['zero_marked']
 
             tracker_ids = raw_data['tracker_ids'][t]
@@ -377,23 +371,14 @@ class MotChallenge2DBox(_BaseDataset):
                                              ' '.join([str(x) for x in invalid_classes])))
 
                 matching_scores = similarity_scores.copy()
-                if self.benchmark == 'HT':
-                    matching_scores[matching_scores < 0.4 - np.finfo('float').eps] = 0
-                else:
-                    matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = 0
-
+                matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = 0
                 match_rows, match_cols = linear_sum_assignment(-matching_scores)
                 actually_matched_mask = matching_scores[match_rows, match_cols] > 0 + np.finfo('float').eps
                 match_rows = match_rows[actually_matched_mask]
                 match_cols = match_cols[actually_matched_mask]
 
                 is_distractor_class = np.isin(gt_classes[match_rows], distractor_classes)
-                if self.benchmark == 'HT':
-                    is_invisible_class = gt_visibility[match_rows] < np.finfo('float').eps
-                    are_distractors = np.logical_or(is_invisible_class, is_distractor_class)
-                    to_remove_tracker = match_cols[are_distractors]
-                else:
-                    to_remove_tracker = match_cols[is_distractor_class]
+                to_remove_tracker = match_cols[is_distractor_class]
 
             # Apply preprocessing to remove all unwanted tracker dets.
             data['tracker_ids'][t] = np.delete(tracker_ids, to_remove_tracker, axis=0)
@@ -403,13 +388,9 @@ class MotChallenge2DBox(_BaseDataset):
 
             # Remove gt detections marked as to remove (zero marked), and also remove gt detections not in pedestrian
             # class (not applicable for MOT15)
-            if self.do_preproc and self.benchmark != 'MOT15' and self.benchmark != 'HT':
+            if self.do_preproc and self.benchmark != 'MOT15':
                 gt_to_keep_mask = (np.not_equal(gt_zero_marked, 0)) & \
                                   (np.equal(gt_classes, cls_id))
-            elif self.do_preproc and self.benchmark == 'HT':
-                gt_to_keep_mask = (np.not_equal(gt_zero_marked, 0)) & \
-                                  (np.equal(gt_classes, cls_id)) & \
-                                  (gt_visibility > 0.)
             else:
                 # There are no classes for MOT15
                 gt_to_keep_mask = np.not_equal(gt_zero_marked, 0)
