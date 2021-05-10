@@ -67,6 +67,8 @@ if __name__ == '__main__':
                     raise Exception('Command line parameter ' + setting + 'must be True or False')
             elif type(config[setting]) == type(1):
                 x = int(args[setting])
+            elif type(config[setting]) == type(1.0):
+                x = float(args[setting])
             elif type(args[setting]) == type(None):
                 x = None
             else:

@@ -61,14 +61,13 @@ class Det(_BaseMetric):
         scores = np.concatenate(data['tracker_confidences'])
         correct = np.concatenate(correct)
         # MOT Challenge devkit computes AP per sequence, not over all sequences.
-        # TODO: Change this? Not consistent with standard detection metrics.
         res['Det_AP_sum'] = _compute_average_precision(data['num_gt_dets'], scores, correct)
         res['Det_PrAtRe_sum'] = _find_max_prec_at_recall(
                 data['num_gt_dets'], scores, correct, self.array_labels)
         # TODO: Remove naive precision after comparison.
         res['Det_PrAtRe_naive_sum'] = _find_prec_at_recall(
                 data['num_gt_dets'], scores, correct, self.array_labels)
-
+        # Take union of all sequences for precision-recall curve.
         res['Det_num_gt_dets'] = data['num_gt_dets']
         res['Det_scores'] = scores
         res['Det_correct'] = correct
@@ -117,6 +116,7 @@ class Det(_BaseMetric):
         This function is used both for both per-sequence calculation, and in combining values across sequences.
         """
         res = dict(res)
+        # TODO: Keep only one AP metric?
         res['Det_AP'] = res['Det_AP_sum'] / res['Det_Sequences']
         res['Det_AP_union'] = _compute_average_precision(
                 res['Det_num_gt_dets'], res['Det_scores'], res['Det_correct'])
