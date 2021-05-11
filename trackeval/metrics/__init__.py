@@ -1,7 +1,6 @@
 from .hota import HOTA
 from .clear import CLEAR
 from .detection import Det
-from .detection import DetLoc
 from .identity import Identity
 from .count import Count
 from .j_and_f import JAndF

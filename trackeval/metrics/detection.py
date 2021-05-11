@@ -16,31 +16,24 @@ class Det(_BaseMetric):
         super().__init__()
         self.plottable = True
         self.array_labels = self._get_array_labels()
-        self.integer_fields = ['Det_Frames', 'Det_Sequences', 'Det_TP', 'Det_FP', 'Det_FN']
-        self.float_fields = ['Det_AP', 'Det_AP_sum', 'Det_AP_union', 'Det_AP_coarse', 'Det_AP_coarse_naive',
+        self.integer_fields = ['Det_Frames', 'Det_TP', 'Det_FP', 'Det_FN']
+        self.float_fields = ['Det_AP', 'Det_AP_coarse', 'Det_AP_naive',
                              'Det_MODA', 'Det_MODP', 'Det_MODP_sum', 'Det_FAF',
                              'Det_Re', 'Det_Pr', 'Det_F1',
                              'Det_num_gt_dets']
-        self.float_array_fields = ['Det_PrAtRe', 'Det_PrAtRe_sum',
-                                   'Det_PrAtRe_naive', 'Det_PrAtRe_naive_sum',
-                                   'Det_PrAtRe_union']
+        self.float_array_fields = ['Det_PrAtRe']
         self.fields = self.integer_fields + self.float_fields + self.float_array_fields
-        self.summary_fields = ['Det_AP', 'Det_PrAtRe', 'Det_AP_coarse',
-                               'Det_PrAtRe_naive', 'Det_AP_coarse_naive',
-                               'Det_AP_union', 'Det_PrAtRe_union',
+        self.summary_fields = ['Det_AP', 'Det_PrAtRe',
                                'Det_MODA', 'Det_MODP', 'Det_FAF',
                                'Det_Re', 'Det_Pr', 'Det_F1']
 
         self.threshold = 0.5
-        self.summed_fields = (
-                self.integer_fields +
-                ['Det_AP_sum', 'Det_MODP_sum', 'Det_PrAtRe_sum', 'Det_PrAtRe_naive_sum',
-                 'Det_num_gt_dets'])
+        self.summed_fields = self.integer_fields + ['Det_MODP_sum', 'Det_num_gt_dets']
         self.concat_fields = ['Det_scores', 'Det_correct']
 
     @_timing.time
     def eval_sequence(self, data):
-        """Calculates CLEAR metrics for one sequence"""
+        """Calculates detection metrics for one sequence."""
         # Initialise results
         res = {}
         for field in self.fields:
@@ -49,7 +42,6 @@ class Det(_BaseMetric):
             else:
                 res[field] = 0
         res['Det_Frames'] = data['num_timesteps']
-        res['Det_Sequences'] = 1
 
         # Find per-frame correspondence by priority of score.
         correct = [None for _ in range(data['num_timesteps'])]
@@ -60,13 +52,6 @@ class Det(_BaseMetric):
         # Concatenate results from all frames to compute AUC.
         scores = np.concatenate(data['tracker_confidences'])
         correct = np.concatenate(correct)
-        # MOT Challenge devkit computes AP per sequence, not over all sequences.
-        res['Det_AP_sum'] = _compute_average_precision(data['num_gt_dets'], scores, correct)
-        res['Det_PrAtRe_sum'] = _find_max_prec_at_recall(
-                data['num_gt_dets'], scores, correct, self.array_labels)
-        # TODO: Remove naive precision after comparison.
-        res['Det_PrAtRe_naive_sum'] = _find_prec_at_recall(
-                data['num_gt_dets'], scores, correct, self.array_labels)
         # Take union of all sequences for precision-recall curve.
         res['Det_num_gt_dets'] = data['num_gt_dets']
         res['Det_scores'] = scores
@@ -116,20 +101,19 @@ class Det(_BaseMetric):
         This function is used both for both per-sequence calculation, and in combining values across sequences.
         """
         res = dict(res)
-        # TODO: Keep only one AP metric?
-        res['Det_AP'] = res['Det_AP_sum'] / res['Det_Sequences']
-        res['Det_AP_union'] = _compute_average_precision(
+        res['Det_AP'] = _compute_average_precision(
                 res['Det_num_gt_dets'], res['Det_scores'], res['Det_correct'])
-        res['Det_PrAtRe_union'] = _find_max_prec_at_recall(
+        res['Det_PrAtRe'] = _find_max_prec_at_recall(
                 res['Det_num_gt_dets'], res['Det_scores'], res['Det_correct'],
                 cls._get_array_labels())
-        res['Det_PrAtRe'] = res['Det_PrAtRe_sum'] / res['Det_Sequences']
-        res['Det_PrAtRe_naive'] = res['Det_PrAtRe_naive_sum'] / res['Det_Sequences']
-        # TODO: This average may assign too much importance to 0% and 100% recall?
-        # res['Det_AP_coarse'] = np.mean(res['Det_PrAtRe'][::10], )
-        # res['Det_AP_coarse_naive'] = np.mean(res['Det_PrAtRe_naive'][::10])
+
+        # TODO: Remove after comparison.
         res['Det_AP_coarse'] = np.trapz(res['Det_PrAtRe'][::10], dx=0.1)
-        res['Det_AP_coarse_naive'] = np.trapz(res['Det_PrAtRe_naive'][::10], dx=0.1)
+        pr_at_re_naive = _find_prec_at_recall(
+                res['Det_num_gt_dets'], res['Det_scores'], res['Det_correct'],
+                cls._get_array_labels())
+        res['Det_AP_naive'] = np.mean(res['Det_PrAtRe'][::10])
+
         res['Det_MODA'] = (res['Det_TP'] - res['Det_FP']) / np.maximum(1.0, res['Det_TP'] + res['Det_FN'])
         res['Det_MODP'] = res['Det_MODP_sum'] / np.maximum(1.0, res['Det_TP'])
         res['Det_FAF'] = res['Det_FP'] / res['Det_Frames']
@@ -137,7 +121,6 @@ class Det(_BaseMetric):
         res['Det_Pr'] = res['Det_TP'] / np.maximum(1.0, res['Det_TP'] + res['Det_FP'])
         res['Det_F1'] = res['Det_TP'] / (
                 np.maximum(1.0, res['Det_TP'] + 0.5*res['Det_FN'] + 0.5*res['Det_FP']))
-        assert np.all(res['Det_PrAtRe_naive'] <= res['Det_PrAtRe'])
         return res
 
     def combine_sequences(self, all_res):
@@ -169,107 +152,6 @@ class Det(_BaseMetric):
         for name, style in zip(plot_fields, styles_to_plot):
             plt.plot(self.array_labels, res[name], style)
         plt.xlabel('recall')
-        plt.ylabel('score')
-        plt.title(tracker + ' - ' + cls)
-        plt.axis([0, 1, 0, 1])
-        legend = []
-        for name in plot_fields:
-            legend += [name + ' (' + str(np.round(np.mean(res[name]), 2)) + ')']
-        plt.legend(legend, loc='lower left')
-        out_file = os.path.join(output_folder, cls + '_plot.pdf')
-        os.makedirs(os.path.dirname(out_file), exist_ok=True)
-        plt.savefig(out_file)
-        plt.savefig(out_file.replace('.pdf', '.png'))
-        plt.clf()
-
-
-class DetLoc(_BaseMetric):
-    """Implements detection metrics.
-
-    Metrics are parameterized by IOU threshold.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.plottable = True
-        self.array_labels = np.arange(5, 95 + 1, 5) / 100.
-        self.integer_fields = ['DetLoc_Sequences']
-        self.float_fields = ['DetLoc_AP_50', 'DetLoc_AP_75', 'DetLoc_AP_50_95']
-        self.float_array_fields = ['DetLoc_AP', 'DetLoc_AP_sum']
-        self.fields = self.integer_fields + self.float_fields + self.float_array_fields
-        self.summary_fields = ['DetLoc_AP', 'DetLoc_AP_50', 'DetLoc_AP_75', 'DetLoc_AP_50_95']
-
-        self.summed_fields = self.integer_fields + ['DetLoc_AP_sum']
-
-    @_timing.time
-    def eval_sequence(self, data):
-        """Calculates CLEAR metrics for one sequence"""
-        # Initialise results
-        res = {}
-        for field in self.fields:
-            if field in self.float_array_fields:
-                res[field] = np.zeros((len(self.array_labels),), dtype=np.float)
-            else:
-                res[field] = 0
-        res['DetLoc_Sequences'] = 1
-
-        # Find per-frame correspondence (without accounting for switches).
-        for i, sim_threshold in enumerate(self.array_labels):
-            # Find per-frame correspondence by priority of score.
-            correct = [None for _ in range(data['num_timesteps'])]
-            for t in range(data['num_timesteps']):
-                correct[t] = _match_by_score(data['tracker_confidences'][t],
-                                             data['similarity_scores'][t],
-                                             sim_threshold)
-            # Concatenate results from all frames to compute AUC.
-            scores = np.concatenate(data['tracker_confidences'])
-            correct = np.concatenate(correct)
-            # TODO: Compute precision-recall curve over all sequences, not per sequence?
-            # MOT Challenge seems to do it per-sequence.
-            res['DetLoc_AP_sum'][i] = _compute_average_precision(data['num_gt_dets'], scores, correct)
-
-        res = self._compute_final_fields(res)
-        return res
-
-    @staticmethod
-    def _compute_final_fields(res):
-        """Calculate sub-metric ('field') values which only depend on other sub-metric values.
-        This function is used both for both per-sequence calculation, and in combining values across sequences.
-        """
-        res = dict(res)
-        res['DetLoc_AP'] = res['DetLoc_AP_sum'] / res['DetLoc_Sequences']
-        res['DetLoc_AP_50'] = res['DetLoc_AP'][(50 - 5) // 5]
-        res['DetLoc_AP_75'] = res['DetLoc_AP'][(75 - 5) // 5]
-        res['DetLoc_AP_50_95'] = np.mean(res['DetLoc_AP'][(np.arange(50, 95 + 1, 5) - 5) // 5])
-        return res
-
-    def combine_sequences(self, all_res):
-        """Combines metrics across all sequences"""
-        res = {}
-        for field in self.summed_fields:
-            res[field] = self._combine_sum(all_res, field)
-        res = self._compute_final_fields(res)
-        return res
-
-    def combine_classes_det_averaged(self, all_res):
-        """Combines metrics across all classes by averaging over the detection values"""
-        return self.combine_sequences(all_res)
-
-    def combine_classes_class_averaged(self, all_res):
-        raise NotImplementedError
-
-    def plot_single_tracker_results(self, table_res, tracker, cls, output_folder):
-        """Create plot of results"""
-
-        # Only loaded when run to reduce minimum requirements
-        from matplotlib import pyplot as plt
-
-        res = table_res['COMBINED_SEQ']
-        styles_to_plot = ['r', 'b', 'g', 'b--', 'b:', 'g--', 'g:', 'm']
-        plot_fields = [x for x in self.summary_fields if x in self.float_array_fields]
-        for name, style in zip(plot_fields, styles_to_plot):
-            plt.plot(self.array_labels, res[name], style)
-        plt.xlabel('similarity')
         plt.ylabel('score')
         plt.title(tracker + ' - ' + cls)
         plt.axis([0, 1, 0, 1])
