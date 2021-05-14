@@ -18,6 +18,8 @@ class _BaseDataset(ABC):
         self.class_list = None
         self.output_fol = None
         self.output_sub_fol = None
+        self.should_classes_combine = True
+        self.use_super_categories = False
 
     # Functions to implement:
 
@@ -42,8 +44,11 @@ class _BaseDataset(ABC):
     # Helper functions for all datasets:
 
     @classmethod
-    def get_name(cls):
+    def get_class_name(cls):
         return cls.__name__
+
+    def get_name(self):
+        return self.get_class_name()
 
     def get_output_fol(self, tracker):
         return os.path.join(self.output_fol, tracker, self.output_sub_fol)
