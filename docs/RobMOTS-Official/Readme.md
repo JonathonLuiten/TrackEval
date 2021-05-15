@@ -4,7 +4,7 @@
 
 ### NEWS: [RobMOTS Challenge](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110) for the [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/) is now live!!!! Challenge deadline June 11.
 
-### NEWS: [Call for short papers](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=74)(4 pages) on tracking and other video topics for [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/)!!!! Paper deadline June 4.
+### NEWS: [Call for short papers](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=74) (4 pages) on tracking and other video topics for [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/)!!!! Paper deadline June 4.
 
 TrackEval is now the Official Evaluation Kit for the RobMOTS Challenge.
 
@@ -157,7 +157,23 @@ An example of a tracker result file looks like this:
 1 2 3 0.964085042476654 1200 1920 o_Uc03\U12O1O1N102N002N001O1O000O2O1O00002N6J1O001O2N1O3L3N2N4L5K2N1O000000000000001O1O2N01O01O010O01N2O0O2O1M4L3N2N101N2O001O1O100O0100000O1O1O1O2N6I4Mdm^`1
 ```
 
-The GT data for most benchmarks is in the exact same format as above (usually Detection Confidence is set to 1.0). The exception is the few benchmarks for which the ground-truth is not segmentation masks but bounding boxes (Waymo and TAO). For these the last three columns are not there (height, width and mask) as these encode a mask, and instead there are 4 columns encoding the bounding box co-ordinates in the format ```x0 y0 x1 y1```, where x0 and y0 are the coordinates of the top left of the box and x1 and y0 are the coordinates for the bottom right.
+Note that for the evaluation to be valid, the masks must not overlap within one frame.
+
+The supplied detections have the same format (but with all the Track IDs being set to 0).
+
+The groundtruth data for most benchmarks is in the exact same format as above (usually Detection Confidence is set to 1.0). The exception is the few benchmarks for which the ground-truth is not segmentation masks but bounding boxes (Waymo and TAO). For these the last three columns are not there (height, width and mask) as these encode a mask, and instead there are 4 columns encoding the bounding box co-ordinates in the format ```x0 y0 x1 y1```, where x0 and y0 are the coordinates of the top left of the box and x1 and y0 are the coordinates for the bottom right.
+
+The groundtruth can also contain ignore regions. The are marked by being having a class number of 100 or larger. Class number 100 encodes and ignore region for all class, which class numbers higher than 100 encode ignore regions specific to each class. E.g. class number 105 are ignore regions for class 5. 
+
+As well as the per sequence files described above, the groundtruth for each benchmark contains two more files ```clsmap.txt``` and ```seqmap.txt```. 
+
+```clsmap.txt``` is a single row, space-separated, containing all of the valid classes that should be evaluated for each benchmark (not all benchmarks evaluate all of the coco classes). 
+
+```seqmap.txt``` contains a list of the sequences to be evaluated for that benchmark. Each row has at least 4 values. These are:
+```
+<sequence name> <number of frames in sequence> <sequence image height> <sequence image width>
+```
+More than 4 values can be present, the remaining values are 'ignore classes for this sequence'. E.g. classes which are evaluated for the particular benchmark as a whole, but should be ignored for this sequence. 
 
 ## Visualizing GT and Tracker Masks
 
