@@ -6,12 +6,13 @@ This codebase provides code for a number of different tracking evaluation metric
 
 ## **NEW**: RobMOTS Challenge 2021
 
-Call for submission to our [RobMOTS Challenge](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110) (Robust Multi-Object Tracking and Segmentation) held in conjunction with our [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/). Robust tracking evaluation against 8 tracking benchmarks. Submission deadline May 27th. Also check out our workshop [call for papers](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=74).
+Call for submission to our [RobMOTS Challenge](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110) (Robust Multi-Object Tracking and Segmentation) held in conjunction with our [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/). Robust tracking evaluation against 8 tracking benchmarks. Challenge submission deadline June 11th. Also check out our workshop [call for papers](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=74).
 
 ## Official Evaluation Code
 
 The following benchmarks use TrackEval as their official evaluation code, check out the links to see TrackEval in action:
 
+ - **[RobMOTS](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110)** ([Official Readme](docs/RobMOTS-Official/Readme.md))
  - **[KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)**
  - **[KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php)**
  - **[MOTChallenge](https://motchallenge.net/)** ([Official Readme](docs/MOTChallenge-Official/Readme.md))
@@ -41,6 +42,7 @@ The following benchmarks are currently implemented:
 Benchmark | Sub-benchmarks | Type | Website | Code | Data Format |
 |----- | ----------- |----- | ----------- | ----- | ----- |
 | | | |  |  | |
+|**RobMOTS**|Combination of 8 benchmarks|Seg Masks|[website](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110)|[code](trackeval/datasets/rob_mots.py)|[format](docs/RobMOTS-Official/Readme.md)|
 |**MOTChallenge**|MOT15/16/17/20|2D BBox|[website](https://motchallenge.net/)|[code](trackeval/datasets/mot_challenge_2d_box.py)|[format](docs/MOTChallenge-format.txt)|
 |**KITTI Tracking**| |2D BBox|[website](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)|[code](trackeval/datasets/kitti_2d_box.py)|[format](docs/KITTI-format.txt)|
 |**BDD-100k**| |2D BBox|[website](https://bdd-data.berkeley.edu/)|[code](trackeval/datasets/bdd100k.py)|[format](docs/BDD100k-format.txt)|
@@ -86,6 +88,8 @@ The code can be run in one of two ways:
 
 To enable you to use TrackEval for evaluation as quickly and easily as possible, we provide ground-truth data, meta-data and example trackers for all currently supported benchmarks.
 You can download this here: [data.zip](https://omnomnom.vision.rwth-aachen.de/data/TrackEval/data.zip) (~150mb).
+
+The data for RobMOTS is separate and can be found here: [rob_mots_train_data.zip](https://omnomnom.vision.rwth-aachen.de/data/RobMOTS/train_data.zip) (~750mb).
 
 The easiest way to begin is to extract this zip into the repository root folder such that the file paths look like: TrackEval/data/gt/...
 
