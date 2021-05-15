@@ -179,6 +179,10 @@ More than 4 values can be present, the remaining values are 'ignore classes for 
 
 We provide code (COMING SOON) for converting our .txt format with compressed RLE masks into .png format where it is easy to visualize the GT and Predicted masks.
 
+## Evaluate on the validation and test server
+
+COMING SOON
+
 ## Citation
 If you work with the code and the benchmark, please cite:
 
