@@ -24,7 +24,7 @@ If you run a tracking benchmark and want to use TrackEval as your official evalu
 
 The following metrics are currently implemented:
 
-Metric Family | Submetrics | Paper | Code | Notes |
+Metric Family | Sub metrics | Paper | Code | Notes |
 |----- | ----------- |----- | ----------- | ----- |
 | | | |  |  |
 |**HOTA metrics**|HOTA, DetA, AssA, LocA, DetPr, DetRe, AssPr, AssRe|[paper](https://link.springer.com/article/10.1007/s11263-020-01375-2)|[code](trackeval/metrics/hota.py)|**Recommended tracking metric**|
@@ -57,7 +57,7 @@ This code is also the official reference implementation for the HOTA metrics:
 
 *[HOTA: A Higher Order Metric for Evaluating Multi-Object Tracking](https://link.springer.com/article/10.1007/s11263-020-01375-2). IJCV 2020. Jonathon Luiten, Aljosa Osep, Patrick Dendorfer, Philip Torr, Andreas Geiger, Laura Leal-Taixe and Bastian Leibe.*
 
-HOTA is a novel set of MOT evaluation metrics which enable better understanding of tracking behaviour than previous metrics.
+HOTA is a novel set of MOT evaluation metrics which enable better understanding of tracking behavior than previous metrics.
 
 For more information check out the following links:
  - [Short blog post on HOTA](https://jonathonluiten.medium.com/how-to-evaluate-tracking-with-the-hota-metrics-754036d183e1) - **HIGHLY RECOMMENDED READING**
@@ -109,7 +109,7 @@ To convert formats, check out the format specifications defined [here](docs).
 
 By default, we would recommend the MOTChallenge format, although any implemented format should work. Note that for many cases you will want to use the argument ```--DO_PREPROC False``` unless you want to run preprocessing to remove distractor objects.
 
-## Requirments
+## Requirements
  Code tested on Python 3.7.
  
  - Minimum requirements: numpy, scipy
