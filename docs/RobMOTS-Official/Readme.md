@@ -2,11 +2,15 @@
 
 # RobMOTS Official Evaluation Code
 
+### NEWS: [RobMOTS Challenge](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110) for the [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/) is now live!!!! Challenge deadline June 11.
+
+### NEWS: [Call for short papers](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=74)(4 pages) on tracking and other video topics for [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/)!!!! Paper deadline June 4.
+
 TrackEval is now the Official Evaluation Kit for the RobMOTS Challenge.
 
 This repository contains the official evaluation code for the challenges available at the [RobMOTS Website](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110).
 
-The RobMOTS Challenge tests trackers ability to work robustly across 8 differnt benchmarks, while tracking the [80 categories of objects from COCO](https://cocodataset.org/#explore).
+The RobMOTS Challenge tests trackers' ability to work robustly across 8 different benchmarks, while tracking the [80 categories of objects from COCO](https://cocodataset.org/#explore).
 
 The following benchmarks are included:
 
@@ -23,7 +27,7 @@ Benchmark | Website |
 
 ## Installing, obtaining the data, and running
 
-Simply follow the code snippit below to install the evaluation code, download the gt data (and example tracker and supplied detections), and run the evaluation code on the sample tracker.
+Simply follow the code snippet below to install the evaluation code, download the groundtruth data (and example tracker and supplied detections), and run the evaluation code on the sample tracker.
 
 Note the code requires python 3.5 or higher.
 
@@ -57,7 +61,7 @@ python scripts/run_rob_mots.py --ROBMOTS_SPLIT train --TRACKERS_TO_EVAL STP --US
 
 ```
 
-If you wish to download the train gt data (and example tracker and supplied detections) without using the terminal commands above, you can download them from this link:
+If you wish to download the train groundtruth data (and example tracker and supplied detections) without using the terminal commands above, you can download them from this link:
 
 [Train Data (GT, supplied dets, tracker example) (750mb)](https://omnomnom.vision.rwth-aachen.de/data/RobMOTS/train_data.zip)
 
@@ -76,13 +80,13 @@ These detections are from the Detectron 2 Mask R-CNN X152 (very bottom model on 
 
 We then obtain segmentation masks for these detections using the Box2Seg Network (also called Refinement Net), which results in far more accurate masks than the default Mask R-CNN masks. The code for this can be found [here](https://github.com/JonathonLuiten/PReMVOS/tree/master/code/refinement_net). 
 
-We supply two different supplied detections. The first is the ```raw_supplied``` detections, which is taking all 1000 detections output from the Mask R-CNN, and only removing those for which the maximum class score is less than 0.02 (here no non-maximum supression, NMS, is run). The detections are COMING SOON.
+We supply two different supplied detections. The first is the ```raw_supplied``` detections, which is taking all 1000 detections output from the Mask R-CNN, and only removing those for which the maximum class score is less than 0.02 (here no non-maximum suppression, NMS, is run). The detections are COMING SOON.
 
-The second is ```non_overlap_supplied``` detection. These are the same detections as above, but with further processing steps applied to them. First we perform Non-Maximum Supression (NMS) with a threshold of 0.5 to remove any masks which have an IoU of 0.5 or more with any other mask that has a higher score. Second we run a Non-Overlap algorithm which forces all of the masks for a single image to be non-overlapping. It does this by putting all the masks 'on top of' each other, ordered by score, such that masks with a lower score will be partially removed if a mask with a higher score partially overlaps them. Code for this NMS and Non-Overlap algorithm is COMING SOON. Note that these detections are still only thresholded at a score of 0.02, in general we recommend further thresholding with a higher value to get a good balance of precision and recall. 
+The second is ```non_overlap_supplied``` detection. These are the same detections as above, but with further processing steps applied to them. First we perform Non-Maximum Suppression (NMS) with a threshold of 0.5 to remove any masks which have an IoU of 0.5 or more with any other mask that has a higher score. Second we run a Non-Overlap algorithm which forces all of the masks for a single image to be non-overlapping. It does this by putting all the masks 'on top of' each other, ordered by score, such that masks with a lower score will be partially removed if a mask with a higher score partially overlaps them. Code for this NMS and Non-Overlap algorithm is COMING SOON. Note that these detections are still only thresholded at a score of 0.02, in general we recommend further thresholding with a higher value to get a good balance of precision and recall. 
 
 Note that for RobMOTS evaluation the final tracking results need to be 'non-overlapping' so we recommend using the ```non_overlap_supplied``` detections, however you may use the ```raw_supplied```, or your own or any other detections as you like.
 
-Currently supplied detections are only avaliable for the train set, however for the val and test set these are COMING SOON.
+Currently supplied detections are only available for the train set, however for the val and test set these are COMING SOON.
 
 Code for reading in these detections and using them in COMING SOON.
 
@@ -143,7 +147,7 @@ Detection Confidence score should be between 0 and 1. This is not used for HOTA 
 
 Image height and width are needed to decode the compressed RLE mask representation.
 
-The Compressed RLE Mask is the same format used by coco and pycocotool.
+The Compressed RLE Mask is the same format used by coco and pycocotools.
 
 An example of a tracker result file looks like this:
 
@@ -157,7 +161,7 @@ The GT data for most benchmarks is in the exact same format as above (usually De
 
 ## Visualizing GT and Tracker Masks
 
-We provide code (COMING SOON) for converting our .txt format with compressed RLE masks into .png format where is is easy to visualize the GT and Predicted masks.
+We provide code (COMING SOON) for converting our .txt format with compressed RLE masks into .png format where it is easy to visualize the GT and Predicted masks.
 
 ## Citation
 If you work with the code and the benchmark, please cite:
