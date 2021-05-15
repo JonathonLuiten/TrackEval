@@ -100,4 +100,93 @@ You can then run the evaluation code on your tracker like this:
 python scripts/run_rob_mots.py --ROBMOTS_SPLIT train --TRACKERS_TO_EVAL YOUR_TRACKER --USE_PARALLEL True --NUM_PARALLEL_CORES 4
 ```
 
+## Data format
 
+For RobMOTS, trackers must submit their results in the following folder format:
+
+```
+|—— <Benchmark01>
+  |—— <Benchmark01SeqName01>.txt
+  |—— <Benchmark01SeqName02>.txt
+  |—— <Benchmark01SeqName03>.txt
+|—— <Benchmark02>
+  |—— <Benchmark02SeqName01>.txt
+  |—— <Benchmark02SeqName02>.txt
+  |—— <Benchmark02SeqName03>.txt
+```
+
+See the supplied STP tracker results (in the Train Data linked above) for an example.
+
+Thus there is one .txt file for each sequence. This file has one row per detection (object mask in one frame). Each row must have 7 value and has the following format:
+
+</p>
+<code>
+&lt;Timestep&gt;(int),
+&lt;Track ID&gt;(int),
+&lt;Class Number&gt;(int),
+&lt;Detection Confidence&gt;(float),
+&lt;Image Height&gt;(int),
+&lt;Image Width&gt;(int),
+&lt;Compressed RLE Mask&gt;(string),
+</code>
+</p>
+
+Timesteps are the same as the frame names for the supplied images. These start at 0.
+
+Track IDs must be unique across all classes with a frame. They can be non-unique across different sequences.
+
+The mapping of class numbers to class names can be found is [this file](trackeval/datasets/rob_mots_classmap.py). Note that this is the same as used in Detectron 2, and is the default COCO class ordering with the unused numbers removed.
+
+Detection Confidence score should be between 0 and 1. This is not used for HOTA evaluation, but is used for other eval metrics like Track mAP.
+
+Image height and width are needed to decode the compressed RLE mask representation.
+
+The Compressed RLE Mask is the same format used by coco and pycocotool.
+
+An example of a tracker result file looks like this:
+
+```
+0 1 3 0.9917707443237305 1200 1920 VaTi0b0lT17F8K3M3N1O1N2O0O2M3N2N101O1O1O01O1O0100O100O01O1O100O10O1000O1000000000000000O1000001O0000000000000000O101O00000000000001O0000010O0110O0O100O1O2N1O2N0O2O2M3M2N2O1O2N5J;DgePZ1
+0 2 3 0.989478349685669 1200 1920 Ql^c05ZU12O2N001O0O10OTkNIaT17^kNKaT15^kNLbT14^kNMaT13^kNOaT11_kN0`T10_kN1`T11_kN0`T11_kN0`T1a0O00001O1O1O3M;E5K3M2N000000000O100000000000000000001O00001O2N1O1O1O000001O001O0O2O0O2M3M3M3N2O1O1O1N2O002N1O2N10O02N10000O1O101M3N2N2M7H^_g_1
+1 2 3 0.964085042476654 1200 1920 o_Uc03\U12O1O1N102N002N001O1O000O2O1O00002N6J1O001O2N1O3L3N2N4L5K2N1O000000000000001O1O2N01O01O010O01N2O0O2O1M4L3N2N101N2O001O1O100O0100000O1O1O1O2N6I4Mdm^`1
+```
+
+The GT data for most benchmarks is in the exact same format as above (usually Detection Confidence is set to 1.0). The exception is the few benchmarks for which the ground-truth is not segmentation masks but bounding boxes (Waymo and TAO). For these the last three columns are not there (height, width and mask) as these encode a mask, and instead there are 4 columns encoding the bounding box co-ordinates in the format ```x0 y0 x1 y1```, where x0 and y0 are the coordinates of the top left of the box and x1 and y0 are the coordinates for the bottom right.
+
+## Visualizing GT and Tracker Masks
+
+We provide code (COMING SOON) for converting our .txt format with compressed RLE masks into .png format where is is easy to visualize the GT and Predicted masks.
+
+## Citation
+If you work with the code and the benchmark, please cite:
+
+***TrackEval***
+```
+@misc{luiten2020trackeval,
+  author =       {Jonathon Luiten, Arne Hoffhues},
+  title =        {TrackEval},
+  howpublished = {\url{https://github.com/JonathonLuiten/TrackEval}},
+  year =         {2020}
+}
+```
+***HOTA metrics***
+```
+@article{luiten2020IJCV,
+  title={HOTA: A Higher Order Metric for Evaluating Multi-Object Tracking},
+  author={Luiten, Jonathon and Osep, Aljosa and Dendorfer, Patrick and Torr, Philip and Geiger, Andreas and Leal-Taix{\'e}, Laura and Leibe, Bastian},
+  journal={International Journal of Computer Vision},
+  pages={1--31},
+  year={2020},
+  publisher={Springer}
+}
+```
+
+## Feedback and Contact
+We are constantly working on improving RobMOTS, and wish to provide the most useful support to the community.
+You can help us to make the benchmark better by open issues in the repo and reporting bugs.
+
+For general questions, please contact the following:
+
+```
+Jonathon Luiten - luiten@vision.rwth-aachen.de
+```
