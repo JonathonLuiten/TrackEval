@@ -25,6 +25,8 @@ Benchmark | Website |
 
 Simply follow the code snippit below to install the evaluation code, download the gt data (and example tracker and supplied detections), and run the evaluation code on the sample tracker.
 
+Note the code requires python 3.5 or higher.
+
 ```
 # Download the TrackEval repo
 git clone https://github.com/JonathonLuiten/TrackEval.git
