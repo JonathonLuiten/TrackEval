@@ -208,6 +208,7 @@ class HeadTrackingChallenge(_BaseDataset):
 
         if self.benchmark == 'HT':
             data_keys += ['visibility']
+            data_keys += ['gt_conf']
         raw_data = {key: [None] * num_timesteps for key in data_keys}
 
         # Check for any extra time keys
@@ -248,6 +249,7 @@ class HeadTrackingChallenge(_BaseDataset):
                               'columns in the data.' % (tracker, seq)
                         raise TrackEvalException(err)
                 if time_data.shape[1] >= 8:
+                    raw_data['gt_conf'][t] = np.atleast_1d(time_data[:, 6]).astype(float)
                     raw_data['visibility'][t] = np.atleast_1d(time_data[:, 8]).astype(float)
                     raw_data['classes'][t] = np.atleast_1d(time_data[:, 7]).astype(int)
                 else:
@@ -345,6 +347,8 @@ class HeadTrackingChallenge(_BaseDataset):
             gt_dets = raw_data['gt_dets'][t]
             gt_classes = raw_data['gt_classes'][t]
             gt_visibility = raw_data['visibility'][t]
+            gt_conf = raw_data['gt_conf'][t]
+
             gt_zero_marked = raw_data['gt_extras'][t]['zero_marked']
 
             tracker_ids = raw_data['tracker_ids'][t]
@@ -376,10 +380,8 @@ class HeadTrackingChallenge(_BaseDataset):
                                              ' '.join([str(x) for x in invalid_classes])))
 
                 matching_scores = similarity_scores.copy()
-                if self.benchmark == 'HT':
-                    matching_scores[matching_scores < 0.4 - np.finfo('float').eps] = 0
-                else:
-                    matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = 0
+
+                matching_scores[matching_scores < 0.4 - np.finfo('float').eps] = 0
 
                 match_rows, match_cols = linear_sum_assignment(-matching_scores)
                 actually_matched_mask = matching_scores[match_rows, match_cols] > 0 + np.finfo('float').eps
@@ -389,7 +391,8 @@ class HeadTrackingChallenge(_BaseDataset):
                 is_distractor_class = np.logical_not(np.isin(gt_classes[match_rows], cls_id))
                 if self.benchmark == 'HT':
                     is_invisible_class = gt_visibility[match_rows] < np.finfo('float').eps
-                    are_distractors = np.logical_or(is_invisible_class, is_distractor_class)
+                    low_conf_class = gt_conf[match_rows] < np.finfo('float').eps
+                    are_distractors = np.logical_or(is_invisible_class, is_distractor_class, low_conf_class)
                     to_remove_tracker = match_cols[are_distractors]
                 else:
                     to_remove_tracker = match_cols[is_distractor_class]
@@ -404,7 +407,9 @@ class HeadTrackingChallenge(_BaseDataset):
             if self.do_preproc and self.benchmark == 'HT':
                 gt_to_keep_mask = (np.not_equal(gt_zero_marked, 0)) & \
                                   (np.equal(gt_classes, cls_id)) & \
-                                  (gt_visibility > 0.)
+                                  (gt_visibility > 0.) & \
+                                  (gt_conf > 0.)
+
             else:
                 # There are no classes for MOT15
                 gt_to_keep_mask = np.not_equal(gt_zero_marked, 0)

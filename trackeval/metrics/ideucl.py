@@ -102,17 +102,17 @@ class IDEucl(_BaseMetric):
     def combine_classes_det_averaged(self, all_res):
         """Combines metrics across all classes by averaging over the detection values"""
         res = {}
-        for field in self.integer_fields:
+        for field in self.float_fields:
             res[field] = self._combine_sum(all_res, field)
-        res = self._compute_final_fields(res)
+        res = self._compute_final_fields(res, len(all_res))
         return res
 
     def combine_sequences(self, all_res):
         """Combines metrics across all sequences"""
         res = {}
-        for field in self.integer_fields:
+        for field in self.float_fields:
             res[field] = self._combine_sum(all_res, field)
-        res = self._compute_final_fields(res)
+        res = self._compute_final_fields(res, len(all_res))
         return res
 
 
@@ -123,13 +123,13 @@ class IDEucl(_BaseMetric):
             centroid = (box[0:2] + box[2:4])/2
         else:
             centroid = (box[:, 0:2] + box[:, 2:4])/2
-        return centroid
+        return  np.flip(centroid, axis=1)
 
 
     @staticmethod
-    def _compute_final_fields(res):
+    def _compute_final_fields(res, res_len):
         """
         Exists only to match signature with the original Identiy class.
 
         """
-        return res
+        return {k:v/res_len for k,v in res.items()}
