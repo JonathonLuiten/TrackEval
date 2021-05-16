@@ -82,13 +82,13 @@ We then obtain segmentation masks for these detections using the Box2Seg Network
 
 We supply two different supplied detections. The first is the ```raw_supplied``` detections, which is taking all 1000 detections output from the Mask R-CNN, and only removing those for which the maximum class score is less than 0.02 (here no non-maximum suppression, NMS, is run). The detections are COMING SOON.
 
-The second is ```non_overlap_supplied``` detection. These are the same detections as above, but with further processing steps applied to them. First we perform Non-Maximum Suppression (NMS) with a threshold of 0.5 to remove any masks which have an IoU of 0.5 or more with any other mask that has a higher score. Second we run a Non-Overlap algorithm which forces all of the masks for a single image to be non-overlapping. It does this by putting all the masks 'on top of' each other, ordered by score, such that masks with a lower score will be partially removed if a mask with a higher score partially overlaps them. Code for this NMS and Non-Overlap algorithm is COMING SOON. Note that these detections are still only thresholded at a score of 0.02, in general we recommend further thresholding with a higher value to get a good balance of precision and recall. 
+The second is ```non_overlap_supplied``` detections. These are the same detections as above, but with further processing steps applied to them. First we perform Non-Maximum Suppression (NMS) with a threshold of 0.5 to remove any masks which have an IoU of 0.5 or more with any other mask that has a higher score. Second we run a Non-Overlap algorithm which forces all of the masks for a single image to be non-overlapping. It does this by putting all the masks 'on top of' each other, ordered by score, such that masks with a lower score will be partially removed if a mask with a higher score partially overlaps them. Code for this NMS and Non-Overlap algorithm is COMING SOON. Note that these detections are still only thresholded at a score of 0.02, in general we recommend further thresholding with a higher value to get a good balance of precision and recall. 
 
 Note that for RobMOTS evaluation the final tracking results need to be 'non-overlapping' so we recommend using the ```non_overlap_supplied``` detections, however you may use the ```raw_supplied```, or your own or any other detections as you like.
 
 Currently supplied detections are only available for the train set, however for the val and test set these are COMING SOON.
 
-Code for reading in these detections and using them in COMING SOON.
+Code for reading in these detections and using them is COMING SOON.
 
 ## Creating your own tracker
 
@@ -98,7 +98,7 @@ This includes code for reading in the supplied detections and writing out the tr
 
 ## Evaluating your own tracker
 
-To evaluate your tracker, put the results in the folder ```TrackEval/data/trackers/rob_mots/train/```, a folder alongside the supplied tracker STP with the folder labelled as your tracker name, e.g. YOUR_TRACKER.
+To evaluate your tracker, put the results in the folder ```TrackEval/data/trackers/rob_mots/train/```, in a folder alongside the supplied tracker STP with the folder labelled as your tracker name, e.g. YOUR_TRACKER.
 
 You can then run the evaluation code on your tracker like this:
 
@@ -123,7 +123,7 @@ For RobMOTS, trackers must submit their results in the following folder format:
 
 See the supplied STP tracker results (in the Train Data linked above) for an example.
 
-Thus there is one .txt file for each sequence. This file has one row per detection (object mask in one frame). Each row must have 7 value and has the following format:
+Thus there is one .txt file for each sequence. This file has one row per detection (object mask in one frame). Each row must have 7 values and has the following format:
 
 </p>
 <code>
@@ -139,7 +139,7 @@ Thus there is one .txt file for each sequence. This file has one row per detecti
 
 Timesteps are the same as the frame names for the supplied images. These start at 0.
 
-Track IDs must be unique across all classes with a frame. They can be non-unique across different sequences.
+Track IDs must be unique across all classes within a frame. They can be non-unique across different sequences.
 
 The mapping of class numbers to class names can be found is [this file](trackeval/datasets/rob_mots_classmap.py). Note that this is the same as used in Detectron 2, and is the default COCO class ordering with the unused numbers removed.
 
@@ -147,7 +147,7 @@ Detection Confidence score should be between 0 and 1. This is not used for HOTA 
 
 Image height and width are needed to decode the compressed RLE mask representation.
 
-The Compressed RLE Mask is the same format used by coco and pycocotools.
+The Compressed RLE Mask is the same format used by coco, pycocotools and mots.
 
 An example of a tracker result file looks like this:
 
