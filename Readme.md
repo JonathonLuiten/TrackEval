@@ -6,12 +6,13 @@ This codebase provides code for a number of different tracking evaluation metric
 
 ## **NEW**: RobMOTS Challenge 2021
 
-Call for submission to our [RobMOTS Challenge](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110) (Robust Multi-Object Tracking and Segmentation) held in conjunction with our [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/). Robust tracking evaluation against 8 tracking benchmarks. Submission deadline May 27th. Also check out our workshop [call for papers](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=74).
+Call for submission to our [RobMOTS Challenge](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110) (Robust Multi-Object Tracking and Segmentation) held in conjunction with our [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/). Robust tracking evaluation against 8 tracking benchmarks. Challenge submission deadline June 11th. Also check out our workshop [call for papers](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=74).
 
 ## Official Evaluation Code
 
 The following benchmarks use TrackEval as their official evaluation code, check out the links to see TrackEval in action:
 
+ - **[RobMOTS](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110)** ([Official Readme](docs/RobMOTS-Official/Readme.md))
  - **[KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)**
  - **[KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php)**
  - **[MOTChallenge](https://motchallenge.net/)** ([Official Readme](docs/MOTChallenge-Official/Readme.md))
@@ -23,7 +24,7 @@ If you run a tracking benchmark and want to use TrackEval as your official evalu
 
 The following metrics are currently implemented:
 
-Metric Family | Submetrics | Paper | Code | Notes |
+Metric Family | Sub metrics | Paper | Code | Notes |
 |----- | ----------- |----- | ----------- | ----- |
 | | | |  |  |
 |**HOTA metrics**|HOTA, DetA, AssA, LocA, DetPr, DetRe, AssPr, AssRe|[paper](https://link.springer.com/article/10.1007/s11263-020-01375-2)|[code](trackeval/metrics/hota.py)|**Recommended tracking metric**|
@@ -41,6 +42,7 @@ The following benchmarks are currently implemented:
 Benchmark | Sub-benchmarks | Type | Website | Code | Data Format |
 |----- | ----------- |----- | ----------- | ----- | ----- |
 | | | |  |  | |
+|**RobMOTS**|Combination of 8 benchmarks|Seg Masks|[website](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110)|[code](trackeval/datasets/rob_mots.py)|[format](docs/RobMOTS-Official/Readme.md)|
 |**MOTChallenge**|MOT15/16/17/20|2D BBox|[website](https://motchallenge.net/)|[code](trackeval/datasets/mot_challenge_2d_box.py)|[format](docs/MOTChallenge-format.txt)|
 |**KITTI Tracking**| |2D BBox|[website](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)|[code](trackeval/datasets/kitti_2d_box.py)|[format](docs/KITTI-format.txt)|
 |**BDD-100k**| |2D BBox|[website](https://bdd-data.berkeley.edu/)|[code](trackeval/datasets/bdd100k.py)|[format](docs/BDD100k-format.txt)|
@@ -55,7 +57,7 @@ This code is also the official reference implementation for the HOTA metrics:
 
 *[HOTA: A Higher Order Metric for Evaluating Multi-Object Tracking](https://link.springer.com/article/10.1007/s11263-020-01375-2). IJCV 2020. Jonathon Luiten, Aljosa Osep, Patrick Dendorfer, Philip Torr, Andreas Geiger, Laura Leal-Taixe and Bastian Leibe.*
 
-HOTA is a novel set of MOT evaluation metrics which enable better understanding of tracking behaviour than previous metrics.
+HOTA is a novel set of MOT evaluation metrics which enable better understanding of tracking behavior than previous metrics.
 
 For more information check out the following links:
  - [Short blog post on HOTA](https://jonathonluiten.medium.com/how-to-evaluate-tracking-with-the-hota-metrics-754036d183e1) - **HIGHLY RECOMMENDED READING**
@@ -87,6 +89,8 @@ The code can be run in one of two ways:
 To enable you to use TrackEval for evaluation as quickly and easily as possible, we provide ground-truth data, meta-data and example trackers for all currently supported benchmarks.
 You can download this here: [data.zip](https://omnomnom.vision.rwth-aachen.de/data/TrackEval/data.zip) (~150mb).
 
+The data for RobMOTS is separate and can be found here: [rob_mots_train_data.zip](https://omnomnom.vision.rwth-aachen.de/data/RobMOTS/train_data.zip) (~750mb).
+
 The easiest way to begin is to extract this zip into the repository root folder such that the file paths look like: TrackEval/data/gt/...
 
 This then corresponds to the default paths in the code. You can now run each of the scripts [here](scripts/) without providing any arguments and they will by default evaluate all trackers present in the supplied file structure. To evaluate your own tracking results, simply copy your files as a new tracker folder into the file structure at the same level as the example trackers (MPNTrack, CIWT, track_rcnn, qdtrack, ags, Tracktor++, STEm_Seg), ensuring the same file structure for your trackers as in the example.
@@ -105,7 +109,7 @@ To convert formats, check out the format specifications defined [here](docs).
 
 By default, we would recommend the MOTChallenge format, although any implemented format should work. Note that for many cases you will want to use the argument ```--DO_PREPROC False``` unless you want to run preprocessing to remove distractor objects.
 
-## Requirments
+## Requirements
  Code tested on Python 3.7.
  
  - Minimum requirements: numpy, scipy

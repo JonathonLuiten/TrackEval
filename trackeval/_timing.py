@@ -5,6 +5,7 @@ import inspect
 DO_TIMING = False
 DISPLAY_LESS_PROGRESS = False
 timer_dict = {}
+counter = 0
 
 
 def time(f):
@@ -50,8 +51,12 @@ def time(f):
                 # Display methods and functions with different indentation.
                 if arg_names[0] == 'self':
                     print('%-74s %2.4f sec' % (' '*4 + method_name + arg_text, tt))
+                elif arg_names[0] == 'test':
+                    pass
                 else:
-                    print('%-70s %2.4f sec' % (method_name + arg_text, tt))
+                    global counter
+                    counter += 1
+                    print('%i %-70s %2.4f sec' % (counter, method_name + arg_text, tt))
 
             return result
         else:

@@ -100,7 +100,7 @@ class Evaluator:
                             res['COMBINED_SEQ'][c_cls][metric_name] = metric.combine_sequences(curr_res)
                     # combine classes
                     if dataset.should_classes_combine:
-                        combined_cls_keys += ['cls_comb_cls_av', 'cls_comb_det_av']
+                        combined_cls_keys += ['cls_comb_cls_av', 'cls_comb_det_av', 'all']
                         res['COMBINED_SEQ']['cls_comb_cls_av'] = {}
                         res['COMBINED_SEQ']['cls_comb_det_av'] = {}
                         for metric, metric_name in zip(metrics_list, metric_names):
@@ -137,9 +137,12 @@ class Evaluator:
                                 else:
                                     table_res = {seq_key: seq_value[c_cls][metric_name] for seq_key, seq_value
                                                  in res.items()}
+
                                 if config['PRINT_RESULTS'] and config['PRINT_ONLY_COMBINED']:
-                                    metric.print_table({'COMBINED_SEQ': table_res['COMBINED_SEQ']},
-                                                       tracker_display_name, c_cls)
+                                    dont_print = dataset.should_classes_combine and c_cls not in combined_cls_keys
+                                    if not dont_print:
+                                        metric.print_table({'COMBINED_SEQ': table_res['COMBINED_SEQ']},
+                                                           tracker_display_name, c_cls)
                                 elif config['PRINT_RESULTS']:
                                     metric.print_table(table_res, tracker_display_name, c_cls)
                                 if config['OUTPUT_SUMMARY']:
@@ -184,6 +187,7 @@ class Evaluator:
 @_timing.time
 def eval_sequence(seq, dataset, tracker, class_list, metrics_list, metric_names):
     """Function for evaluating a single sequence"""
+
     raw_data = dataset.get_raw_seq_data(tracker, seq)
     seq_res = {}
     for cls in class_list:
