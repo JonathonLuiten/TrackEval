@@ -17,7 +17,7 @@ if __name__ == '__main__':
 
     script_config = {
         'ROBMOTS_SPLIT': 'train',  # 'train',  # valid: 'train', 'val', 'test', 'test_live', 'test_post', 'test_all'
-        'BENCHMARKS': ['kitti_mots', 'davis_unsupervised', 'youtube_vis', 'ovis', 'tao'], # 'bdd_mots' coming soon
+        'BENCHMARKS': None,  # If None, use all for each split.
         'GT_FOLDER': os.path.join(code_path, 'data/gt/rob_mots'),
         'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/rob_mots'),
     }
@@ -31,26 +31,26 @@ if __name__ == '__main__':
     # Command line interface:
     config = utils.update_config(config)
 
-    if config['ROBMOTS_SPLIT'] == 'val':
-        config['BENCHMARKS'] = ['kitti_mots', 'bdd_mots', 'davis_unsupervised', 'youtube_vis', 'ovis',
-                                       'tao', 'mots_challenge']
-        config['SPLIT_TO_EVAL'] = 'val'
-    elif config['ROBMOTS_SPLIT'] == 'test' or config['SPLIT_TO_EVAL'] == 'test_live':
-        config['BENCHMARKS'] = ['kitti_mots', 'bdd_mots', 'davis_unsupervised', 'youtube_vis', 'ovis', 'tao']
-        config['SPLIT_TO_EVAL'] = 'test'
-    elif config['ROBMOTS_SPLIT'] == 'test_post':
-        config['BENCHMARKS'] = ['mots_challenge', 'waymo']
-        config['SPLIT_TO_EVAL'] = 'test'
-    elif config['ROBMOTS_SPLIT'] == 'test_all':
-        config['BENCHMARKS'] = ['kitti_mots', 'bdd_mots', 'davis_unsupervised', 'youtube_vis', 'ovis',
-                                       'tao', 'mots_challenge', 'waymo']
-        config['SPLIT_TO_EVAL'] = 'test'
-    elif config['ROBMOTS_SPLIT'] == 'train':
-        config['BENCHMARKS'] = ['kitti_mots', 'davis_unsupervised', 'youtube_vis', 'ovis', 'tao']  # 'bdd_mots' coming soon
-        config['SPLIT_TO_EVAL'] = 'train'
+    if not config['BENCHMARKS']:
+        if config['ROBMOTS_SPLIT'] == 'val':
+            config['BENCHMARKS'] = ['kitti_mots', 'bdd_mots', 'davis_unsupervised', 'youtube_vis', 'ovis',
+                                           'tao', 'mots_challenge']
+            config['SPLIT_TO_EVAL'] = 'val'
+        elif config['ROBMOTS_SPLIT'] == 'test' or config['SPLIT_TO_EVAL'] == 'test_live':
+            config['BENCHMARKS'] = ['kitti_mots', 'bdd_mots', 'davis_unsupervised', 'youtube_vis', 'ovis', 'tao']
+            config['SPLIT_TO_EVAL'] = 'test'
+        elif config['ROBMOTS_SPLIT'] == 'test_post':
+            config['BENCHMARKS'] = ['mots_challenge', 'waymo']
+            config['SPLIT_TO_EVAL'] = 'test'
+        elif config['ROBMOTS_SPLIT'] == 'test_all':
+            config['BENCHMARKS'] = ['kitti_mots', 'bdd_mots', 'davis_unsupervised', 'youtube_vis', 'ovis',
+                                           'tao', 'mots_challenge', 'waymo']
+            config['SPLIT_TO_EVAL'] = 'test'
+        elif config['ROBMOTS_SPLIT'] == 'train':
+            config['BENCHMARKS'] = ['kitti_mots', 'davis_unsupervised', 'youtube_vis', 'ovis', 'tao', 'bdd_mots']
+            config['SPLIT_TO_EVAL'] = 'train'
 
     metrics_config = {'METRICS': ['HOTA']}
-    # metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity']}
     eval_config = {k: v for k, v in config.items() if k in config.keys()}
     dataset_config = {k: v for k, v in config.items() if k in config.keys()}
 
@@ -61,13 +61,14 @@ if __name__ == '__main__':
         dataset_list.append(trackeval.datasets.RobMOTS(dataset_config))
     evaluator = trackeval.Evaluator(eval_config)
     metrics_list = []
-    for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity]:
+    for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity,
+                   trackeval.metrics.VACE, trackeval.metrics.JAndF]:
         if metric.get_name() in metrics_config['METRICS']:
             metrics_list.append(metric())
     if len(metrics_list) == 0:
         raise Exception('No metrics selected for evaluation')
-    output_res, output_msg = evaluator.evaluate(dataset_list, metrics_list)
 
+    output_res, output_msg = evaluator.evaluate(dataset_list, metrics_list)
 
     # For each benchmark, combine the 'all' score with the 'cls_averaged' using geometric mean.
     metrics_to_calc = ['HOTA', 'DetA', 'AssA', 'DetRe', 'DetPr', 'AssRe', 'AssPr', 'LocA']

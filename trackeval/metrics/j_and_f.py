@@ -292,13 +292,14 @@ class JAndF(_BaseMetric):
         for t, (time_gt, time_data) in enumerate(zip(gt_data, tracker_data)):
             # run length encoded masks with pycocotools
             area_gt = mask_utils.area(time_gt)
+            time_data = list(time_data)
             area_tr = mask_utils.area(time_data)
 
             area_tr = np.repeat(area_tr[:, np.newaxis], len(area_gt), axis=1)
             area_gt = np.repeat(area_gt[np.newaxis, :], len(area_tr), axis=0)
 
             # mask iou computation with pycocotools
-            ious = mask_utils.iou(time_data, time_gt, [0]*len(time_gt))
+            ious = np.atleast_2d(mask_utils.iou(time_data, time_gt, [0]*len(time_gt)))
             # set iou to 1 if both masks are close to 0 (no ground truth and no predicted mask in timestep)
             ious[np.isclose(area_tr, 0) & np.isclose(area_gt, 0)] = 1
             assert (ious >= 0 - np.finfo('float').eps).all()
