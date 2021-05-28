@@ -34,13 +34,13 @@ if __name__ == '__main__':
     if not config['BENCHMARKS']:
         if config['ROBMOTS_SPLIT'] == 'val':
             config['BENCHMARKS'] = ['kitti_mots', 'bdd_mots', 'davis_unsupervised', 'youtube_vis', 'ovis',
-                                           'tao', 'mots_challenge']
+                                           'tao', 'mots_challenge', 'waymo']
             config['SPLIT_TO_EVAL'] = 'val'
         elif config['ROBMOTS_SPLIT'] == 'test' or config['SPLIT_TO_EVAL'] == 'test_live':
-            config['BENCHMARKS'] = ['kitti_mots', 'bdd_mots', 'davis_unsupervised', 'youtube_vis', 'ovis', 'tao']
+            config['BENCHMARKS'] = ['kitti_mots', 'bdd_mots', 'davis_unsupervised', 'youtube_vis', 'tao']
             config['SPLIT_TO_EVAL'] = 'test'
         elif config['ROBMOTS_SPLIT'] == 'test_post':
-            config['BENCHMARKS'] = ['mots_challenge', 'waymo']
+            config['BENCHMARKS'] = ['mots_challenge', 'waymo', 'ovis']
             config['SPLIT_TO_EVAL'] = 'test'
         elif config['ROBMOTS_SPLIT'] == 'test_all':
             config['BENCHMARKS'] = ['kitti_mots', 'bdd_mots', 'davis_unsupervised', 'youtube_vis', 'ovis',
@@ -101,7 +101,7 @@ if __name__ == '__main__':
         def rowify(d):
             return [d[x][metric] for x in ['final', 'cls_av', 'det_av'] for metric in metrics_to_calc]
 
-        out_file = os.path.join(script_config['TRACKERS_FOLDER'], script_config['ROBMOTS_SPLIT'], tracker,
+        out_file = os.path.join(config['TRACKERS_FOLDER'], config['ROBMOTS_SPLIT'], tracker,
                                 'final_results.csv')
 
         with open(out_file, 'w', newline='') as f:
