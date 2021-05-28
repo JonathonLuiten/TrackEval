@@ -27,7 +27,7 @@ Benchmark | Website |
 
 ## Installing, obtaining the data, and running
 
-Simply follow the code snippet below to install the evaluation code, download the groundtruth data (and example tracker and supplied detections), and run the evaluation code on the sample tracker.
+Simply follow the code snippet below to install the evaluation code, download the train groundtruth data and an example tracker, and run the evaluation code on the sample tracker.
 
 Note the code requires python 3.5 or higher.
 
@@ -50,20 +50,26 @@ pip install --upgrade pip
 # Install the required packages
 pip install -r requirements.txt
 
-# Download the train gt data (and example tracker and supplied detections)
-wget https://omnomnom.vision.rwth-aachen.de/data/RobMOTS/train_data.zip
+# Download the train gt data
+wget https://omnomnom.vision.rwth-aachen.de/data/RobMOTS/train_gt.zip
 
-# Unzip the train data you just downloaded.
-unzip train_data.zip
+# Unzip the train gt data you just downloaded.
+unzip train_gt.zip
+
+# Download the example tracker 
+wget https://omnomnom.vision.rwth-aachen.de/data/RobMOTS/example_tracker.zip
+
+# Unzip the example tracker you just downloaded.
+unzip example_tracker.zip
 
 # Run the evaluation on the provided example tracker on the train split (using 4 cores in parallel)
 python scripts/run_rob_mots.py --ROBMOTS_SPLIT train --TRACKERS_TO_EVAL STP --USE_PARALLEL True --NUM_PARALLEL_CORES 4
 
 ```
 
-If you wish to download the train groundtruth data (and example tracker and supplied detections) without using the terminal commands above, you can download them from this link:
+You may further download the raw sequence images and supplied detections (as well as train GT data and example tracker) by following the ```Data Download``` link here:
 
-[Train Data (GT, supplied dets, tracker example) (750mb)](https://omnomnom.vision.rwth-aachen.de/data/RobMOTS/train_data.zip)
+[RobMOTS Challenge Info](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110)
 
 ## Accessing tracking evaluation results
 
@@ -76,23 +82,28 @@ The ```final_results.csv``` can be most easily read by opening it in Excel or si
 
 To make creating your own tracker particularly easy, we supply a set of strong supplied detection. 
 
-These detections are from the Detectron 2 Mask R-CNN X152 (very bottom model on this [page](https://github.com/facebookresearch/detectron2/blob/master/MODEL_ZOO.md) which achieves a COCO detection mAP score of 50.2. 
+These detections are from the Detectron 2 Mask R-CNN X152 (very bottom model on this [page](https://github.com/facebookresearch/detectron2/blob/master/MODEL_ZOO.md) which achieves a COCO detection mAP score of 50.2). 
 
 We then obtain segmentation masks for these detections using the Box2Seg Network (also called Refinement Net), which results in far more accurate masks than the default Mask R-CNN masks. The code for this can be found [here](https://github.com/JonathonLuiten/PReMVOS/tree/master/code/refinement_net). 
 
-We supply two different supplied detections. The first is the ```raw_supplied``` detections, which is taking all 1000 detections output from the Mask R-CNN, and only removing those for which the maximum class score is less than 0.02 (here no non-maximum suppression, NMS, is run). The detections are COMING SOON.
+We supply two different supplied detections. The first is the ```raw_supplied``` detections, which is taking all 1000 detections output from the Mask R-CNN, and only removing those for which the maximum class score is less than 0.02 (here no non-maximum suppression, NMS, is run). These can be downloaded [here](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110).
 
-The second is ```non_overlap_supplied``` detections. These are the same detections as above, but with further processing steps applied to them. First we perform Non-Maximum Suppression (NMS) with a threshold of 0.5 to remove any masks which have an IoU of 0.5 or more with any other mask that has a higher score. Second we run a Non-Overlap algorithm which forces all of the masks for a single image to be non-overlapping. It does this by putting all the masks 'on top of' each other, ordered by score, such that masks with a lower score will be partially removed if a mask with a higher score partially overlaps them. Code for this NMS and Non-Overlap algorithm is COMING SOON. Note that these detections are still only thresholded at a score of 0.02, in general we recommend further thresholding with a higher value to get a good balance of precision and recall. 
+The second is ```non_overlap_supplied``` detections. These are the same detections as above, but with further processing steps applied to them. First we perform Non-Maximum Suppression (NMS) with a threshold of 0.5 to remove any masks which have an IoU of 0.5 or more with any other mask that has a higher score. Second we run a Non-Overlap algorithm which forces all of the masks for a single image to be non-overlapping. It does this by putting all the masks 'on top of' each other, ordered by score, such that masks with a lower score will be partially removed if a mask with a higher score partially overlaps them. Note that these detections are still only thresholded at a score of 0.02, in general we recommend further thresholding with a higher value to get a good balance of precision and recall. 
+
+Code for this NMS and Non-Overlap algorithm can be found here:
+[Non-Overlap Code](https://github.com/JonathonLuiten/TrackEval/blob/master/trackeval/baselines/non_overlap.py).
 
 Note that for RobMOTS evaluation the final tracking results need to be 'non-overlapping' so we recommend using the ```non_overlap_supplied``` detections, however you may use the ```raw_supplied```, or your own or any other detections as you like.
 
-Currently supplied detections are only available for the train set, however for the val and test set these are COMING SOON.
+Supplied detections (both raw and non-overlapping) are available for the train, val and test sets.
 
-Code for reading in these detections and using them is COMING SOON.
+Example code for reading in these detections and using them can be found here:
+
+[Tracker Example](https://github.com/JonathonLuiten/TrackEval/blob/master/trackeval/baselines/stp.py).
 
 ## Creating your own tracker
 
-We provide sample code (COMING SOON) for our STP tracker (Simplest Tracker Possible) which walks though how to create tracking results in the required RobMOTS format.
+We provide sample code ([Tracker Example](https://github.com/JonathonLuiten/TrackEval/blob/master/trackeval/baselines/stp.py)) for our STP tracker (Simplest Tracker Possible) which walks though how to create tracking results in the required RobMOTS format.
 
 This includes code for reading in the supplied detections and writing out the tracking results in the desired format, plus many other useful functions (IoU calculation etc).
 
@@ -177,11 +188,20 @@ More than 4 values can be present, the remaining values are 'ignore classes for 
 
 ## Visualizing GT and Tracker Masks
 
-We provide code (COMING SOON) for converting our .txt format with compressed RLE masks into .png format where it is easy to visualize the GT and Predicted masks.
+We provide code for converting our .txt format with compressed RLE masks into .png format where it is easy to visualize the GT and Predicted masks.
+
+This code can be found here:
+
+[Vizualize Tracking Results](https://github.com/JonathonLuiten/TrackEval/blob/master/trackeval/baselines/vizualize.py).
+
 
 ## Evaluate on the validation and test server
 
-COMING SOON
+The val and test GT will NOT be provided. However we provide a live evaluation server to upload your tracking results and evaluate it on the val and test set.
+
+The val server will allow infinite uploads, while the test will limit trackers to 4 uploads total.
+
+These evaluation servers are COMING VERY SOON (ETA Friday 28th May).
 
 ## Citation
 If you work with the code and the benchmark, please cite:
