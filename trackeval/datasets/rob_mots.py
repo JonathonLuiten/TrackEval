@@ -71,7 +71,8 @@ class RobMOTS(_BaseDataset):
         if len(self.seq_list) < 1:
             raise TrackEvalException('No sequences are selected to be evaluated.')
 
-        valid_class_ids = np.genfromtxt(os.path.join(self.gt_fol, self.split, self.sub_benchmark, 'clsmap.txt'))
+        valid_class_ids = np.atleast_1d(np.genfromtxt(os.path.join(self.gt_fol, self.split, self.sub_benchmark,
+                                                                   'clsmap.txt')))
         valid_classes = [cls_id_to_name[int(x)] for x in valid_class_ids] + ['all']
         self.valid_class_ids = valid_class_ids
         self.class_name_to_class_id = {cls_name: cls_id for cls_id, cls_name in cls_id_to_name.items()}
