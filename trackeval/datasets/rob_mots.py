@@ -344,6 +344,11 @@ class RobMOTS(_BaseDataset):
             # Only extract relevant dets for this class
             if cls == 'all':
                 gt_class_mask = raw_data['gt_classes'][t] < 100
+            # For waymo, combine predictions for [car, truck, bus, motorcycle] into car, because they are all annotated
+            # together as one 'vehicle' class.
+            elif self.sub_benchmark == 'waymo' and cls == 'car':
+                waymo_vehicle_classes = np.array([3, 4, 6, 8])
+                gt_class_mask = np.isin(raw_data['gt_classes'][t], waymo_vehicle_classes)
             else:
                 gt_class_mask = raw_data['gt_classes'][t] == cls_id
             gt_class_mask = gt_class_mask.astype(np.bool)
