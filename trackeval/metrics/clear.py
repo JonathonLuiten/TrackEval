@@ -33,6 +33,7 @@ class CLEAR(_BaseMetric):
         self.config = utils.init_config(config, self.get_default_config(), self.get_name())
         self.threshold = float(self.config['THRESHOLD'])
 
+
     @_timing.time
     def eval_sequence(self, data):
         """Calculates CLEAR metrics for one sequence"""
