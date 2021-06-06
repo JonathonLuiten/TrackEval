@@ -116,7 +116,7 @@ class RobMOTS(_BaseDataset):
             if self.data_is_zipped:
                 curr_file = os.path.join(self.tracker_fol, tracker, 'data.zip')
                 if not os.path.isfile(curr_file):
-                    raise TrackEvalException('Tracker file not found: ' + tracker + '/' + os.path.basename(curr_file))
+                    raise TrackEvalException('Tracker file not found: ' + os.path.basename(curr_file))
             else:
                 for seq in self.seq_list:
                     curr_file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, self.sub_benchmark, seq
@@ -124,8 +124,7 @@ class RobMOTS(_BaseDataset):
                     if not os.path.isfile(curr_file):
                         print('Tracker file not found: ' + curr_file)
                         raise TrackEvalException(
-                            'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol + '/' +
-                            self.sub_benchmark + '/' + os.path.basename(curr_file))
+                            'Tracker file not found: ' + self.sub_benchmark + '/' + os.path.basename(curr_file))
 
     def get_name(self):
         return self.get_class_name() + '.' + self.sub_benchmark
@@ -222,9 +221,9 @@ class RobMOTS(_BaseDataset):
                         raw_data['tracker_confidences'][t] = np.atleast_1d([det[3] for det
                                                                             in read_data[time_key]]).astype(float)
                 except IndexError:
-                    self._raise_index_error(is_gt, tracker, seq)
+                    self._raise_index_error(is_gt, self.sub_benchmark, seq)
                 except ValueError:
-                    self._raise_value_error(is_gt, tracker, seq)
+                    self._raise_value_error(is_gt, self.sub_benchmark, seq)
             # no detection in this timestep
             else:
                 if (not is_gt) or (self.sub_benchmark not in self.box_gt_benchmarks):
@@ -263,7 +262,7 @@ class RobMOTS(_BaseDataset):
         return raw_data
 
     @staticmethod
-    def _raise_index_error(is_gt, tracker, seq):
+    def _raise_index_error(is_gt, sub_benchmark, seq):
         """
         Auxiliary method to raise an evaluation error in case of an index error while reading files.
         :param is_gt: whether gt or tracker data is read
@@ -276,12 +275,12 @@ class RobMOTS(_BaseDataset):
                   'columns in the data.' % seq
             raise TrackEvalException(err)
         else:
-            err = 'Cannot load tracker data from tracker %s, sequence %s, because there are not enough ' \
-                  'columns in the data.' % (tracker, seq)
+            err = 'Cannot load tracker data from benchmark %s, sequence %s, because there are not enough ' \
+                  'columns in the data.' % (sub_benchmark, seq)
             raise TrackEvalException(err)
 
     @staticmethod
-    def _raise_value_error(is_gt, tracker, seq):
+    def _raise_value_error(is_gt, sub_benchmark, seq):
         """
         Auxiliary method to raise an evaluation error in case of an value error while reading files.
         :param is_gt: whether gt or tracker data is read
@@ -294,8 +293,8 @@ class RobMOTS(_BaseDataset):
                 'GT data for sequence %s cannot be converted to the right format. Is data corrupted?' % seq)
         else:
             raise TrackEvalException(
-                'Tracking data from tracker %s, sequence %s cannot be converted to the right format. '
-                'Is data corrupted?' % (tracker, seq))
+                'Tracking data from benchmark %s, sequence %s cannot be converted to the right format. '
+                'Is data corrupted?' % (sub_benchmark, seq))
 
     @_timing.time
     def get_preprocessed_seq_data(self, raw_data, cls):
