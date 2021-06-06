@@ -2,7 +2,7 @@
 
 # RobMOTS Official Evaluation Code
 
-### NEWS: [RobMOTS Challenge](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110) for the [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/) is now live!!!! Challenge deadline June 11.
+### NEWS: [RobMOTS Challenge](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110) for the [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/) is now live!!!! Challenge deadline June 14.
 
 ### NEWS: [Call for short papers](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=74) (4 pages) on tracking and other video topics for [RVSU CVPR'21 Workshop](https://eval.vision.rwth-aachen.de/rvsu-workshop21/)!!!! Paper deadline June 4.
 
@@ -201,7 +201,9 @@ The val and test GT will NOT be provided. However we provide a live evaluation s
 
 The val server will allow infinite uploads, while the test will limit trackers to 4 uploads total.
 
-These evaluation servers are COMING VERY SOON (ETA Friday 28th May).
+These evaluation servers can be found here: https://eval.vision.rwth-aachen.de/vision/
+
+Ensure that your files to upload are in the correct format. Examples of the correct way to upload files can be found here: [STP val upload](https://omnomnom.vision.rwth-aachen.de/data/RobMOTS/STP_val_upload.zip),  [STP test upload](https://omnomnom.vision.rwth-aachen.de/data/RobMOTS/STP_test_upload.zip).
 
 ## Citation
 If you work with the code and the benchmark, please cite:
