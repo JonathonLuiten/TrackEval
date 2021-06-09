@@ -152,7 +152,7 @@ Timesteps are the same as the frame names for the supplied images. These start a
 
 Track IDs must be unique across all classes within a frame. They can be non-unique across different sequences.
 
-The mapping of class numbers to class names can be found is [this file](trackeval/datasets/rob_mots_classmap.py). Note that this is the same as used in Detectron 2, and is the default COCO class ordering with the unused numbers removed.
+The mapping of class numbers to class names can be found is [this file](https://github.com/JonathonLuiten/TrackEval/blob/master/trackeval/datasets/rob_mots_classmap.py). Note that this is the same as used in Detectron 2, and is the default COCO class ordering with the unused numbers removed.
 
 Detection Confidence score should be between 0 and 1. This is not used for HOTA evaluation, but is used for other eval metrics like Track mAP.
 
