@@ -16,19 +16,22 @@ from trackeval.datasets.rob_mots_classmap import cls_id_to_name
 
 code_path = get_code_path()
 config = {
-    'INPUT_FOL': os.path.join(code_path, 'data/trackers/rob_mots/{split}/STP/data/'),
-    'OUTPUT_FOL': os.path.join(code_path, 'data/viz/rob_mots/{split}/STP/data/'),
+    # Tracker format:
+    'INPUT_FOL': os.path.join(code_path, 'data/trackers/rob_mots/{split}/STP/data/{bench}'),
+    'OUTPUT_FOL': os.path.join(code_path, 'data/viz/rob_mots/{split}/STP/data/{bench}'),
+    # GT format:
+    # 'INPUT_FOL': os.path.join(code_path, 'data/gt/rob_mots/{split}/{bench}/data/'),
+    # 'OUTPUT_FOL': os.path.join(code_path, 'data/gt_viz/rob_mots/{split}/{bench}/'),
     'SPLIT': 'train',  # valid: 'train', 'val', 'test'.
     'Benchmarks': None,  # If None, all benchmarks in SPLIT.
-
     'Num_Parallel_Cores': None,  # If None, run without parallel.
 }
 
 
 def do_sequence(seq_file):
     # Folder to save resulting visualization in
-    out_fol = seq_file.replace(config['INPUT_FOL'].format(split=config['SPLIT']),
-                               config['OUTPUT_FOL'].format(split=config['SPLIT'])).replace('.txt', '')
+    out_fol = seq_file.replace(config['INPUT_FOL'].format(split=config['SPLIT'], bench=bench),
+                               config['OUTPUT_FOL'].format(split=config['SPLIT'], bench=bench)).replace('.txt', '')
 
     # Load input data from file (e.g. provided detections)
     # data format: data['cls'][t] = {'ids', 'scores', 'im_hs', 'im_ws', 'mask_rles'}
@@ -39,6 +42,9 @@ def do_sequence(seq_file):
 
     # First run for each class.
     for cls, cls_data in data.items():
+
+        if cls >= 100:
+            continue
 
         # Run for each timestep.
         for timestep, t_data in enumerate(cls_data):
@@ -74,7 +80,7 @@ if __name__ == '__main__':
             benchmarks += ['waymo', 'mots_challenge']
     seqs_todo = []
     for bench in benchmarks:
-        bench_fol = os.path.join(config['INPUT_FOL'].format(split=config['SPLIT']), bench)
+        bench_fol = config['INPUT_FOL'].format(split=config['SPLIT'], bench=bench)
         seqs_todo += [os.path.join(bench_fol, seq) for seq in os.listdir(bench_fol)]
 
     # Run in parallel

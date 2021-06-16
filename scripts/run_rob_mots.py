@@ -82,15 +82,17 @@ if __name__ == '__main__':
     success = output == 'Success'
     if not success:
         output = 'ERROR, evaluation failed. \n\nError message: ' + output
+        print(output)
 
-    msg = "Thanks you for participating in the RobMOTS benchmark.\n\n"
-    msg += "The status of your evaluation is: \n" + output + '\n\n'
-    msg += "If your tracking results evaluated successfully on the evaluation server you can see your results here: \n"
-    msg += "https://eval.vision.rwth-aachen.de/vision/"
-    status_file = os.path.join(config['TRACKERS_FOLDER'], config['ROBMOTS_SPLIT'], config['TRACKERS_TO_EVAL'][0],
-                               'status.txt')
-    with open(status_file, 'w', newline='') as f:
-        f.write(msg)
+    if config['TRACKERS_TO_EVAL']:
+        msg = "Thanks you for participating in the RobMOTS benchmark.\n\n"
+        msg += "The status of your evaluation is: \n" + output + '\n\n'
+        msg += "If your tracking results evaluated successfully on the evaluation server you can see your results here: \n"
+        msg += "https://eval.vision.rwth-aachen.de/vision/"
+        status_file = os.path.join(config['TRACKERS_FOLDER'], config['ROBMOTS_SPLIT'], config['TRACKERS_TO_EVAL'][0],
+                                   'status.txt')
+        with open(status_file, 'w', newline='') as f:
+            f.write(msg)
 
     if success:
         # For each benchmark, combine the 'all' score with the 'cls_averaged' using geometric mean.
