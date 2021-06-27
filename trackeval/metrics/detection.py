@@ -17,7 +17,7 @@ class Det(_BaseMetric):
         self.plottable = True
         self.array_labels = self._get_array_labels()
         self.integer_fields = ['Det_Frames', 'Det_TP', 'Det_FP', 'Det_FN']
-        self.float_fields = ['Det_AP', 'Det_AP_coarse', 'Det_AP_naive',
+        self.float_fields = ['Det_AP', 'Det_AP_coarse', 'Det_AP_legacy',
                              'Det_MODA', 'Det_MODP', 'Det_MODP_sum', 'Det_FAF',
                              'Det_Re', 'Det_Pr', 'Det_F1',
                              'Det_num_gt_dets']
@@ -25,7 +25,8 @@ class Det(_BaseMetric):
         self.fields = self.integer_fields + self.float_fields + self.float_array_fields
         self.summary_fields = ['Det_AP', 'Det_PrAtRe',
                                'Det_MODA', 'Det_MODP', 'Det_FAF',
-                               'Det_Re', 'Det_Pr', 'Det_F1']
+                               'Det_Re', 'Det_Pr', 'Det_F1',
+                               'Det_TP', 'Det_FN', 'Det_FP']
 
         self.threshold = 0.5
         self.summed_fields = self.integer_fields + ['Det_MODP_sum', 'Det_num_gt_dets']
@@ -109,10 +110,11 @@ class Det(_BaseMetric):
 
         # TODO: Remove after comparison.
         res['Det_AP_coarse'] = np.trapz(res['Det_PrAtRe'][::10], dx=0.1)
-        pr_at_re_naive = _find_prec_at_recall(
+        pr_at_re_legacy = _find_prec_at_recall(
                 res['Det_num_gt_dets'], res['Det_scores'], res['Det_correct'],
                 cls._get_array_labels())
-        res['Det_AP_naive'] = np.mean(res['Det_PrAtRe'][::10])
+        print('pr_at_re_legacy:', pr_at_re_legacy[::10])
+        res['Det_AP_legacy'] = np.mean(pr_at_re_legacy[::10])
 
         res['Det_MODA'] = (res['Det_TP'] - res['Det_FP']) / np.maximum(1.0, res['Det_TP'] + res['Det_FN'])
         res['Det_MODP'] = res['Det_MODP_sum'] / np.maximum(1.0, res['Det_TP'])

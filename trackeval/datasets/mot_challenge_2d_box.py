@@ -360,11 +360,12 @@ class MotChallenge2DBox(_BaseDataset):
                 match_cols = match_cols[actually_matched_mask]
 
                 remove_mask = np.zeros(match_rows.shape, np.bool)
+                # TODO: Use gt_zero_marked?
                 if self.benchmark != 'MOT15':
                     remove_mask |= np.isin(gt_classes[match_rows], distractor_classes)
                 if self.config['MIN_VIS'] >= 0:
                     # Exclude predictions that match non-visible ground-truth pedestrians.
-                    remove_mask |= ((gt_classes[match_rows] == 1) &
+                    remove_mask |= ((gt_classes[match_rows] == cls_id) &
                                     ~(gt_vis[match_rows] >= self.config['MIN_VIS']))
                 to_remove_tracker = match_cols[remove_mask]
 
