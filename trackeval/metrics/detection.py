@@ -113,7 +113,6 @@ class Det(_BaseMetric):
         pr_at_re_legacy = _find_prec_at_recall(
                 res['Det_num_gt_dets'], res['Det_scores'], res['Det_correct'],
                 cls._get_array_labels())
-        print('pr_at_re_legacy:', pr_at_re_legacy[::10])
         res['Det_AP_legacy'] = np.mean(pr_at_re_legacy[::10])
 
         res['Det_MODA'] = (res['Det_TP'] - res['Det_FP']) / np.maximum(1.0, res['Det_TP'] + res['Det_FN'])
