@@ -219,8 +219,9 @@ def _find_prec_at_recall(num_gt, scores, correct, thresholds):
 
     Follows implementation from Piotr Dollar toolbox (used by Matlab devkit).
     """
-    # Sort descending by score.
-    order = np.argsort(-scores, kind='stable')
+    # Sort descending by score then (incorrect, correct).
+    keys = np.stack([-scores, correct])
+    order = np.lexsort(keys)
     correct = correct[order]
     # Note: cumsum() does not include operating point with zero predictions.
     # However, this matches the original implementation.
@@ -234,8 +235,8 @@ def _find_prec_at_recall(num_gt, scores, correct, thresholds):
     assert np.all(np.isfinite(thresholds)), 'assume finite thresholds'
     # Find first element with minimum recall.
     # Use argmax() to take first element that satisfies criterion.
-    # TODO: Use maximum precision at equal or better recall?
-    return np.asarray([prec[np.argmax(recall >= threshold)] for threshold in thresholds])
+    idx = np.argmax(recall >= thresholds[:, np.newaxis], axis=-1)
+    return prec[idx]
 
 
 def _find_max_prec_at_recall(num_gt, scores, correct, thresholds):
@@ -254,7 +255,8 @@ def _find_max_prec_at_recall(num_gt, scores, correct, thresholds):
     assert np.all(thresholds <= 1), thresholds
     # Find first element with minimum recall.
     # Use argmax() to take first element that satisfies criterion.
-    return np.asarray([prec[np.argmax(recall >= threshold)] for threshold in thresholds])
+    idx = np.argmax(recall >= thresholds[:, np.newaxis], axis=-1)
+    return prec[idx]
 
 
 def _compute_average_precision(num_gt, scores, correct):
@@ -265,21 +267,35 @@ def _compute_average_precision(num_gt, scores, correct):
 
 
 def _prec_recall_curve(num_gt, scores, correct):
+    # TODO: Test this code.
     # Sort descending by score.
-    order = np.argsort(-scores, kind='stable')
+    order = np.argsort(-scores)
+    scores = scores[order]
     correct = correct[order]
+    # Obtain tp and num_pred for decreasing score threshold.
+    # Add an initial element for zero detections.
     tp = np.empty(len(scores) + 1)
     tp[0] = 0
     tp[1:] = np.cumsum(correct)
     num_pred = np.arange(len(scores) + 1)
-    # Add an extra element for 100% recall, zero precision.
-    recall = np.empty(len(scores) + 2)
+    # Take tp and num_pred with unique scores.
+    # First index per element in scores is last index of previous element
+    # due to initial extra element.
+    _, unique_index = np.unique(-scores, return_index=True)
+    num_unique = len(unique_index)
+    last_index = np.empty(num_unique + 1, np.int)
+    last_index[:-1] = unique_index
+    last_index[-1] = len(scores)
+    tp = tp[last_index]
+    num_pred = num_pred[last_index]
+    # Add a final element for recall one, precision zero.
+    recall = np.empty(num_unique + 2)
     recall[:-1] = np.true_divide(tp, num_gt)
     recall[-1] = 1.
-    prec = np.empty(len(scores) + 2)
+    prec = np.empty(num_unique + 2)
     prec[:-1] = np.true_divide(tp, num_pred)
     prec[-1] = 0.
-    # Avoid nan in prec[0]. This will be replaced with max prec.
+    # Avoid nan in prec[0]. This will be replaced with max precision below.
     prec[0] = 0.
     # Take max precision available at equal or greater recall.
     # https://jonathan-hui.medium.com/map-mean-average-precision-for-object-detection-45c121a31173
