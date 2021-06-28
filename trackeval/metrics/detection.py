@@ -209,7 +209,7 @@ def _match_by_score(confidence, similarity, similarity_threshold):
 
 # TODO: Remove after testing.
 def _find_prec_at_recall(num_gt, scores, correct, thresholds):
-    """Computes precision at a given minimum recall threshold.
+    """Computes precision at max score threshold to achieve recall.
 
     Args:
         num_gt: Number of ground-truth elements.
@@ -219,9 +219,9 @@ def _find_prec_at_recall(num_gt, scores, correct, thresholds):
 
     Follows implementation from Piotr Dollar toolbox (used by Matlab devkit).
     """
-    # Sort descending by score then (incorrect, correct).
-    keys = np.stack([-scores, correct])
-    order = np.lexsort(keys)
+    # Sort descending by score.
+    order = np.argsort(-scores)
+    scores = scores[order]
     correct = correct[order]
     # Note: cumsum() does not include operating point with zero predictions.
     # However, this matches the original implementation.
@@ -232,11 +232,16 @@ def _find_prec_at_recall(num_gt, scores, correct, thresholds):
     # Extend curve to infinity with zeros.
     recall = np.concatenate([recall, [np.inf]])
     prec = np.concatenate([prec, [0.]])
+    scores = np.concatenate([scores, [-np.inf]])
     assert np.all(np.isfinite(thresholds)), 'assume finite thresholds'
     # Find first element with minimum recall.
     # Use argmax() to take first element that satisfies criterion.
-    idx = np.argmax(recall >= thresholds[:, np.newaxis], axis=-1)
-    return prec[idx]
+    recall_idx = _first_nonzero(recall >= thresholds[:, np.newaxis], axis=-1)
+    score_thresholds = scores[recall_idx]
+    # Find last element that satisfies score threshold
+    # (element before first element that does not satisfy threshold).
+    score_idx = _first_nonzero(~(scores >= score_thresholds[:, np.newaxis]), axis=-1) - 1
+    return prec[score_idx]
 
 
 def _find_max_prec_at_recall(num_gt, scores, correct, thresholds):
@@ -253,9 +258,7 @@ def _find_max_prec_at_recall(num_gt, scores, correct, thresholds):
     recall, prec = _prec_recall_curve(num_gt, scores, correct)
     assert np.all(thresholds >= 0), thresholds
     assert np.all(thresholds <= 1), thresholds
-    # Find first element with minimum recall.
-    # Use argmax() to take first element that satisfies criterion.
-    idx = np.argmax(recall >= thresholds[:, np.newaxis], axis=-1)
+    idx = _first_nonzero(recall >= thresholds[:, np.newaxis], axis=-1)
     return prec[idx]
 
 
@@ -301,3 +304,9 @@ def _prec_recall_curve(num_gt, scores, correct):
     # https://jonathan-hui.medium.com/map-mean-average-precision-for-object-detection-45c121a31173
     prec = np.maximum.accumulate(prec[::-1])[::-1]
     return recall, prec
+
+
+def _first_nonzero(x, axis=-1):
+    cond = np.asarray(x, dtype=np.bool)
+    n = cond.shape[axis]
+    return np.where(np.any(cond), np.argmax(cond, axis=axis), n)
