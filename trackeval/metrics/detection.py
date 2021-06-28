@@ -74,7 +74,8 @@ class Det(_BaseMetric):
             assert np.all(~(similarity > 1))
             eps = 1. / (max(similarity.shape) + 1.)
             overlap_mask = (similarity >= self.threshold)
-            score_mat = overlap_mask.astype(np.float) + eps * (similarity * overlap_mask)
+            similarity = np.where(overlap_mask, similarity, 0.)
+            score_mat = overlap_mask.astype(np.float) + eps * similarity
             # Hungarian algorithm to find best matches
             match_rows, match_cols = linear_sum_assignment(-score_mat)
             num_matches = np.sum(overlap_mask[match_rows, match_cols])
@@ -116,7 +117,8 @@ class Det(_BaseMetric):
         res['Det_AP_legacy'] = np.mean(pr_at_re_legacy[::10])
 
         res['Det_MODA'] = (res['Det_TP'] - res['Det_FP']) / np.maximum(1.0, res['Det_TP'] + res['Det_FN'])
-        res['Det_MODP'] = res['Det_MODP_sum'] / np.maximum(1.0, res['Det_TP'])
+        res['Det_MODP'] = np.where(res['Det_TP'] == 0, 0.,
+                                   res['Det_MODP_sum'] / np.maximum(1.0, res['Det_TP']))
         res['Det_FAF'] = res['Det_FP'] / res['Det_Frames']
         res['Det_Re'] = res['Det_TP'] / np.maximum(1.0, res['Det_TP'] + res['Det_FN'])
         res['Det_Pr'] = res['Det_TP'] / np.maximum(1.0, res['Det_TP'] + res['Det_FP'])
