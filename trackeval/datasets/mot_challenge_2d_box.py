@@ -39,6 +39,8 @@ class MotChallenge2DBox(_BaseDataset):
                                       # If True, then the middle 'benchmark-split' folder is skipped for both.
             'IGNORE_TRACK_IDS': False,  # Set to ignore track IDs (for detection evaluation).
             'MIN_VIS': -1.0,  # Set to non-negative number to filter ground-truth by visibility.
+            'DROP_EXTRA_TIMESTEPS': False,  # Silently ignore extra timesteps.
+            'DROP_OTHER_CLASSES': False,  # Silently ignore predictions for other classes.
         }
         return default_config
 
@@ -201,7 +203,7 @@ class MotChallenge2DBox(_BaseDataset):
 
         # Check for any extra time keys
         extra_time_keys = [x for x in read_data.keys() if x not in [str(t+1) for t in range(num_timesteps)]]
-        if len(extra_time_keys) > 0:
+        if len(extra_time_keys) > 0 and not self.config['DROP_EXTRA_TIMESTEPS']:
             if is_gt:
                 text = 'Ground-truth'
             else:
@@ -344,9 +346,16 @@ class MotChallenge2DBox(_BaseDataset):
 
             # Evaluation is ONLY valid for pedestrian class
             if len(tracker_classes) > 0 and np.max(tracker_classes) > 1:
-                raise TrackEvalException(
-                    'Evaluation is only valid for pedestrian class. Non pedestrian class (%i) found in sequence %s at '
-                    'timestep %i.' % (np.max(tracker_classes), raw_data['seq'], t))
+                if not self.config['DROP_OTHER_CLASSES']:
+                    raise TrackEvalException(
+                        'Evaluation is only valid for pedestrian class. Non pedestrian class (%i) found in sequence %s at '
+                        'timestep %i.' % (np.max(tracker_classes), raw_data['seq'], t))
+                is_pedestrian = np.logical_not(tracker_classes > 1)
+                tracker_ids = tracker_ids[is_pedestrian]
+                tracker_dets = tracker_dets[is_pedestrian]
+                tracker_classes = tracker_classes[is_pedestrian]
+                tracker_confidences = tracker_confidences[is_pedestrian]
+                similarity_scores = similarity_scores[:, is_pedestrian]
 
             # Match tracker and gt dets (with hungarian algorithm) and remove tracker dets which match with gt dets
             # which are labeled as belonging to a distractor class or non-visible detection.
