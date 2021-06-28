@@ -298,10 +298,10 @@ def _prec_recall_curve(num_gt, scores, correct):
     recall[:-1] = np.true_divide(tp, num_gt)
     recall[-1] = 1.
     prec = np.empty(num_unique + 2)
-    prec[:-1] = np.true_divide(tp, num_pred)
-    prec[-1] = 0.
     # Avoid nan in prec[0]. This will be replaced with max precision below.
     prec[0] = 0.
+    prec[1:-1] = np.true_divide(tp[1:], num_pred[1:])
+    prec[-1] = 0.
     # Take max precision available at equal or greater recall.
     # https://jonathan-hui.medium.com/map-mean-average-precision-for-object-detection-45c121a31173
     prec = np.maximum.accumulate(prec[::-1])[::-1]
