@@ -1,9 +1,10 @@
-
+import os
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from ._base_metric import _BaseMetric
 from .. import _timing
 from .. import utils
+
 
 class CLEAR(_BaseMetric):
     """Class which implements the CLEAR metrics"""
@@ -32,7 +33,6 @@ class CLEAR(_BaseMetric):
         # Configuration options:
         self.config = utils.init_config(config, self.get_default_config(), self.get_name())
         self.threshold = float(self.config['THRESHOLD'])
-
 
     @_timing.time
     def eval_sequence(self, data):
@@ -64,14 +64,48 @@ class CLEAR(_BaseMetric):
         prev_tracker_id = np.nan * np.zeros(num_gt_ids)  # For scoring IDSW
         prev_timestep_tracker_id = np.nan * np.zeros(num_gt_ids)  # For matching IDSW
 
+        # Change this boolean if you want to get FP boxes
+        fp_dataset = False
+        if fp_dataset:
+            org_path = 'D:/UET/pythonProject1/TrackEval'
+            filepath = os.path.join(org_path, 'fp_frames.txt')
+            if os.path.isfile(filepath):
+                open(filepath, 'r+').truncate(0)
+            fp_frames_file = open(filepath, 'a')
+
+        # Change this boolean if you want to get FN boxes
+        fn_dataset = False
+        if fn_dataset:
+            org_path = 'D:/UET/pythonProject1/TrackEval'
+            filepath = os.path.join(org_path, 'fn_frames.txt')
+            if os.path.isfile(filepath):
+                open(filepath, 'r+').truncate(0)
+            fn_frames_file = open(filepath, 'a')
+
         # Calculate scores for each timestep
         for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(data['gt_ids'], data['tracker_ids'])):
             # Deal with the case that there are no gt_det/tracker_det in a timestep.
             if len(gt_ids_t) == 0:
                 res['CLR_FP'] += len(tracker_ids_t)
+
+                # Write file
+                if fp_dataset:
+                    fp_frames_file.write(str(t + 2))
+                    for elem in data['tracker_dets'][t].flatten():
+                        fp_frames_file.write(' ' + str(elem))
+                    fp_frames_file.write('\n')
+
                 continue
             if len(tracker_ids_t) == 0:
                 res['CLR_FN'] += len(gt_ids_t)
+
+                # Write file
+                if fn_dataset:
+                    fn_frames_file.write(str(t + 2))
+                    for elem in data['gt_dets'][t].flatten():
+                        fn_frames_file.write(' ' + str(elem))
+                    fn_frames_file.write('\n')
+
                 gt_id_count[gt_ids_t] += 1
                 continue
 
@@ -111,8 +145,49 @@ class CLEAR(_BaseMetric):
             res['CLR_TP'] += num_matches
             res['CLR_FN'] += len(gt_ids_t) - num_matches
             res['CLR_FP'] += len(tracker_ids_t) - num_matches
+
+            # Starting to write FN boxes
+            if fn_dataset and len(gt_ids_t) != num_matches:
+                tracker_conv = {}
+                fn_tracker_ids = []
+                for idx, val in enumerate(gt_ids_t):
+                    tracker_conv[val] = idx
+                for val in matched_gt_ids:
+                    tracker_conv.pop(val)
+                for key in tracker_conv.keys():
+                    fn_tracker_ids.append(tracker_conv.get(key))
+
+                fn_tracker_dets_t = data['gt_dets'][t][fn_tracker_ids].flatten()
+                fn_frames_file.write(str(t + 2))
+                for elem in fn_tracker_dets_t:
+                    fn_frames_file.write(' ' + str(elem))
+                fn_frames_file.write('\n')
+
+            # Starting to write fp boxes
+            if fp_dataset and len(tracker_ids_t) != num_matches:
+                tracker_conv = {}
+                fp_tracker_ids = []
+                for idx, val in enumerate(tracker_ids_t):
+                    tracker_conv[val] = idx
+                for val in matched_tracker_ids:
+                    tracker_conv.pop(val)
+                for key in tracker_conv.keys():
+                    fp_tracker_ids.append(tracker_conv.get(key))
+
+                fp_tracker_dets_t = data['tracker_dets'][t][fp_tracker_ids].flatten()
+                fp_frames_file.write(str(t + 2))
+                for elem in fp_tracker_dets_t:
+                    fp_frames_file.write(' ' + str(elem))
+                fp_frames_file.write('\n')
+
             if num_matches > 0:
                 res['MOTP_sum'] += sum(similarity[match_rows, match_cols])
+
+        # Close file
+        if fp_dataset:
+            fp_frames_file.close()
+        if fn_dataset:
+            fn_frames_file.close()
 
         # Calculate MT/ML/PT/Frag/MOTP
         tracked_ratio = gt_matched_count[gt_id_count > 0] / gt_id_count[gt_id_count > 0]
@@ -179,7 +254,7 @@ class CLEAR(_BaseMetric):
         res['MOTP'] = res['MOTP_sum'] / np.maximum(1.0, res['CLR_TP'])
         res['sMOTA'] = (res['MOTP_sum'] - res['CLR_FP'] - res['IDSW']) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
 
-        res['CLR_F1'] = res['CLR_TP'] / np.maximum(1.0, res['CLR_TP'] + 0.5*res['CLR_FN'] + 0.5*res['CLR_FP'])
+        res['CLR_F1'] = res['CLR_TP'] / np.maximum(1.0, res['CLR_TP'] + 0.5 * res['CLR_FN'] + 0.5 * res['CLR_FP'])
         res['FP_per_frame'] = res['CLR_FP'] / np.maximum(1.0, res['CLR_Frames'])
         safe_log_idsw = np.log10(res['IDSW']) if res['IDSW'] > 0 else res['IDSW']
         res['MOTAL'] = (res['CLR_TP'] - res['CLR_FP'] - safe_log_idsw) / np.maximum(1.0, res['CLR_TP'] + res['CLR_FN'])
