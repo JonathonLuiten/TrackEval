@@ -18,7 +18,7 @@ class YouTubeVIS(_BaseDataset):
             'GT_FOLDER': os.path.join(code_path, 'data/gt/youtube_vis/'),  # Location of GT data
             'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/youtube_vis/'),
             # Trackers location
-            'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
+            'OUTPUT_FOLDER': '',  # Where to save eval results (if empty, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
             'CLASSES_TO_EVAL': None,  # Classes to eval (if None, all classes)
             'SPLIT_TO_EVAL': 'train_sub_split',  # Valid: 'train', 'val', 'train_sub_split'
@@ -40,7 +40,7 @@ class YouTubeVIS(_BaseDataset):
         self.should_classes_combine = True
 
         self.output_fol = self.config['OUTPUT_FOLDER']
-        if self.output_fol is None:
+        if len(self.output_fol) == 0:
             self.output_fol = self.tracker_fol
         self.output_sub_fol = self.config['OUTPUT_SUB_FOLDER']
         self.tracker_sub_fol = self.config['TRACKER_SUB_FOLDER']

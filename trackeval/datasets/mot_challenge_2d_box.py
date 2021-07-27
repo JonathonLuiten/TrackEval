@@ -19,7 +19,7 @@ class MotChallenge2DBox(_BaseDataset):
         default_config = {
             'GT_FOLDER': os.path.join(code_path, 'data/gt/mot_challenge/'),  # Location of GT data
             'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/mot_challenge/'),  # Trackers location
-            'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
+            'OUTPUT_FOLDER': '',  # Where to save eval results (if empty, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
             'CLASSES_TO_EVAL': ['pedestrian'],  # Valid: ['pedestrian']
             'BENCHMARK': 'MOT17',  # Valid: 'MOT17', 'MOT16', 'MOT20', 'MOT15'
@@ -61,7 +61,7 @@ class MotChallenge2DBox(_BaseDataset):
         self.do_preproc = self.config['DO_PREPROC']
 
         self.output_fol = self.config['OUTPUT_FOLDER']
-        if self.output_fol is None:
+        if len(self.output_fol) == 0:
             self.output_fol = self.tracker_fol
 
         self.tracker_sub_fol = self.config['TRACKER_SUB_FOLDER']

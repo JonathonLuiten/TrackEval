@@ -19,7 +19,7 @@ class MOTSChallenge(_BaseDataset):
         default_config = {
             'GT_FOLDER': os.path.join(code_path, 'data/gt/mot_challenge/'),  # Location of GT data
             'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/mot_challenge/'),  # Trackers location
-            'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
+            'OUTPUT_FOLDER': '',  # Where to save eval results (if empty, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
             'CLASSES_TO_EVAL': ['pedestrian'],  # Valid: ['pedestrian']
             'SPLIT_TO_EVAL': 'train',  # Valid: 'train', 'test'
@@ -57,7 +57,7 @@ class MOTSChallenge(_BaseDataset):
         self.data_is_zipped = self.config['INPUT_AS_ZIP']
 
         self.output_fol = self.config['OUTPUT_FOLDER']
-        if self.output_fol is None:
+        if len(self.output_fol) == 0:
             self.output_fol = self.tracker_fol
 
         self.tracker_sub_fol = self.config['TRACKER_SUB_FOLDER']
