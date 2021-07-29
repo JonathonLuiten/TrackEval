@@ -6,6 +6,12 @@ from .. import _timing
 from .. import utils
 
 
+# Global variables
+fn_dataset = False
+fp_dataset = False
+idsw = False
+
+
 class CLEAR(_BaseMetric):
     """Class which implements the CLEAR metrics"""
 
@@ -64,20 +70,14 @@ class CLEAR(_BaseMetric):
         prev_tracker_id = np.nan * np.zeros(num_gt_ids)  # For scoring IDSW
         prev_timestep_tracker_id = np.nan * np.zeros(num_gt_ids)  # For matching IDSW
 
-        # Change this boolean if you want to get FP boxes
-        fp_dataset = False
         if fp_dataset:
-            org_path = 'D:/UET/pythonProject1/TrackEval'
-            filepath = os.path.join(org_path, 'fp_frames.txt')
+            filepath = os.path.join(os.getcwd(), '_fp_frames.txt')
             if os.path.isfile(filepath):
                 open(filepath, 'r+').truncate(0)
             fp_frames_file = open(filepath, 'a')
 
-        # Change this boolean if you want to get FN boxes
-        fn_dataset = False
         if fn_dataset:
-            org_path = 'D:/UET/pythonProject1/TrackEval'
-            filepath = os.path.join(org_path, 'fn_frames.txt')
+            filepath = os.path.join(os.getcwd(), '_fn_frames.txt')
             if os.path.isfile(filepath):
                 open(filepath, 'r+').truncate(0)
             fn_frames_file = open(filepath, 'a')
