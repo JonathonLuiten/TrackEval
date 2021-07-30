@@ -71,13 +71,13 @@ class CLEAR(_BaseMetric):
         prev_timestep_tracker_id = np.nan * np.zeros(num_gt_ids)  # For matching IDSW
 
         if fp_dataset:
-            filepath = os.path.join(os.getcwd(), '_fp_frames.txt')
+            filepath = os.path.join(os.getcwd(), 'boxdetails/fp.txt')
             if os.path.isfile(filepath):
                 open(filepath, 'r+').truncate(0)
             fp_frames_file = open(filepath, 'a')
 
         if fn_dataset:
-            filepath = os.path.join(os.getcwd(), '_fn_frames.txt')
+            filepath = os.path.join(os.getcwd(), 'boxdetails/fn.txt')
             if os.path.isfile(filepath):
                 open(filepath, 'r+').truncate(0)
             fn_frames_file = open(filepath, 'a')

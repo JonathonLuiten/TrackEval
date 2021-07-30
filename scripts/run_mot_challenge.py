@@ -94,14 +94,37 @@ if __name__ == '__main__':
     if len(metrics_list) == 0:
         raise Exception('No metrics selected for evaluation')
 
+    # Prepare for extractor information
+    extr_bool = [False, False]
     if len(extractor_config['EXTRACTOR']) > 0:
         for elem in extractor_config['EXTRACTOR']:
-            if elem == 'FN':
-                trackeval.metrics.clear.fn_dataset = True
-            else:
+            if elem == 'FP':
                 trackeval.metrics.clear.fp_dataset = True
+                extr_bool[0] = True
+            else:
+                trackeval.metrics.clear.fn_dataset = True
+                extr_bool[1] = True
+
+    # Prepare for heatmap information
+    heatmap_bool = [False, False, False, False]
+    if len(extractor_config['HEATMAP']) > 0:
+        for elem in extractor_config['HEATMAP']:
+            if elem == 'FP':
+                trackeval.metrics.clear.fp_dataset = True
+                heatmap_bool[0] = True
+            elif elem == 'FN':
+                trackeval.metrics.clear.fn_dataset = True
+                heatmap_bool[1] = True
+            elif elem == 'PRED':
+                heatmap_bool[2] = True
+            else:
+                heatmap_bool[3] = True
+
 
     evaluator.evaluate(dataset_list, metrics_list)
 
     # Get square images showing FN/FP boxes
-    extract_frame.get_square_frame(trackeval.metrics.clear.fp_dataset, trackeval.metrics.clear.fn_dataset)
+    extract_frame.get_square_frame(extr_bool)
+
+    # Get heatmap
+    extract_frame.get_heatmap(heatmap_bool)
