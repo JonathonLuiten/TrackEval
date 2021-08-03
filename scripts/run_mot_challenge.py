@@ -120,6 +120,8 @@ if __name__ == '__main__':
             else:
                 heatmap_bool[3] = True
 
+    if extractor_config['ID_SWITCH']:
+        trackeval.metrics.clear.idsw = True
 
     evaluator.evaluate(dataset_list, metrics_list)
 
@@ -128,3 +130,6 @@ if __name__ == '__main__':
 
     # Get heatmap
     extract_frame.get_heatmap(heatmap_bool)
+
+    # Get idsw
+    extract_frame.get_idsw_frame(trackeval.metrics.clear.idsw)
