@@ -17,7 +17,7 @@ Just with some arguments.
   
 An example is below (this will work on supplied example data):  
 ```  
-python scripts/run_mot_challenge.py --BENCHMARK MOT17 --SPLIT_TO_EVAL train --TRACKERS_TO_EVAL MPNTrack --METRICS CLEAR --USE_PARALLEL False --NUM_PARALLEL_CORES 1 --EXTRACTOR FP --HEATMAP GT, PRED --ID_SWITCH True  
+python scripts/run_mot_challenge.py --BENCHMARK MOT17 --SPLIT_TO_EVAL train --TRACKERS_TO_EVAL MPNTrack --METRICS CLEAR --USE_PARALLEL False --NUM_PARALLEL_CORES 1 --EXTRACTOR FP --HEATMAP GT PRED --ID_SWITCH True  
 ```  
   
 # What is it doing  
