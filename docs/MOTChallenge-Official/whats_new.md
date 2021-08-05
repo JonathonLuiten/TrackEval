@@ -9,11 +9,11 @@ This branch is developed for getting:
   
 Just with some arguments.  
   
-**EXTRACTOR**: The type that you want to get. Valid options: FP, FN  
+```EXTRACTOR```: The type that you want to get. Valid options: FP, FN  
   
-**HEATMAP**: Type of heatmap you want to get. Valid options: GT, PRED, FP, FN  
+```HEATMAP```: Type of heatmap you want to get. Valid options: GT, PRED, FP, FN  
   
-**ID_SWITCH**: Get frames before and after id being switched. Valid options: True (False options is similar to not include this arg)  
+```ID_SWITCH```: Get frames before and after id being switched. Valid options: True (False options is similar to not include this arg)  
   
 An example is below (this will work on supplied example data):  
 ```  
@@ -22,8 +22,8 @@ python scripts/run_mot_challenge.py --BENCHMARK MOT17 --SPLIT_TO_EVAL train --TR
   
 # What is it doing  
   
-When you run the above example, **clear.py** will create some text files which contain the equivalent format to that type in the **boxdetails** folder.  
+When you run the above example, `clear.py` will create some text files which contain the equivalent format to that type in the `boxdetails` folder.  
   
-After that, **trackeval/extract_frame.py** uses those files to extract frames that contain, for example, FP and stores it at **output/..** folder (*..* part is depended on your argument choices)  
+After that, `trackeval/extract_frame.py` uses those files to extract frames that contain, for example, FP and stores it at `output/..` folder (`..` part is depended on your argument choices)  
   
 For details, please see the code itself.
