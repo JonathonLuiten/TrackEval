@@ -15,7 +15,7 @@ The following benchmarks use TrackEval as their official evaluation code, check 
  - **[RobMOTS](https://eval.vision.rwth-aachen.de/rvsu-workshop21/?page_id=110)** ([Official Readme](docs/RobMOTS-Official/Readme.md))
  - **[KITTI Tracking](http://www.cvlibs.net/datasets/kitti/eval_tracking.php)**
  - **[KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php)**
- - **[MOTChallenge](https://motchallenge.net/)** ([Official Readme](docs/MOTChallenge-Official/Readme.md))
+ - **[MOTChallenge](https://motchallenge.net/)** ([Official Readme](docs/MOTChallenge-Official/Readme.md), [What's new on this branch](https://github.com/thanhtvt/TrackEval/blob/master/docs/MOTChallenge-Official/whats_new.md))
  <!--- **[MOTS-Challenge](https://motchallenge.net/data/MOTS/)** ([Official Readme](docs/MOTS-Challenge-Official/Readme.md)) --->
 
 If you run a tracking benchmark and want to use TrackEval as your official evaluation code, please contact Jonathon (contact details below).
