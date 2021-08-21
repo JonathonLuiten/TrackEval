@@ -380,7 +380,7 @@ def get_idsw_frames_utils(path_to_read):
     while True:
         ret, frame = cap.read()
         curr_frame += 1
-        if curr_frame <= 525 and curr_frame < size and curr_frame == list(frame_to_ids_boxes)[idx]:
+        if curr_frame <= 525 and idx < size and curr_frame == list(frame_to_ids_boxes)[idx]:
             frame = draw_idsw_rectangle(frame, frame_to_ids_boxes[curr_frame])
             frame = put_text(frame, str(curr_frame))
 
