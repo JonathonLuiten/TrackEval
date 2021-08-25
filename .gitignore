@@ -1,7 +1,4 @@
-gt_data/*
-!gt_data/Readme.md
-!tracker_output/Readme.md
-data/*
+!data/gt/mot_challenge/.gitkeep
 output/heatmap/fn/*
 output/heatmap/fp/*
 output/heatmap/gt/*
