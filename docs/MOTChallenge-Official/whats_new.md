@@ -30,6 +30,7 @@ python scripts/run_mot_challenge.py --BENCHMARK MOT17 --SPLIT_TO_EVAL train --TR
   
 **Some note:**
 - `--SPLIT_TO_EVAL` is not needed when your benchmark doesn't split into training set and test set (validation set)
+- `--TRACKER_TO_EVAL` is the name of the folder that inside `TrackEval\data\trackers\mot_challenge\<YourChallenge>\` folder
 - `--METRICS` must have `CLEAR` as its param for extracting frames and getting heatmap
   
 # What is it doing  
@@ -46,6 +47,9 @@ Example: 173 10 353 411 135 399 15 1335 545 49 141
 ```  
 Example: 469 1759 410 85 259 1707 405 91 258
   
-2. After that, `trackeval/extract_frame.py` uses those files to extract frames that contain, for example, FP and stores it at `output/..` folder (`..` part is depended on your argument choices). Name of frames cut is its number.  
+2. After that, `trackeval/extract_frame.py` uses those files to extract frames that contain, for example, FP and stores it at `output/..` folder. The `..` part is depended on your argument choices like:  
+- `square_images` containing regular FN, FP frames
+- `idsw` containing frames before and after id being switched
+- `heatmap` containing heatmap.
   
 3. For details, please see the code itself.
