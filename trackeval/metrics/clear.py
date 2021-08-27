@@ -138,9 +138,10 @@ class CLEAR(_BaseMetric):
             # Write id switch frames
             if idsw and np.sum(is_idsw) > 0:
                 # Get id of pedestrian before and after switching
-                idsw_tracker_ids = list(np.where(is_idsw == 1))  # pos of switched id in is_idsw
+                idsw_tracker_ids = list(np.where(is_idsw == 1))         # pos of switched id in is_idsw
+                gt_idsw = matched_gt_ids[idsw_tracker_ids]              # id of human in groundtruth
                 prev_idsw = prev_matched_tracker_ids[idsw_tracker_ids]  # id before being switched
-                after_idsw = matched_tracker_ids[idsw_tracker_ids]  # id after being switched
+                after_idsw = matched_tracker_ids[idsw_tracker_ids]      # id after being switched
 
                 # Get index of id that being switched in prev_tracker_id (diff from prev_matched_tracker_ids)
                 index_matched_idsw = list(np.array(matched_gt_ids)[idsw_tracker_ids])
@@ -157,7 +158,8 @@ class CLEAR(_BaseMetric):
                 idsw_file.write(str(t + 2))
                 for i in range(len(after_idsw)):
                     ids = after_idsw[i]
-                    idsw_file.write(' ' + str(ids))
+                    gt_ids = gt_idsw[i]
+                    idsw_file.write(' ' + str(gt_ids) + ' ' + str(ids))
 
                     # Update dictionary
                     curr_id_to_prev_info[ids] = list()
@@ -174,8 +176,9 @@ class CLEAR(_BaseMetric):
                 for id_after_switch in curr_id_to_prev_info.keys():
                     id_before_switch = curr_id_to_prev_info.get(id_after_switch)[0]
                     prev_frame = curr_id_to_prev_info.get(id_after_switch)[1]
+                    pos = list(curr_id_to_prev_info.keys()).index(id_after_switch)  #
 
-                    idsw_file.write(str(t + 2 - prev_frame) + ' ' + str(id_before_switch))
+                    idsw_file.write(str(t + 2 - prev_frame) + ' ' + str(gt_idsw[pos]) + ' ' + str(id_before_switch))
                     idsw_tracker_to_tracker_id = np.where(data['tracker_ids'][t - prev_frame] == id_before_switch)
                     idsw_tracker_dets = data['tracker_dets'][t - prev_frame][idsw_tracker_to_tracker_id].flatten()
                     for elem in idsw_tracker_dets:

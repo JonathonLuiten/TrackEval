@@ -38,12 +38,12 @@ python scripts/run_mot_challenge.py --BENCHMARK MOT17 --SPLIT_TO_EVAL train --TR
 1. When you run the above example, `clear.py` will create some text files which contain the equivalent format to that type in the `boxdetails` folder. The format of those text files are below:  
 - For ID Switch:  
 ```
-<frame> <id1> <bb1_left> <bb1_top> <bb1_x_center> <bb1_y_center> <id2> <bb2_left> <bb2_top> <bb2_x_center> <bb2_y_center> <id3> . . .
+<frame> <id1_gt> <id1> <bb1_left> <bb1_top> <bb1_width> <bb1_height> <id2_gt> <id2> <bb2_left> <bb2_top> <bb2_width> <bb2_height> <id3_gt> <id3> . . .
 ```  
 Example: 173 10 353 411 135 399 15 1335 545 49 141
 - For others:  
 ```
-<frame> <bb1_left> <bb1_top> <bb1_x_center> <bb1_y_center> <bb2_left> <bb2_top> <bb2_x_center> <bb2_y_center> <bb3_left> . . .
+<frame> <bb1_left> <bb1_top> <bb1_width> <bb1_height> <bb2_left> <bb2_top> <bb2_width> <bb2_height> <bb3_left> . . .
 ```  
 Example: 469 1759 410 85 259 1707 405 91 258
   
