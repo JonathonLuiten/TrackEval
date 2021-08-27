@@ -73,6 +73,31 @@ def convert_file_format(org_file, destination_file):
         dest_file.write('\n')
 
 
+def save_fig(directory, image, filename):
+    if not os.path.isdir(directory):
+        os.mkdir(os.path.abspath(directory))
+    cv2.imwrite(filename, image)
+
+
+def get_bounding_box(image, ids_boxes, frame_no):
+
+    for i in range(len(ids_boxes)):
+        if i % 6 == 5:
+            bbox_id_gt = ids_boxes[i - 5]
+            bbox_id = ids_boxes[i - 4]
+            bbox_left = ids_boxes[i - 3]
+            bbox_top = ids_boxes[i - 2]
+            bbox_right = ids_boxes[i - 1]
+            bbox_bottom = ids_boxes[i]
+
+            # Cut bounding box
+            bounding_box = image[bbox_top:bbox_bottom, bbox_left:bbox_right]
+
+            directory = 'output/bbox_idsw'
+            filename = '{}/{}_{}_{}.jpg'.format(directory, str(bbox_id_gt), str(frame_no), str(bbox_id))
+            save_fig(directory, bounding_box, filename)
+
+
 """----Functions for creating square boxes----"""
 
 
@@ -168,9 +193,8 @@ def get_square_frame_utils(path_to_read):
             frame = put_text(frame, path_to_read[11:-4].upper())
 
             directory = 'output/square_images/' + path_to_read[11:-4] + '/'
-            if not os.path.isdir(directory):
-                os.mkdir(os.path.abspath(directory))
-            cv2.imwrite(directory + str(curr_frame) + '.jpg', frame)
+            filename = directory + str(curr_frame) + '.jpg'
+            save_fig(directory, frame, filename)
 
             # Update params
             frame_idx += 1
@@ -246,9 +270,8 @@ def get_heatmap_utils(path_to_read):
         frame = put_text(frame, path_to_read[11:-4].upper())
 
         directory = 'output/heatmap/'
-        if not os.path.isdir(directory):
-            os.mkdir(os.path.abspath(directory))
-        cv2.imwrite(directory + path_to_read[11:-4] + '.jpg', frame)
+        filename = directory + path_to_read[11:-4] + '.jpg'
+        save_fig(directory, frame, filename)
 
         running = False
         if not ret:
@@ -308,9 +331,8 @@ def read_idsw_file(filepath):
                 frame = num
                 if frame not in frame_to_ids_boxes.keys():
                     frame_to_ids_boxes[frame] = []
-                    first = False
-                    continue
                 first = False
+                continue
             frame_to_ids_boxes[frame].append(num)
 
     frame_to_ids_boxes = dict(sorted(frame_to_ids_boxes.items()))
@@ -325,7 +347,7 @@ def convert_idsw_bbox_info(frame_to_ids_boxes):
         copy_frame[frame] = []
         ids_and_boxes = frame_to_ids_boxes.get(frame)
         for idx, elem in enumerate(ids_and_boxes):
-            if idx % 5 == 3 or idx % 5 == 4:
+            if idx % 6 == 4 or idx % 6 == 5:
                 ids_and_boxes[idx] = ids_and_boxes[idx] + ids_and_boxes[idx - 2]
         copy_frame[frame].extend(ids_and_boxes)
 
@@ -343,14 +365,13 @@ def draw_idsw_rectangle(image, ids_boxes):
     thicknes_id = 2
     line_type = cv2.LINE_4
 
-    cnt = 0
     for i in range(len(ids_boxes)):
-        if i % 5 == 4:
-            bbox_id = ids_boxes[cnt + i - 4]
-            bbox_left = ids_boxes[cnt + i - 3]
-            bbox_top = ids_boxes[cnt + i - 2]
-            bbox_right = ids_boxes[cnt + i - 1]
-            bbox_bottom = ids_boxes[cnt + i]
+        if i % 6 == 5:
+            bbox_id = ids_boxes[i - 4]
+            bbox_left = ids_boxes[i - 3]
+            bbox_top = ids_boxes[i - 2]
+            bbox_right = ids_boxes[i - 1]
+            bbox_bottom = ids_boxes[i]
 
             # Params for box
             left_top_pt = (bbox_left, bbox_top)
@@ -381,13 +402,14 @@ def get_idsw_frames_utils(path_to_read):
         ret, frame = cap.read()
         curr_frame += 1
         if curr_frame <= 525 and idx < size and curr_frame == list(frame_to_ids_boxes)[idx]:
+            get_bounding_box(frame, frame_to_ids_boxes[curr_frame], curr_frame)
             frame = draw_idsw_rectangle(frame, frame_to_ids_boxes[curr_frame])
             frame = put_text(frame, str(curr_frame))
 
             directory = 'output/idsw/'
-            if not os.path.isdir(directory):
-                os.mkdir(os.path.abspath(directory))
-            cv2.imwrite(directory + str(curr_frame) + '.jpg', frame)
+            filename = directory + str(curr_frame) + '.jpg'
+            save_fig(directory, frame, filename)
+
             idx += 1
 
         if not ret:
