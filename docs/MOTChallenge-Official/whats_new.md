@@ -10,6 +10,10 @@ This branch is developed for getting:
 ## Place your data  
   
 Please check out this [readme](https://github.com/thanhtvt/TrackEval/blob/master/docs/MOTChallenge-Official/Readme.md#evaluating-on-your-own-data) to prepare data (including gt, trackers and seqmap).  
+
+For videos, you can put those at `TrackEval/video` folder:
+- Name it `raw.mp4` if you choose `HEATMAP` and/or `ID_SWITCH` argument(s)
+- Name it `detection.mp4` if you choose `EXTRACTOR` argument
   
 ## Execute  
 
@@ -29,7 +33,7 @@ python scripts/run_mot_challenge.py --BENCHMARK MOT17 --SPLIT_TO_EVAL train --TR
 ```  
   
 **Some note:**
-- `--SPLIT_TO_EVAL` is not needed when your benchmark doesn't split into training set and test set (validation set)
+- `--SPLIT_TO_EVAL` is not needed when your benchmark doesn't split into different sets.
 - `--TRACKER_TO_EVAL` is the name of the folder that inside `TrackEval\data\trackers\mot_challenge\<YourChallenge>\` folder
 - `--METRICS` must have `CLEAR` as its param for extracting frames and getting heatmap
   
@@ -48,8 +52,19 @@ Example: 173 10 353 411 135 399 15 1335 545 49 141
 Example: 469 1759 410 85 259 1707 405 91 258
   
 2. After that, `trackeval/extract_frame.py` uses those files to extract frames that contain, for example, FP and stores it at `output/..` folder. The `..` part is depended on your argument choices like:  
-- `square_images` containing regular FN, FP frames
-- `idsw` containing frames before and after id being switched
-- `heatmap` containing heatmap.
+- `square_images` containing regular FN, FP frames (choosing `EXTRACTOR`)
+- `idsw` containing frames before and after id being switched (choosing `ID_SWITCH`)
+- `heatmap` containing heatmap (choosing `HEATMAP`) 
   
-3. For details, please see the code itself.
+3. Explain the meaning of images' name:
+- For images inside `idsw` folder: images are named with `X_Y_Z.jpg` format, which:
+  * `X` is groundtruth ID.
+  * `Y` is frame number before switching.
+  * `Z` is frame number after switching.
+- For images inside other folders: images are named with `A.jpg` format which `A` is frame number from that it is extracted.
+  
+4.  Inside `idsw` folder, there are 2 more sub-folder, namely `attach` and `bbox_idsw`:
+- `attach` containing multiple images that each of them are the concatation of 2 alphabetically adjacent images (from start to end) in `idsw` folder.
+- `bbox_idsw` containing bounding boxes cut from each images in `idsw` folder.
+
+5. For details, please see the code itself.
