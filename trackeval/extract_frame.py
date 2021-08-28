@@ -1,4 +1,5 @@
 import os
+from re import split
 import cv2
 import numpy as np
 
@@ -73,14 +74,35 @@ def convert_file_format(org_file, destination_file):
         dest_file.write('\n')
 
 
+def delete_images(directory):
+    if not os.path.isdir(directory):
+        return
+    for file in os.listdir(directory):
+        if file.endswith('.jpg'):
+            os.remove(os.path.join(directory, file))
+
+
 def save_fig(directory, image, filename):
     if not os.path.isdir(directory):
         os.mkdir(os.path.abspath(directory))
+
+    addon = 0
+    prefix_name = filename.split('.')[0]
+    temp_name = filename
+    # Check if file has already existed
+    while True:
+        if os.path.isfile(temp_name):
+            temp_name = prefix_name + '_' + str(addon) + '.jpg'
+            addon += 1
+            continue
+        else:
+            filename = temp_name
+            break
+
     cv2.imwrite(filename, image)
 
 
 def get_bounding_box(image, ids_boxes, frame_no):
-
     for i in range(len(ids_boxes)):
         if i % 6 == 5:
             bbox_id_gt = ids_boxes[i - 5]
@@ -93,9 +115,31 @@ def get_bounding_box(image, ids_boxes, frame_no):
             # Cut bounding box
             bounding_box = image[bbox_top:bbox_bottom, bbox_left:bbox_right]
 
-            directory = 'output/bbox_idsw'
-            filename = '{}/{}_{}_{}.jpg'.format(directory, str(bbox_id_gt), str(frame_no), str(bbox_id))
+            directory = 'output/idsw/bbox_idsw'
+            filename = '{}/{}_{}_{}.jpg'.format(directory, str(bbox_id_gt).zfill(2), str(frame_no).zfill(3),
+                                                str(bbox_id).zfill(2))
             save_fig(directory, bounding_box, filename)
+
+
+def attach_images(images_dir, output_dir, dim):
+    delete_images(output_dir)
+
+    images_path = []
+
+    for img_path in os.listdir(images_dir):
+        if img_path.endswith('.jpg'):
+            images_path.append(os.path.join(images_dir, img_path))
+
+    images_path.sort()
+
+    for i in range(0, len(images_path) - 1, 2):
+        img1 = cv2.resize(cv2.imread(images_path[i]), dim)
+        img2 = cv2.resize(cv2.imread(images_path[i + 1]), dim)
+        new_img = cv2.vconcat([img1, img2])
+        img_name = split(r'[_/.\\]', images_path[i])[2] + '_' + split(r'[_/.\\]', images_path[i])[3] + '_' + \
+                   split(r'[_/.\\]', images_path[i + 1])[3] + '.jpg'
+        filename = os.path.join(output_dir, img_name)
+        save_fig(output_dir, new_img, filename)
 
 
 """----Functions for creating square boxes----"""
@@ -354,7 +398,7 @@ def convert_idsw_bbox_info(frame_to_ids_boxes):
     return copy_frame
 
 
-def draw_idsw_rectangle(image, ids_boxes):
+def draw_idsw_rectangle(image, ids_boxes, frame_no):
     """Draw boxes and label id for each box"""
 
     # General params
@@ -367,6 +411,7 @@ def draw_idsw_rectangle(image, ids_boxes):
 
     for i in range(len(ids_boxes)):
         if i % 6 == 5:
+            bbox_id_gt = ids_boxes[i - 5]
             bbox_id = ids_boxes[i - 4]
             bbox_left = ids_boxes[i - 3]
             bbox_top = ids_boxes[i - 2]
@@ -380,11 +425,18 @@ def draw_idsw_rectangle(image, ids_boxes):
             # Params for id
             org = (bbox_left, bbox_top - 5)
 
-            # Draw
-            image = cv2.rectangle(image, left_top_pt, right_bottom_pt, color, thickness_box)
-            cv2.putText(image, str(bbox_id), org, font, font_scale, color, thicknes_id, line_type)
+            # Create copy
+            image_copy = np.copy(image)
 
-    return image
+            # Draw
+            image_copy = cv2.rectangle(image_copy, left_top_pt, right_bottom_pt, color, thickness_box)
+            cv2.putText(image_copy, str(bbox_id), org, font, font_scale, color, thicknes_id, line_type)
+            put_text(image_copy, str(frame_no))
+
+            directory = 'output/idsw'
+            filename = '{}/{}_{}_{}.jpg'.format(directory, str(bbox_id_gt).zfill(2), str(frame_no).zfill(3),
+                                                str(bbox_id).zfill(2))
+            save_fig(directory, image_copy, filename)
 
 
 def get_idsw_frames_utils(path_to_read):
@@ -398,22 +450,22 @@ def get_idsw_frames_utils(path_to_read):
     frame_to_ids_boxes = convert_idsw_bbox_info(frame_to_ids_boxes)
     size = len(frame_to_ids_boxes)
 
+    delete_images('output/idsw/')
+    delete_images('output/idsw/bbox_idsw')
+
     while True:
         ret, frame = cap.read()
         curr_frame += 1
         if curr_frame <= 525 and idx < size and curr_frame == list(frame_to_ids_boxes)[idx]:
             get_bounding_box(frame, frame_to_ids_boxes[curr_frame], curr_frame)
-            frame = draw_idsw_rectangle(frame, frame_to_ids_boxes[curr_frame])
-            frame = put_text(frame, str(curr_frame))
-
-            directory = 'output/idsw/'
-            filename = directory + str(curr_frame) + '.jpg'
-            save_fig(directory, frame, filename)
+            draw_idsw_rectangle(frame, frame_to_ids_boxes[curr_frame], curr_frame)
 
             idx += 1
 
         if not ret:
             break
+
+    attach_images('output/idsw', 'output/idsw/attach', (1280, 720))
 
     cap.release()
 
