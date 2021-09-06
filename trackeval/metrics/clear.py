@@ -87,6 +87,9 @@ class CLEAR(_BaseMetric):
                 open(filepath, 'r+').truncate(0)
             idsw_file = open(filepath, 'a')
 
+        # Define variable storing previous t value
+        old_t = 0
+
         # Calculate scores for each timestep
         for t, (gt_ids_t, tracker_ids_t) in enumerate(zip(data['gt_ids'], data['tracker_ids'])):
             # Deal with the case that there are no gt_det/tracker_det in a timestep.
@@ -94,8 +97,8 @@ class CLEAR(_BaseMetric):
                 res['CLR_FP'] += len(tracker_ids_t)
 
                 # Write file
-                if fp_dataset:
-                    fp_frames_file.write(str(t + 2))
+                if fp_dataset and len(tracker_ids_t) > 0:
+                    fp_frames_file.write(str(t + 1))
                     for elem in data['tracker_dets'][t].flatten():
                         fp_frames_file.write(' ' + str(elem))
                     fp_frames_file.write('\n')
@@ -105,8 +108,8 @@ class CLEAR(_BaseMetric):
                 res['CLR_FN'] += len(gt_ids_t)
 
                 # Write file
-                if fn_dataset:
-                    fn_frames_file.write(str(t + 2))
+                if fn_dataset and len(gt_ids_t) > 0:
+                    fn_frames_file.write(str(t + 1))
                     for elem in data['gt_dets'][t].flatten():
                         fn_frames_file.write(' ' + str(elem))
                     fn_frames_file.write('\n')
@@ -135,6 +138,18 @@ class CLEAR(_BaseMetric):
                 np.not_equal(matched_tracker_ids, prev_matched_tracker_ids))
             res['IDSW'] += np.sum(is_idsw)
 
+            # Update counters for MT/ML/PT/Frag and record for IDSW/Frag for next timestep
+            gt_id_count[gt_ids_t] += 1
+            gt_matched_count[matched_gt_ids] += 1
+            not_previously_tracked = np.isnan(prev_timestep_tracker_id)
+            prev_tracker_id[matched_gt_ids] = matched_tracker_ids
+            prev_timestep_tracker_id[:] = np.nan
+            prev_timestep_tracker_id[matched_gt_ids] = matched_tracker_ids
+            currently_tracked = np.logical_not(np.isnan(prev_timestep_tracker_id))
+            gt_frag_count += np.logical_and(not_previously_tracked, currently_tracked)
+            if t - old_t > 1:
+                num_frame_id_disappear += (t - old_t - 1)   # As at frame t, pedestrian already appear
+
             # Write id switch frames
             if idsw and np.sum(is_idsw) > 0:
                 # Get id of pedestrian before and after switching
@@ -143,7 +158,7 @@ class CLEAR(_BaseMetric):
                 prev_idsw = prev_matched_tracker_ids[idsw_tracker_ids]  # id before being switched
                 after_idsw = matched_tracker_ids[idsw_tracker_ids]      # id after being switched
 
-                # Get index of id that being switched in prev_tracker_id (diff from prev_matched_tracker_ids)
+                # Get index of id that being switched in prev_tracker_id
                 index_matched_idsw = list(np.array(matched_gt_ids)[idsw_tracker_ids])
 
                 # Get disappear frames count
@@ -155,8 +170,9 @@ class CLEAR(_BaseMetric):
 
                 # Start writing file
                 # Write current frame first
-                idsw_file.write(str(t + 2))
+                idsw_file.write(str(t + 1))
                 for i in range(len(after_idsw)):
+
                     ids = after_idsw[i]
                     gt_ids = gt_idsw[i]
                     idsw_file.write(' ' + str(gt_ids) + ' ' + str(ids))
@@ -176,26 +192,18 @@ class CLEAR(_BaseMetric):
                 for id_after_switch in curr_id_to_prev_info.keys():
                     id_before_switch = curr_id_to_prev_info.get(id_after_switch)[0]
                     prev_frame = curr_id_to_prev_info.get(id_after_switch)[1]
-                    pos = list(curr_id_to_prev_info.keys()).index(id_after_switch)  #
-
-                    idsw_file.write(str(t + 2 - prev_frame) + ' ' + str(gt_idsw[pos]) + ' ' + str(id_before_switch))
+                    pos = list(curr_id_to_prev_info.keys()).index(id_after_switch)
+                    idsw_file.write(str(t + 1 - prev_frame) + ' ' + str(gt_idsw[pos]) + ' ' + str(id_before_switch))
                     idsw_tracker_to_tracker_id = np.where(data['tracker_ids'][t - prev_frame] == id_before_switch)
                     idsw_tracker_dets = data['tracker_dets'][t - prev_frame][idsw_tracker_to_tracker_id].flatten()
                     for elem in idsw_tracker_dets:
                         idsw_file.write(' ' + str(int(elem)))
                     idsw_file.write('\n')
 
-            # Update counters for MT/ML/PT/Frag and record for IDSW/Frag for next timestep
-            gt_id_count[gt_ids_t] += 1
-            gt_matched_count[matched_gt_ids] += 1
-            not_previously_tracked = np.isnan(prev_timestep_tracker_id)
-            prev_tracker_id[matched_gt_ids] = matched_tracker_ids
-            prev_timestep_tracker_id[:] = np.nan
-            prev_timestep_tracker_id[matched_gt_ids] = matched_tracker_ids
-            currently_tracked = np.logical_not(np.isnan(prev_timestep_tracker_id))
-            gt_frag_count += np.logical_and(not_previously_tracked, currently_tracked)
-            num_frame_id_disappear += not_previously_tracked
-            num_frame_id_disappear -= (num_frame_id_disappear * currently_tracked)
+            if t - old_t == 1:
+                num_frame_id_disappear += not_previously_tracked
+                num_frame_id_disappear -= (num_frame_id_disappear * currently_tracked)
+            old_t = t
 
             # Calculate and accumulate basic statistics
             num_matches = len(matched_gt_ids)
@@ -215,7 +223,7 @@ class CLEAR(_BaseMetric):
                     fn_tracker_ids.append(tracker_conv.get(key))
 
                 fn_tracker_dets_t = data['gt_dets'][t][fn_tracker_ids].flatten()
-                fn_frames_file.write(str(t + 2))
+                fn_frames_file.write(str(t + 1))
                 for elem in fn_tracker_dets_t:
                     fn_frames_file.write(' ' + str(elem))
                 fn_frames_file.write('\n')
@@ -232,7 +240,7 @@ class CLEAR(_BaseMetric):
                     fp_tracker_ids.append(tracker_conv.get(key))
 
                 fp_tracker_dets_t = data['tracker_dets'][t][fp_tracker_ids].flatten()
-                fp_frames_file.write(str(t + 2))
+                fp_frames_file.write(str(t + 1))
                 for elem in fp_tracker_dets_t:
                     fp_frames_file.write(' ' + str(elem))
                 fp_frames_file.write('\n')
