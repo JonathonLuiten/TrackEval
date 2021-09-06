@@ -125,6 +125,14 @@ class MotChallenge2DBox(_BaseDataset):
                             'Tracker file not found: ' + tracker + '/' + self.tracker_sub_fol + '/' + os.path.basename(
                                 curr_file))
 
+    # Need to fix to get every path
+    def get_gt_file(self):
+        return self.config["GT_LOC_FORMAT"].format(gt_folder=self.gt_fol, seq=self.seq_list[0])
+
+    # Need to fix to get every path
+    def get_tracker_file(self):
+        return os.path.join(self.tracker_fol, self.tracker_list[0], self.tracker_sub_fol, self.seq_list[0] + '.txt')
+
     def get_display_name(self, tracker):
         return self.tracker_to_disp[tracker]
 

@@ -129,7 +129,9 @@ if __name__ == '__main__':
     extract_frame.get_square_frame(extr_bool)
 
     # Get heatmap
-    extract_frame.get_heatmap(heatmap_bool)
+    gt_file = dataset_list[0].get_gt_file()
+    tracker_file = dataset_list[0].get_tracker_file()
+    extract_frame.get_heatmap(heatmap_bool, gt_file, tracker_file)
 
     # Get idsw
     extract_frame.get_idsw_frame(trackeval.metrics.clear.idsw)

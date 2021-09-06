@@ -2,6 +2,7 @@ import os
 from re import split
 import cv2
 import numpy as np
+from .utils import get_code_path
 
 """----General utils----"""
 
@@ -51,7 +52,7 @@ def convert_file_format(org_file, destination_file):
     for line in list(file.split('\n')):
         if len(line) < 2:
             continue
-        box = [int(elem) for elem in line.split(',')[2:6]]
+        box = [int(float(elem)) for elem in line.split(',')[2:6]]
         idx = int(line.split(',')[0])
         if idx not in frame_to_boxes.keys():
             frame_to_boxes[idx] = box
@@ -225,26 +226,27 @@ def get_square_frame_utils(path_to_read):
     # Total number of FP frames
     size = len(f_frame_len)
 
+    directory = 'output/square_images/' + path_to_read[11:-4] + '/'
+    delete_images(directory)
+
     while True:
         ret, frame = cap.read()
         curr_frame += 1
-        # print('SOMETHING HERE', ret)
-        if curr_frame <= 525 and frame_idx < size and curr_frame == f_frame[frame_idx]:
+        if not ret:
+            break
+        if frame_idx < size and curr_frame == f_frame[frame_idx]:
             length = f_frame_len.get(curr_frame)
 
             # Draw and write frames
             frame = draw_rectangle(frame, length, bbox, bbox_idx)
             frame = put_text(frame, path_to_read[11:-4].upper())
 
-            directory = 'output/square_images/' + path_to_read[11:-4] + '/'
             filename = directory + str(curr_frame) + '.jpg'
             save_fig(directory, frame, filename)
 
             # Update params
             frame_idx += 1
             bbox_idx += length
-        if not ret:
-            break
 
     cap.release()
 
@@ -252,9 +254,10 @@ def get_square_frame_utils(path_to_read):
 def get_square_frame(detect):
     """Draw a rectangle on and write frames that contain FP boxes to chosen folder"""
 
-    # Change current working dir to main project dir
-    if os.getcwd().split('\\')[-1] != 'TrackEval':
-        os.chdir('../')
+    # Change current working directory to parent dir
+    code_path = get_code_path()
+    if os.getcwd() != code_path:
+        os.chdir(code_path)
 
     if detect[0]:
         print('\nDetecting FP boxes...')
@@ -306,6 +309,9 @@ def get_heatmap_utils(path_to_read):
 
     _, bbox = read_file(path_to_read)
 
+    directory = 'output/heatmap/'
+    delete_images(directory)
+
     while running:
         ret, frame = cap.read()
 
@@ -313,7 +319,6 @@ def get_heatmap_utils(path_to_read):
         frame = create_heatmap(frame, bbox)
         frame = put_text(frame, path_to_read[11:-4].upper())
 
-        directory = 'output/heatmap/'
         filename = directory + path_to_read[11:-4] + '.jpg'
         save_fig(directory, frame, filename)
 
@@ -324,12 +329,13 @@ def get_heatmap_utils(path_to_read):
     cap.release()
 
 
-def get_heatmap(heat):
+def get_heatmap(heat, gt_file, tracker_file):
     """Call this function to get heatmap of wanted type(s)"""
 
-    # Change current working directory up to 1 level
-    if os.getcwd().split('\\')[-1] != 'TrackEval':
-        os.chdir('../')
+    # Change current working directory to parent dir
+    code_path = get_code_path()
+    if os.getcwd() != code_path:
+        os.chdir(code_path)
 
     if heat[0]:
         print('\nGetting heatmap of FP...')
@@ -343,15 +349,13 @@ def get_heatmap(heat):
 
     if heat[2]:
         print('\nGetting heatmap of Prediction...')
-        # The first params is not so general
-        convert_file_format('data/trackers/mot_challenge/SELF-train/DEEPSORT/data/SELF.txt', 'boxdetails/pred.txt')
+        convert_file_format(tracker_file, 'boxdetails/pred.txt')
         get_heatmap_utils('boxdetails/pred.txt')
         print('Finished!!')
 
     if heat[3]:
         print('\nGetting heatmap of Ground truth...')
-        # The first params is not so general
-        convert_file_format('data/gt/mot_challenge/SELF-train/SELF/gt/gt.txt', 'boxdetails/gt.txt')
+        convert_file_format(gt_file, 'boxdetails/gt.txt')
         get_heatmap_utils('boxdetails/gt.txt')
         print('Finished!!')
 
@@ -456,14 +460,15 @@ def get_idsw_frames_utils(path_to_read):
     while True:
         ret, frame = cap.read()
         curr_frame += 1
-        if curr_frame <= 525 and idx < size and curr_frame == list(frame_to_ids_boxes)[idx]:
+
+        if not ret:
+            break
+
+        if idx < size and curr_frame == list(frame_to_ids_boxes)[idx]:
             get_bounding_box(frame, frame_to_ids_boxes[curr_frame], curr_frame)
             draw_idsw_rectangle(frame, frame_to_ids_boxes[curr_frame], curr_frame)
 
             idx += 1
-
-        if not ret:
-            break
 
     attach_images('output/idsw', 'output/idsw/attach', (1280, 720))
 
@@ -473,11 +478,12 @@ def get_idsw_frames_utils(path_to_read):
 def get_idsw_frame(idsw):
     """Call this function to get frames of switched ids"""
 
-    # Change current working directory up to 1 level
-    if os.getcwd().split('\\')[-1] != 'TrackEval':
-        os.chdir('../')
+    # Change current working directory to parent dir
+    code_path = get_code_path()
+    if os.getcwd() != code_path:
+        os.chdir(code_path)
 
     if idsw:
-        print('Getting ID switched frames...')
+        print('\nGetting ID switched frames...')
         get_idsw_frames_utils('boxdetails/idsw.txt')
         print('Finished!!')
