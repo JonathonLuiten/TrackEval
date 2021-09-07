@@ -106,7 +106,7 @@ if __name__ == '__main__':
                 extr_bool[1] = True
 
     # Prepare for heatmap information
-    heatmap_bool = [False, False, False, False]
+    heatmap_bool = [False, False, False, False, False]
     if len(extractor_config['HEATMAP']) > 0:
         for elem in extractor_config['HEATMAP']:
             if elem == 'FP':
@@ -117,8 +117,10 @@ if __name__ == '__main__':
                 heatmap_bool[1] = True
             elif elem == 'PRED':
                 heatmap_bool[2] = True
-            else:
+            elif elem == 'IDSW': # son add this
                 heatmap_bool[3] = True
+            else:
+                heatmap_bool[4] = True
 
     if extractor_config['ID_SWITCH']:
         trackeval.metrics.clear.idsw = True
@@ -131,6 +133,7 @@ if __name__ == '__main__':
     # Get heatmap
     gt_file = dataset_list[0].get_gt_file()
     tracker_file = dataset_list[0].get_tracker_file()
+    print(tracker_file)
     extract_frame.get_heatmap(heatmap_bool, gt_file, tracker_file)
 
     # Get idsw
