@@ -317,15 +317,24 @@ def get_heatmap_utils(path_to_read):
 
         # Draw and write frames
         frame = create_heatmap(frame, bbox)
+        cv2.imshow(path_to_read, frame)
+        
+        
         frame = put_text(frame, path_to_read[11:-4].upper())
 
         filename = directory + path_to_read[11:-4] + '.jpg'
+        print("filename: ", filename)
         save_fig(directory, frame, filename)
 
         running = False
+        
+        if cv2.waitKey(0) & 0xFF == ord('q'):
+            break
+        
         if not ret:
             break
-
+    
+    cv2.destroyAllWindows()
     cap.release()
 
 
@@ -353,11 +362,19 @@ def get_heatmap(heat, gt_file, tracker_file):
         get_heatmap_utils('boxdetails/pred.txt')
         print('Finished!!')
 
-    if heat[3]:
+    if heat[3]: # son add this
+        print('\nGetting heatmap of IDSW...')
+        convert_idsw_to_heatmap_format('boxdetails/idsw.txt', 'boxdetails/idsw_heatmap.txt')
+        get_heatmap_utils('boxdetails/idsw_heatmap.txt')
+        print('Finished!!')
+
+    if heat[4]:
         print('\nGetting heatmap of Ground truth...')
         convert_file_format(gt_file, 'boxdetails/gt.txt')
         get_heatmap_utils('boxdetails/gt.txt')
         print('Finished!!')
+    
+    
 
 
 """Functions for getting id-switch frames"""
@@ -385,6 +402,59 @@ def read_idsw_file(filepath):
 
     frame_to_ids_boxes = dict(sorted(frame_to_ids_boxes.items()))
     return frame_to_ids_boxes
+
+
+"""
+author: Son
+modify: 7/9/2021
+purpose: add heatmap for idsw
+"""
+
+def convert_idsw_to_heatmap_format(filepath, dest_file):
+    """Convert idsw format to heatmap formats
+    idsw: <frame> <id1_gt> <id1> <bb1_left> <bb1_top> <bb1_width> <bb1_height> <id2_gt> <id2> <bb2_left> <bb2_top> <bb2_width> ...
+    heatmap:  <frame> <bb1_left> <bb1_top> <bb1_width> <bb1_height> <bb2_left> <bb2_top> <bb2_width> <bb2_height> ...
+
+    Args:
+        filepath ([str]): idsw path
+        dest_file : save file path
+    """
+    from collections import defaultdict
+    
+    ids_group = defaultdict(list)
+    obj_infos = []
+    
+    with open(filepath, "r") as f:
+        for line in f:
+            p = line.rstrip().split(" ") # <frame> <id1_gt> <id1> <bb1_left> <bb1_top> <bb1_width> <bb1_height> <id2_gt> <id2> <bb2_left> <bb2_top> <bb2_width>
+            p = list(map(int, p))
+            # get number of objects in current frame 
+            num_obj = int((len(p) - 1) / 6)
+            for idx in range(num_obj):
+                obj_infos.append([p[0]] + p[1 + 6*idx: 7 + 6*idx]) #  <frame> <id1_gt> <id1> <bb1_left> <bb1_top> <bb1_width> <bb1_height>\n <frame> <id2_gt> <id2> <bb2_left> <bb2_top> <bb2_width>
+    
+    for obj in obj_infos:
+        ids_group[obj[1]].append(obj)
+    
+    print(ids_group)
+    with open(dest_file, 'w') as f:
+        for _, objs in ids_group.items():
+            objs = sorted(objs, key=lambda x: x[0])
+            if(len(objs) % 2 == 0):
+                for i in range(1, len(objs), 2): 
+                    tmp = list(map(str, objs[i]))
+                    print(tmp)
+                    line = tmp[0] + " " + tmp[3] + " " + tmp[4] + " " + tmp[5] + " " + tmp[6] + "\n"
+                    f.write(line)
+    
+    return 1
+        
+            
+            
+    
+
+
+# ------------------ end ------------------
 
 
 def convert_idsw_bbox_info(frame_to_ids_boxes):
