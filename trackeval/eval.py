@@ -96,7 +96,7 @@ class Evaluator:
                         res['COMBINED_SEQ'][c_cls] = {}
                         for metric, metric_name in zip(metrics_list, metric_names):
                             curr_res = {seq_key: seq_value[c_cls][metric_name] for seq_key, seq_value in res.items() if
-                                        seq_key is not 'COMBINED_SEQ'}
+                                        seq_key != 'COMBINED_SEQ'}
                             res['COMBINED_SEQ'][c_cls][metric_name] = metric.combine_sequences(curr_res)
                     # combine classes
                     if dataset.should_classes_combine:
