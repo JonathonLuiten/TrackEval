@@ -134,7 +134,7 @@ def load_detail(file):
             seq = row[0]
             if seq == 'COMBINED':
                 seq = 'COMBINED_SEQ'
-            if (len(current_values) == len(keys)) and seq:
+            if (len(current_values) == len(keys)) and seq != '':
                 data[seq] = {}
                 for key, value in zip(keys, current_values):
                     data[seq][key] = float(value)
