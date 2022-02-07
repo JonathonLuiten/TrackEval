@@ -285,6 +285,36 @@ class _BaseDataset(ABC):
             ious = intersection / union
             return ious
 
+
+    @staticmethod
+    def _calculate_box_ious_3d(bboxes1, bboxes2, do_ioa=False):
+        """ Calculates the IOU (intersection over union) between two arrays of box corner points.
+        If do_ioa (intersection over area) , then calculates the intersection over the area of boxes1 - this is commonly
+        used to determine if detections are within crowd ignore region.
+        """
+        from ..utils import convex_hull_intersection, box3d_vol
+
+        ious = np.zeros((bboxes1.shape[0], bboxes2.shape[0]))
+        for i, corners1 in enumerate(bboxes1):
+            for j, corners2 in enumerate(bboxes2):
+                # corner points are in counter clockwise order
+                rect1 = [(corners1[i, 0], corners1[i, 2]) for i in range(3, -1, -1)]
+                rect2 = [(corners2[i, 0], corners2[i, 2]) for i in range(3, -1, -1)]
+
+                _, inter_area = convex_hull_intersection(rect1, rect2)
+
+                ymax = min(corners1[0, 1], corners2[0, 1])
+                ymin = max(corners1[4, 1], corners2[4, 1])
+                inter_vol = inter_area * max(0.0, ymax - ymin)
+                vol1 = box3d_vol(corners1)
+                vol2 = box3d_vol(corners2)
+                if do_ioa:
+                    ious[i, j] = inter_vol / vol1
+                else:
+                    ious[i, j] = inter_vol / (vol1 + vol2 - inter_vol)
+
+        return ious
+
     @staticmethod
     def _calculate_euclidean_similarity(dets1, dets2, zero_distance=2.0):
         """ Calculates the euclidean distance between two sets of detections, and then converts this into a similarity
