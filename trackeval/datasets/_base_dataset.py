@@ -288,7 +288,7 @@ class _BaseDataset(ABC):
 
     @staticmethod
     def _calculate_box_ious_3d(bboxes1, bboxes2, do_ioa=False):
-        """ Calculates the IOU (intersection over union) between two arrays of box corner points.
+        """ Calculates the IOU (intersection over union) between two arrays of 3d box parameters [h, w, l, x, y, z, rot_y]
         If do_ioa (intersection over area) , then calculates the intersection over the area of boxes1 - this is commonly
         used to determine if detections are within crowd ignore region.
         """
