@@ -292,26 +292,43 @@ class _BaseDataset(ABC):
         If do_ioa (intersection over area) , then calculates the intersection over the area of boxes1 - this is commonly
         used to determine if detections are within crowd ignore region.
         """
-        from ..utils import convex_hull_intersection, box3d_vol
+        def toPolygon(g):
+            import math
+            from shapely.geometry import Polygon
+
+            rot = np.array([[math.cos(g[-1]), math.sin(g[-1])], [-math.sin(g[-1]), math.cos(g[-1])]])
+            corners = np.array([[g[2] / 2, g[2] / 2, -g[2] / 2, -g[2] / 2],
+                                [g[1] / 2, -g[1] / 2, -g[1] / 2, g[1] / 2]])
+            ground_corners = np.matmul(rot, corners)
+            for i in range(4):
+                ground_corners[0, i] += g[3]
+                ground_corners[1, i] += g[5]
+            ground_corners_list = ground_corners.T.tolist()
+            ground_corners_list.append(ground_corners_list[0])
+
+            poly = Polygon(tuple(map(tuple, ground_corners.T)))
+            return poly
 
         ious = np.zeros((bboxes1.shape[0], bboxes2.shape[0]))
-        for i, corners1 in enumerate(bboxes1):
-            for j, corners2 in enumerate(bboxes2):
-                # corner points are in counter clockwise order
-                rect1 = [(corners1[i, 0], corners1[i, 2]) for i in range(3, -1, -1)]
-                rect2 = [(corners2[i, 0], corners2[i, 2]) for i in range(3, -1, -1)]
+        for i, ground_truth in enumerate(bboxes1):
+            for j, detection in enumerate(bboxes2):
+                detection_polygon = toPolygon(detection)
+                ground_truth_polygon = toPolygon(ground_truth)
 
-                _, inter_area = convex_hull_intersection(rect1, rect2)
+                ymax = min(detection[4], ground_truth[4])
+                ymin = max(detection[4] - detection[0], ground_truth[4] - detection[0])
 
-                ymax = min(corners1[0, 1], corners2[0, 1])
-                ymin = max(corners1[4, 1], corners2[4, 1])
-                inter_vol = inter_area * max(0.0, ymax - ymin)
-                vol1 = box3d_vol(corners1)
-                vol2 = box3d_vol(corners2)
+                inter_area = detection_polygon.intersection(ground_truth_polygon).area
+
+                inter_vol = inter_area * max(0, ymax - ymin)
+
+                detection_vol = detection[0] * detection[1] * detection[2]
+                ground_truth_vol = ground_truth[0] * ground_truth[1] * ground_truth[2]
+
                 if do_ioa:
-                    ious[i, j] = inter_vol / vol1
+                    ious[i, j] = inter_vol / ground_truth_vol
                 else:
-                    ious[i, j] = inter_vol / (vol1 + vol2 - inter_vol)
+                    ious[i, j] = inter_vol / (detection_vol + ground_truth_vol - inter_vol)
 
         return ious
 

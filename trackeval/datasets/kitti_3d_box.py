@@ -329,7 +329,7 @@ class Kitti3DBox(_BaseDataset):
 
             # For unmatched tracker dets, also remove those that are greater than 50% within a crowd ignore region.
             crowd_ignore_regions = raw_data['gt_crowd_ignore_regions'][t]
-            intersection_with_ignore_region = self._calculate_box_ious_3d(self._calculate_3d_box_corners(unmatched_tracker_dets[:, 4:]), self._calculate_3d_box_corners(crowd_ignore_regions[:, 4:]), do_ioa=True)
+            intersection_with_ignore_region = self._calculate_box_ious_3d(unmatched_tracker_dets[:, 4:], crowd_ignore_regions[:, 4:], do_ioa=True)
             is_within_crowd_ignore_region = np.any(intersection_with_ignore_region > 0.5 + np.finfo('float').eps, axis=1)
 
             # Apply preprocessing to remove all unwanted tracker dets.
@@ -384,7 +384,7 @@ class Kitti3DBox(_BaseDataset):
         return data
 
     def _calculate_similarities(self, gt_dets_t, tracker_dets_t):
-        similarity_scores = self._calculate_box_ious_3d(self._calculate_3d_box_corners(gt_dets_t[:, 4:]), self._calculate_3d_box_corners(tracker_dets_t[:, 4:]))
+        similarity_scores = self._calculate_box_ious_3d(gt_dets_t[:, 4:], tracker_dets_t[:, 4:])
         return similarity_scores
 
     def _calculate_3d_box_corners(self, bboxes3d_input):
