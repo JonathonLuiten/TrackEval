@@ -581,7 +581,7 @@ class TAO_OW(_BaseDataset):
         return len(track_ids_to_update)
 
     def _split_known_unknown_distractor(self):
-        all_ids = set([i for i in range(1, 1231)])
+        all_ids = set([i for i in range(1, 2000)])  # 2000 is larger than the max category id in TAO-OW.
         # `knowns` includes 78 TAO_category_ids that corresponds to 78 COCO classes.
         # (The other 2 COCO classes do not have corresponding classes in TAO).
         self.knowns = {4, 13, 1038, 544, 1057, 34, 35, 36, 41, 45, 58, 60, 579, 1091, 1097, 1099, 78, 79, 81, 91, 1115,
