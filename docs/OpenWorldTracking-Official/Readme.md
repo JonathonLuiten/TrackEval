@@ -12,7 +12,7 @@ CVPR 2022</pre>
 
 [Paper](https://arxiv.org/abs/2104.11221)
 
-[Website](openworldtracking.github.io)
+[Website](https://openworldtracking.github.io)
 
 ## Running and understanding the code
 
