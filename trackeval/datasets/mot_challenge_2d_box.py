@@ -157,11 +157,11 @@ class MotChallenge2DBox(_BaseDataset):
                 print('no seqmap found: ' + seqmap_file)
                 raise TrackEvalException('no seqmap found: ' + os.path.basename(seqmap_file))
             with open(seqmap_file) as fp:
-                reader = csv.reader(fp)
+                reader = fp.readlines()
                 for i, row in enumerate(reader):
                     if i == 0 or row[0] == '':
                         continue
-                    seq = row[0]
+                    seq = row.strip()
                     seq_list.append(seq)
                     ini_file = os.path.join(self.gt_fol, seq, 'seqinfo.ini')
                     if not os.path.isfile(ini_file):
