@@ -1,20 +1,32 @@
-
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from ._base_metric import _BaseMetric
 from .. import _timing
+from .. import utils
 
 
 class Identity(_BaseMetric):
     """Class which implements the ID metrics"""
-    def __init__(self):
+
+    @staticmethod
+    def get_default_config():
+        """Default class config values"""
+        default_config = {
+            'THRESHOLD': 0.5,  # Similarity score threshold required for a IDTP match. Default 0.5.
+            'PRINT_CONFIG': True,  # Whether to print the config information on init. Default: False.
+        }
+        return default_config
+
+    def __init__(self, config=None):
         super().__init__()
         self.integer_fields = ['IDTP', 'IDFN', 'IDFP']
         self.float_fields = ['IDF1', 'IDR', 'IDP']
         self.fields = self.float_fields + self.integer_fields
         self.summary_fields = self.fields
 
-        self.threshold = 0.5
+        # Configuration options:
+        self.config = utils.init_config(config, self.get_default_config(), self.get_name())
+        self.threshold = float(self.config['THRESHOLD'])
 
     @_timing.time
     def eval_sequence(self, data):
@@ -76,15 +88,24 @@ class Identity(_BaseMetric):
         res = self._compute_final_fields(res)
         return res
 
-    def combine_classes_class_averaged(self, all_res):
-        """Combines metrics across all classes by averaging over the class values"""
+    def combine_classes_class_averaged(self, all_res, ignore_empty_classes=False):
+        """Combines metrics across all classes by averaging over the class values.
+        If 'ignore_empty_classes' is True, then it only sums over classes with at least one gt or predicted detection.
+        """
         res = {}
         for field in self.integer_fields:
-            res[field] = self._combine_sum({k: v for k, v in all_res.items()
-                                            if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0 + np.finfo('float').eps}, field)
+            if ignore_empty_classes:
+                res[field] = self._combine_sum({k: v for k, v in all_res.items()
+                                                if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0 + np.finfo('float').eps},
+                                               field)
+            else:
+                res[field] = self._combine_sum({k: v for k, v in all_res.items()}, field)
         for field in self.float_fields:
-            res[field] = np.mean([v[field] for v in all_res.values()
-                                  if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0 + np.finfo('float').eps], axis=0)
+            if ignore_empty_classes:
+                res[field] = np.mean([v[field] for v in all_res.values()
+                                      if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0 + np.finfo('float').eps], axis=0)
+            else:
+                res[field] = np.mean([v[field] for v in all_res.values()], axis=0)
         return res
 
     def combine_classes_det_averaged(self, all_res):
@@ -103,27 +124,6 @@ class Identity(_BaseMetric):
         res = self._compute_final_fields(res)
         return res
 
-    def combine_classes_class_averaged(self, all_res):
-        """Combines metrics across all sequences"""
-        res = {}
-        for field in self.integer_fields:
-            res[field] = self._combine_sum(
-                {k: v for k, v in all_res.items()
-                 if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0 + np.finfo('float').eps}, field)
-        for field in self.float_fields:
-            res[field] = np.mean([v[field] for v in all_res.values()
-                                  if v['IDTP'] + v['IDFN'] + v['IDFP'] > 0 + np.finfo('float').eps],
-                                 axis=0)
-        return res
-
-    def combine_classes_det_averaged(self, all_res):
-        """Combines metrics across all sequences"""
-        res = {}
-        for field in self.integer_fields:
-            res[field] = self._combine_sum(all_res, field)
-        res = self._compute_final_fields(res)
-        return res
-
     @staticmethod
     def _compute_final_fields(res):
         """Calculate sub-metric ('field') values which only depend on other sub-metric values.
@@ -131,5 +131,5 @@ class Identity(_BaseMetric):
         """
         res['IDR'] = res['IDTP'] / np.maximum(1.0, res['IDTP'] + res['IDFN'])
         res['IDP'] = res['IDTP'] / np.maximum(1.0, res['IDTP'] + res['IDFP'])
-        res['IDF1'] = res['IDTP'] / np.maximum(1.0, res['IDTP'] + 0.5*res['IDFP'] + 0.5*res['IDFN'])
+        res['IDF1'] = res['IDTP'] / np.maximum(1.0, res['IDTP'] + 0.5 * res['IDFP'] + 0.5 * res['IDFN'])
         return res

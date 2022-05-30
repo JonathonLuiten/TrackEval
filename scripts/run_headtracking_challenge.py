@@ -30,7 +30,7 @@ Command Line Arguments: Defaults, # Comments
         'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
         'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
     Metric arguments:
-        'METRICS': ['HOTA', 'CLEAR', 'Identity', 'VACE']
+        'METRICS': ['HOTA', 'CLEAR', 'Identity', 'IDEucl']
 """
 
 import sys
@@ -47,8 +47,8 @@ if __name__ == '__main__':
     # Command line interface:
     default_eval_config = trackeval.Evaluator.get_default_eval_config()
     default_eval_config['DISPLAY_LESS_PROGRESS'] = False
-    default_dataset_config = trackeval.datasets.MotChallenge2DBox.get_default_dataset_config()
-    default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity'], 'THRESHOLD': 0.5}
+    default_dataset_config = trackeval.datasets.HeadTrackingChallenge.get_default_dataset_config()
+    default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity', 'IDEucl'], 'THRESHOLD': 0.4}
     config = {**default_eval_config, **default_dataset_config, **default_metrics_config}  # Merge default configs
     parser = argparse.ArgumentParser()
     for setting in config.keys():
@@ -68,8 +68,6 @@ if __name__ == '__main__':
                     raise Exception('Command line parameter ' + setting + 'must be True or False')
             elif type(config[setting]) == type(1):
                 x = int(args[setting])
-            elif type(config[setting]) == type(1.0):
-                x = float(args[setting])
             elif type(args[setting]) == type(None):
                 x = None
             elif setting == 'SEQ_INFO':
@@ -83,10 +81,9 @@ if __name__ == '__main__':
 
     # Run code
     evaluator = trackeval.Evaluator(eval_config)
-    dataset_list = [trackeval.datasets.MotChallenge2DBox(dataset_config)]
+    dataset_list = [trackeval.datasets.HeadTrackingChallenge(dataset_config)]
     metrics_list = []
-    for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity,
-                   trackeval.metrics.VACE, trackeval.metrics.Det]:
+    for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity, trackeval.metrics.IDEucl]:
         if metric.get_name() in metrics_config['METRICS']:
             metrics_list.append(metric(metrics_config))
     if len(metrics_list) == 0:

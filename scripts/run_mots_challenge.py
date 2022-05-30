@@ -50,6 +50,7 @@ if __name__ == '__main__':
 
     # Command line interface:
     default_eval_config = trackeval.Evaluator.get_default_eval_config()
+    default_eval_config['DISPLAY_LESS_PROGRESS'] = False
     default_dataset_config = trackeval.datasets.MOTSChallenge.get_default_dataset_config()
     default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity']}
     config = {**default_eval_config, **default_dataset_config, **default_metrics_config}  # Merge default configs
@@ -73,6 +74,8 @@ if __name__ == '__main__':
                 x = int(args[setting])
             elif type(args[setting]) == type(None):
                 x = None
+            elif setting == 'SEQ_INFO':
+                x = dict(zip(args[setting], [None]*len(args[setting])))
             else:
                 x = args[setting]
             config[setting] = x

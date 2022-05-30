@@ -9,7 +9,7 @@ from .. import _timing
 
 class JAndF(_BaseMetric):
     """Class which implements the J&F metrics"""
-    def __init__(self):
+    def __init__(self, config=None):
         super().__init__()
         self.integer_fields = ['num_gt_tracks']
         self.float_fields = ['J-Mean', 'J-Recall', 'J-Decay', 'F-Mean', 'F-Recall', 'F-Decay', 'J&F']
@@ -128,8 +128,10 @@ class JAndF(_BaseMetric):
             res[field] = self._combine_weighted_av(all_res, field, res, weight_field='num_gt_tracks')
         return res
 
-    def combine_classes_class_averaged(self, all_res):
-        """Combines metrics across all classes by averaging over the class values"""
+    def combine_classes_class_averaged(self, all_res, ignore_empty_classes=False):
+        """Combines metrics across all classes by averaging over the class values
+        'ignore empty classes' is not yet implemented here.
+        """
         res = {'num_gt_tracks': self._combine_sum(all_res, 'num_gt_tracks')}
         for field in self.float_fields:
             res[field] = np.mean([v[field] for v in all_res.values()])
@@ -290,13 +292,14 @@ class JAndF(_BaseMetric):
         for t, (time_gt, time_data) in enumerate(zip(gt_data, tracker_data)):
             # run length encoded masks with pycocotools
             area_gt = mask_utils.area(time_gt)
+            time_data = list(time_data)
             area_tr = mask_utils.area(time_data)
 
             area_tr = np.repeat(area_tr[:, np.newaxis], len(area_gt), axis=1)
             area_gt = np.repeat(area_gt[np.newaxis, :], len(area_tr), axis=0)
 
             # mask iou computation with pycocotools
-            ious = mask_utils.iou(time_data, time_gt, [0]*len(time_gt))
+            ious = np.atleast_2d(mask_utils.iou(time_data, time_gt, [0]*len(time_gt)))
             # set iou to 1 if both masks are close to 0 (no ground truth and no predicted mask in timestep)
             ious[np.isclose(area_tr, 0) & np.isclose(area_gt, 0)] = 1
             assert (ious >= 0 - np.finfo('float').eps).all()

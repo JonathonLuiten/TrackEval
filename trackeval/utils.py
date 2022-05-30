@@ -1,6 +1,7 @@
 
 import os
 import csv
+import argparse
 from collections import OrderedDict
 
 
@@ -17,6 +18,39 @@ def init_config(config, default_config, name=None):
         for c in config.keys():
             print('%-20s : %-30s' % (c, config[c]))
     return config
+
+
+def update_config(config):
+    """
+    Parse the arguments of a script and updates the config values for a given value if specified in the arguments.
+    :param config: the config to update
+    :return: the updated config
+    """
+    parser = argparse.ArgumentParser()
+    for setting in config.keys():
+        if type(config[setting]) == list or type(config[setting]) == type(None):
+            parser.add_argument("--" + setting, nargs='+')
+        else:
+            parser.add_argument("--" + setting)
+    args = parser.parse_args().__dict__
+    for setting in args.keys():
+        if args[setting] is not None:
+            if type(config[setting]) == type(True):
+                if args[setting] == 'True':
+                    x = True
+                elif args[setting] == 'False':
+                    x = False
+                else:
+                    raise Exception('Command line parameter ' + setting + 'must be True or False')
+            elif type(config[setting]) == type(1):
+                x = int(args[setting])
+            elif type(args[setting]) == type(None):
+                x = None
+            else:
+                x = args[setting]
+            config[setting] = x
+    return config
+
 
 def get_code_path():
     """Get base path where code is"""
@@ -100,7 +134,7 @@ def load_detail(file):
             seq = row[0]
             if seq == 'COMBINED':
                 seq = 'COMBINED_SEQ'
-            if (len(current_values) == len(keys)) and seq is not '':
+            if (len(current_values) == len(keys)) and seq != '':
                 data[seq] = {}
                 for key, value in zip(keys, current_values):
                     data[seq][key] = float(value)

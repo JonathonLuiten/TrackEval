@@ -80,6 +80,7 @@ class MotChallenge2DBox(_BaseDataset):
         self.class_name_to_class_id = {'pedestrian': 1, 'person_on_vehicle': 2, 'car': 3, 'bicycle': 4, 'motorbike': 5,
                                        'non_mot_vehicle': 6, 'static_person': 7, 'distractor': 8, 'occluder': 9,
                                        'occluder_on_ground': 10, 'occluder_full': 11, 'reflection': 12, 'crowd': 13}
+        self.valid_class_numbers = list(self.class_name_to_class_id.values())
 
         # Get sequences to eval and check gt files exist
         self.seq_list, self.seq_lengths = self._get_seq_info()
@@ -137,6 +138,17 @@ class MotChallenge2DBox(_BaseDataset):
         if self.config["SEQ_INFO"]:
             seq_list = list(self.config["SEQ_INFO"].keys())
             seq_lengths = self.config["SEQ_INFO"]
+
+            # If sequence length is 'None' tries to read sequence length from .ini files.
+            for seq, seq_length in seq_lengths.items():
+                if seq_length is None:
+                    ini_file = os.path.join(self.gt_fol, seq, 'seqinfo.ini')
+                    if not os.path.isfile(ini_file):
+                        raise TrackEvalException('ini file does not exist: ' + seq + '/' + os.path.basename(ini_file))
+                    ini_data = configparser.ConfigParser()
+                    ini_data.read(ini_file)
+                    seq_lengths[seq] = int(ini_data['Sequence']['seqLength'])
+
         else:
             if self.config["SEQMAP_FILE"]:
                 seqmap_file = self.config["SEQMAP_FILE"]
@@ -202,7 +214,8 @@ class MotChallenge2DBox(_BaseDataset):
         raw_data = {key: [None] * num_timesteps for key in data_keys}
 
         # Check for any extra time keys
-        extra_time_keys = [x for x in read_data.keys() if x not in [str(t+1) for t in range(num_timesteps)]]
+        current_time_keys = [str( t+ 1) for t in range(num_timesteps)]
+        extra_time_keys = [x for x in read_data.keys() if x not in current_time_keys]
         if len(extra_time_keys) > 0 and not self.config['DROP_EXTRA_TIMESTEPS']:
             if is_gt:
                 text = 'Ground-truth'
@@ -360,7 +373,19 @@ class MotChallenge2DBox(_BaseDataset):
             # Match tracker and gt dets (with hungarian algorithm) and remove tracker dets which match with gt dets
             # which are labeled as belonging to a distractor class or non-visible detection.
             to_remove_tracker = np.array([], np.int)
-            if self.do_preproc and gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
+            if self.do_preproc and self.benchmark != 'MOT15' and gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
+
+                # Check all classes are valid:
+                invalid_classes = np.setdiff1d(np.unique(gt_classes), self.valid_class_numbers)
+                if len(invalid_classes) > 0:
+                    print(' '.join([str(x) for x in invalid_classes]))
+                    raise(TrackEvalException('Attempting to evaluate using invalid gt classes. '
+                                             'This warning only triggers if preprocessing is performed, '
+                                             'e.g. not for MOT15 or where prepropressing is explicitly disabled. '
+                                             'Please either check your gt data, or disable preprocessing. '
+                                             'The following invalid classes were found in timestep ' + str(t) + ': ' +
+                                             ' '.join([str(x) for x in invalid_classes])))
+
                 matching_scores = similarity_scores.copy()
                 matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = 0
                 match_rows, match_cols = linear_sum_assignment(-matching_scores)
@@ -387,7 +412,7 @@ class MotChallenge2DBox(_BaseDataset):
             # Remove gt detections marked as to remove (zero marked), and also remove gt detections not in pedestrian
             # class (not applicable for MOT15)
             gt_to_keep_mask = np.not_equal(gt_zero_marked, 0)
-            if self.benchmark != 'MOT15':
+            if self.do_preproc and self.benchmark != 'MOT15':
                 # There are no classes for MOT15
                 gt_to_keep_mask &= np.equal(gt_classes, cls_id)
             if self.config['MIN_VIS'] >= 0:
