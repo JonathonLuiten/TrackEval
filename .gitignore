@@ -8,3 +8,4 @@ data/*
 **/__pycache__
 .idea
 error_log.txt
+*.egg-info/
