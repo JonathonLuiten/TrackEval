@@ -34,7 +34,7 @@ class Det(_BaseMetric):
                              'Det_num_gt_dets']
         self.float_array_fields = ['Det_PrAtRe']
         self.fields = self.integer_fields + self.float_fields + self.float_array_fields
-        self.summary_fields = ['Det_AP', 'Det_PrAtRe',
+        self.summary_fields = ['Det_AP', 'Det_PrAtRe', 'Det_AP_legacy',
                                'Det_MODA', 'Det_MODP', 'Det_FAF',
                                'Det_Re', 'Det_Pr', 'Det_F1',
                                'Det_TP', 'Det_FN', 'Det_FP']
@@ -125,7 +125,7 @@ class Det(_BaseMetric):
                 res['Det_num_gt_dets'], res['Det_scores'], res['Det_correct'],
                 cls._get_array_labels())
 
-        # TODO: Remove after comparison.
+        # TODO: Remove when no longer needed.
         res['Det_AP_coarse'] = np.trapz(res['Det_PrAtRe'][::10], dx=0.1)
         pr_at_re_legacy = _find_prec_at_recall(
                 res['Det_num_gt_dets'], res['Det_scores'], res['Det_correct'],
@@ -233,9 +233,10 @@ def _match_by_score(confidence, similarity, similarity_threshold):
     return pr_matched
 
 
-# TODO: Remove after testing.
 def _find_prec_at_recall(num_gt, scores, correct, thresholds):
     """Computes precision at max score threshold to achieve recall.
+
+    Used for legacy AP metric.
 
     Args:
         num_gt: Number of ground-truth elements.
