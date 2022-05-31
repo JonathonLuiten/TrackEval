@@ -5,6 +5,7 @@ from scipy.optimize import linear_sum_assignment
 from ._base_metric import _BaseMetric
 from .. import _timing
 from .. import utils
+from ..utils import TrackEvalException
 
 
 class Det(_BaseMetric):
@@ -47,6 +48,9 @@ class Det(_BaseMetric):
     @_timing.time
     def eval_sequence(self, data):
         """Calculates detection metrics for one sequence."""
+        if 'tracker_confidences' not in data:
+            raise TrackEvalException('Detection metrics require "tracker_confidences"')
+
         # Initialise results
         res = {}
         for field in self.fields:
