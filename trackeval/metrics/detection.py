@@ -152,8 +152,16 @@ class Det(_BaseMetric):
         """Combines metrics across all classes by averaging over the detection values"""
         return self.combine_sequences(all_res)
 
-    def combine_classes_class_averaged(self, all_res):
-        raise NotImplementedError
+    def combine_classes_class_averaged(self, all_res, ignore_empty_classes=False):
+        """Combines metrics across all classes by averaging over the class values.
+        If 'ignore_empty_classes' is True, then it only sums over classes with at least one gt or predicted detection.
+        """
+        res = {}
+        if ignore_empty_classes:
+            all_res = {k: v for k, v in all_res.items() if v['Det_TP'] + v['Det_FN'] + v['Det_FP'] > 0}
+        for field in [*self.integer_fields, *self.float_fields, *self.float_array_fields]:
+            res[field] = np.mean([v[field] for v in all_res.values()], axis=0)
+        return res
 
     def plot_single_tracker_results(self, table_res, tracker, cls, output_folder):
         """Create plot of results"""
@@ -241,8 +249,9 @@ def _find_prec_at_recall(num_gt, scores, correct, thresholds):
     # However, this matches the original implementation.
     tp = np.cumsum(correct)
     num_pred = 1 + np.arange(len(scores))
-    recall = np.true_divide(tp, num_gt)
-    prec = np.true_divide(tp, num_pred)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        recall = np.true_divide(tp, num_gt)
+        prec = np.true_divide(tp, num_pred)
     # Extend curve to infinity with zeros.
     recall = np.concatenate([recall, [np.inf]])
     prec = np.concatenate([prec, [0.]])
@@ -272,14 +281,16 @@ def _find_max_prec_at_recall(num_gt, scores, correct, thresholds):
     recall, prec = _prec_recall_curve(num_gt, scores, correct)
     assert np.all(thresholds >= 0), thresholds
     assert np.all(thresholds <= 1), thresholds
-    idx = _first_nonzero(recall >= thresholds[:, np.newaxis], axis=-1)
+    with np.errstate(invalid='ignore'):
+        # May have recall that is nan.
+        idx = _first_nonzero(recall >= thresholds[:, np.newaxis], axis=-1)
     return prec[idx]
 
 
 def _compute_average_precision(num_gt, scores, correct):
     recall, prec = _prec_recall_curve(num_gt, scores, correct)
     # Take integral.
-    assert np.all(np.diff(recall) >= 0)
+    assert np.all(np.logical_not(np.diff(recall) < 0))
     return np.dot(prec[1:], recall[1:] - recall[:-1])
 
 
@@ -305,15 +316,16 @@ def _prec_recall_curve(num_gt, scores, correct):
     last_index[-1] = len(scores)
     tp = tp[last_index]
     num_pred = num_pred[last_index]
-    # Add a final element for recall one, precision zero.
     recall = np.empty(num_unique + 2)
-    recall[:-1] = np.true_divide(tp, num_gt)
-    recall[-1] = 1.
     prec = np.empty(num_unique + 2)
-    # Avoid nan in prec[0]. This will be replaced with max precision below.
-    prec[0] = 0.
-    prec[1:-1] = np.true_divide(tp[1:], num_pred[1:])
+    with np.errstate(divide='ignore', invalid='ignore'):
+        recall[:-1] = np.true_divide(tp, num_gt)
+        prec[:-1] = np.true_divide(tp, num_pred)
+    # Add a final element for recall one, precision zero.
+    recall[-1] = 1.
     prec[-1] = 0.
+    # Avoid nan at prec[0] since np.maximum propagates nans.
+    prec[0] = 0.
     # Take max precision available at equal or greater recall.
     # https://jonathan-hui.medium.com/map-mean-average-precision-for-object-detection-45c121a31173
     prec = np.maximum.accumulate(prec[::-1])[::-1]
