@@ -4,6 +4,7 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from ._base_metric import _BaseMetric
 from .. import _timing
+from .. import utils
 
 
 class Det(_BaseMetric):
@@ -12,7 +13,16 @@ class Det(_BaseMetric):
     The array-valued metrics use confidence-based matching and are parameterized by recall.
     """
 
-    def __init__(self):
+    @staticmethod
+    def get_default_config():
+        """Default class config values"""
+        default_config = {
+            'THRESHOLD': 0.5,  # Similarity score threshold required for a TP. Default 0.5.
+            'PRINT_CONFIG': True,  # Whether to print the config information on init.
+        }
+        return default_config
+
+    def __init__(self, config=None):
         super().__init__()
         self.plottable = True
         self.array_labels = self._get_array_labels()
@@ -27,10 +37,12 @@ class Det(_BaseMetric):
                                'Det_MODA', 'Det_MODP', 'Det_FAF',
                                'Det_Re', 'Det_Pr', 'Det_F1',
                                'Det_TP', 'Det_FN', 'Det_FP']
-
-        self.threshold = 0.5
         self.summed_fields = self.integer_fields + ['Det_MODP_sum', 'Det_num_gt_dets']
         self.concat_fields = ['Det_scores', 'Det_correct']
+
+        # Configuration options:
+        self.config = utils.init_config(config, self.get_default_config(), self.get_name())
+        self.threshold = float(self.config['THRESHOLD'])
 
     @_timing.time
     def eval_sequence(self, data):
