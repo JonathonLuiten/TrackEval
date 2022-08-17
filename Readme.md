@@ -17,6 +17,7 @@ The following benchmarks use TrackEval as their official evaluation code, check 
  - **[KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php)**
  - **[MOTChallenge](https://motchallenge.net/)** ([Official Readme](docs/MOTChallenge-Official/Readme.md))
  - **[Open World Tracking](https://openworldtracking.github.io)** ([Official Readme](docs/OpenWorldTracking-Official))
+ - **[PersonPath22](https://github.com/amazon-research/tracking-dataset)**
  <!--- **[MOTS-Challenge](https://motchallenge.net/data/MOTS/)** ([Official Readme](docs/MOTS-Challenge-Official/Readme.md)) --->
 
 If you run a tracking benchmark and want to use TrackEval as your official evaluation code, please contact Jonathon (contact details below).
@@ -54,6 +55,7 @@ Benchmark | Sub-benchmarks | Type | Website | Code | Data Format |
 |**DAVIS**|Unsupervised|Seg Mask|[website](https://davischallenge.org/)|[code](trackeval/datasets/davis.py)|[format](docs/DAVIS-format.txt)|
 |**YouTube-VIS**| |Seg Mask|[website](https://youtube-vos.org/dataset/vis/)|[code](trackeval/datasets/youtube_vis.py)|[format](docs/YouTube-VIS-format.txt)|
 |**Head Tracking Challenge**| |2D BBox|[website](https://arxiv.org/pdf/2103.13516.pdf)|[code](trackeval/datasets/head_tracking_challenge.py)|[format](docs/MOTChallenge-format.txt)|
+|**PersonPath22**| |2D BBox|[website](https://github.com/amazon-research/tracking-dataset)|[code](trackeval/datasets/person_path_22.py)|[format](docs/MOTChallenge-format.txt)|
 
 ## HOTA metrics
 
@@ -94,6 +96,8 @@ To enable you to use TrackEval for evaluation as quickly and easily as possible,
 You can download this here: [data.zip](https://omnomnom.vision.rwth-aachen.de/data/TrackEval/data.zip) (~150mb).
 
 The data for RobMOTS is separate and can be found here: [rob_mots_train_data.zip](https://omnomnom.vision.rwth-aachen.de/data/RobMOTS/train_data.zip) (~750mb).
+
+The data for PersonPath22 is separate and can be found here: [person_path_22_data.zip](https://tracking-dataset-eccv-2022.s3.us-east-2.amazonaws.com/person_path_22_data.zip) (~3mb).
 
 The easiest way to begin is to extract this zip into the repository root folder such that the file paths look like: TrackEval/data/gt/...
 

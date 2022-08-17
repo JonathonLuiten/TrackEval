@@ -9,3 +9,4 @@ from .tao_ow import TAO_OW
 from .youtube_vis import YouTubeVIS
 from .head_tracking_challenge import HeadTrackingChallenge
 from .rob_mots import RobMOTS
+from .person_path_22 import PersonPath22
