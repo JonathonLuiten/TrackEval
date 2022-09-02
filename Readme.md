@@ -17,7 +17,7 @@ The following benchmarks use TrackEval as their official evaluation code, check 
  - **[KITTI MOTS](http://www.cvlibs.net/datasets/kitti/eval_mots.php)**
  - **[MOTChallenge](https://motchallenge.net/)** ([Official Readme](docs/MOTChallenge-Official/Readme.md))
  - **[Open World Tracking](https://openworldtracking.github.io)** ([Official Readme](docs/OpenWorldTracking-Official))
- - **[PersonPath22](https://github.com/amazon-research/tracking-dataset)**
+ - **[PersonPath22](https://amazon-research.github.io/tracking-dataset/personpath22.html)**
  <!--- **[MOTS-Challenge](https://motchallenge.net/data/MOTS/)** ([Official Readme](docs/MOTS-Challenge-Official/Readme.md)) --->
 
 If you run a tracking benchmark and want to use TrackEval as your official evaluation code, please contact Jonathon (contact details below).
