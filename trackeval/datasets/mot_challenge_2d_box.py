@@ -197,14 +197,8 @@ class MotChallenge2DBox(_BaseDataset):
             else:
                 file = os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, seq + '.txt')
 
-        # Ignore regions
-        if is_gt:
-            crowd_ignore_filter = {7: ['13']}
-        else:
-            crowd_ignore_filter = None
-
         # Load raw data from text file
-        read_data, ignore_data = self._load_simple_text_file(file, is_zipped=self.data_is_zipped, zip_file=zip_file, crowd_ignore_filter=crowd_ignore_filter)
+        read_data, ignore_data = self._load_simple_text_file(file, is_zipped=self.data_is_zipped, zip_file=zip_file)
 
         # Convert data to required format
         num_timesteps = self.seq_lengths[seq]
@@ -276,11 +270,7 @@ class MotChallenge2DBox(_BaseDataset):
                 else:
                     raw_data['tracker_confidences'][t] = np.empty(0)
             if is_gt:
-                if time_key in ignore_data.keys():
-                    time_ignore = np.asarray(ignore_data[time_key], dtype=np.float)
-                    raw_data['gt_crowd_ignore_regions'][t] = np.atleast_2d(time_ignore[:, 2:6])
-                else:
-                    raw_data['gt_crowd_ignore_regions'][t] = np.empty((0, 4))
+                raw_data['gt_crowd_ignore_regions'][t] = np.empty((0, 4))
 
         if is_gt:
             key_map = {'ids': 'gt_ids',
@@ -389,12 +379,6 @@ class MotChallenge2DBox(_BaseDataset):
 
                 is_distractor_class = np.isin(gt_classes[match_rows], distractor_classes)
                 to_remove_tracker = match_cols[is_distractor_class]
-
-                # remove bounding boxes that overlap with crowd ignore region.
-                crowd_ignore_regions = raw_data['gt_crowd_ignore_regions'][t]
-                intersection_with_ignore_region = self._calculate_box_ious(tracker_dets, crowd_ignore_regions, box_format='xywh', do_ioa=True)
-                is_within_crowd_ignore_region = np.any(intersection_with_ignore_region > 0.95 + np.finfo('float').eps, axis=1)
-                to_remove_tracker = np.unique(np.concatenate([to_remove_tracker, np.where(is_within_crowd_ignore_region)[0]]))
 
             # Apply preprocessing to remove all unwanted tracker dets.
             data['tracker_ids'][t] = np.delete(tracker_ids, to_remove_tracker, axis=0)
