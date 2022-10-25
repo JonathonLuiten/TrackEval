@@ -8,7 +8,6 @@ from .. import utils
 from .. import _timing
 from ..utils import TrackEvalException
 
-
 class PersonPath22(_BaseDataset):
     """Dataset class for MOT Challenge 2D bounding box tracking"""
 
@@ -357,6 +356,7 @@ class PersonPath22(_BaseDataset):
             tracker_classes = raw_data['tracker_classes'][t]
             tracker_confidences = raw_data['tracker_confidences'][t]
             similarity_scores = raw_data['similarity_scores'][t]
+            crowd_ignore_regions = raw_data['gt_crowd_ignore_regions'][t]
 
             # Evaluation is ONLY valid for pedestrian class
             if len(tracker_classes) > 0 and np.max(tracker_classes) > 1:
@@ -367,7 +367,7 @@ class PersonPath22(_BaseDataset):
             # Match tracker and gt dets (with hungarian algorithm) and remove tracker dets which match with gt dets
             # which are labeled as belonging to a distractor class.
             to_remove_tracker = np.array([], np.int)
-            if self.do_preproc and self.benchmark != 'MOT15' and gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
+            if self.do_preproc and self.benchmark != 'MOT15' and (gt_ids.shape[0] > 0 or len(crowd_ignore_regions) > 0) and tracker_ids.shape[0] > 0:
 
                 # Check all classes are valid:
                 invalid_classes = np.setdiff1d(np.unique(gt_classes), self.valid_class_numbers)
@@ -391,7 +391,6 @@ class PersonPath22(_BaseDataset):
                 to_remove_tracker = match_cols[is_distractor_class]
 
                 # remove bounding boxes that overlap with crowd ignore region.
-                crowd_ignore_regions = raw_data['gt_crowd_ignore_regions'][t]
                 intersection_with_ignore_region = self._calculate_box_ious(tracker_dets, crowd_ignore_regions, box_format='xywh', do_ioa=True)
                 is_within_crowd_ignore_region = np.any(intersection_with_ignore_region > 0.95 + np.finfo('float').eps, axis=1)
                 to_remove_tracker = np.unique(np.concatenate([to_remove_tracker, np.where(is_within_crowd_ignore_region)[0]]))
