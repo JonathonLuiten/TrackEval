@@ -395,7 +395,6 @@ class PersonPath22(_BaseDataset):
                 is_within_crowd_ignore_region = np.any(intersection_with_ignore_region > 0.95 + np.finfo('float').eps, axis=1)
                 to_remove_tracker = np.unique(np.concatenate([to_remove_tracker, np.where(is_within_crowd_ignore_region)[0]]))
 
-
             # Apply preprocessing to remove all unwanted tracker dets.
             data['tracker_ids'][t] = np.delete(tracker_ids, to_remove_tracker, axis=0)
             data['tracker_dets'][t] = np.delete(tracker_dets, to_remove_tracker, axis=0)
@@ -418,7 +417,6 @@ class PersonPath22(_BaseDataset):
             unique_tracker_ids += list(np.unique(data['tracker_ids'][t]))
             num_tracker_dets += len(data['tracker_ids'][t])
             num_gt_dets += len(data['gt_ids'][t])
-
 
         # Re-label IDs such that there are no empty IDs
         if len(unique_gt_ids) > 0:
