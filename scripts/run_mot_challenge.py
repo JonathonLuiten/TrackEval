@@ -30,7 +30,7 @@ Command Line Arguments: Defaults, # Comments
         'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
         'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
     Metric arguments:
-        'METRICS': ['HOTA', 'CLEAR', 'Identity', 'VACE']
+        'METRICS': ['HOTA', 'CLEAR', 'Identity', 'VACE', 'Det']
 """
 
 import sys
@@ -68,6 +68,8 @@ if __name__ == '__main__':
                     raise Exception('Command line parameter ' + setting + 'must be True or False')
             elif type(config[setting]) == type(1):
                 x = int(args[setting])
+            elif type(config[setting]) == type(1.0):
+                x = float(args[setting])
             elif type(args[setting]) == type(None):
                 x = None
             elif setting == 'SEQ_INFO':
@@ -83,7 +85,8 @@ if __name__ == '__main__':
     evaluator = trackeval.Evaluator(eval_config)
     dataset_list = [trackeval.datasets.MotChallenge2DBox(dataset_config)]
     metrics_list = []
-    for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity, trackeval.metrics.VACE]:
+    for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity,
+                   trackeval.metrics.VACE, trackeval.metrics.Det]:
         if metric.get_name() in metrics_config['METRICS']:
             metrics_list.append(metric(metrics_config))
     if len(metrics_list) == 0:
