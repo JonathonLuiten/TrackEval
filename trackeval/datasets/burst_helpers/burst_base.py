@@ -101,16 +101,6 @@ class BURSTBase(_BaseDataset):
         self.valid_classes = [cls['name'] for cls in self.gt_data['categories'] if (cls['id'] in seen_cats) and (cls['id'] not in distractors)]
         cls_name_to_cls_id_map = {cls['name']: cls['id'] for cls in self.gt_data['categories']}
 
-        # # TODO: remove
-        # self.knowns = {4, 13, 1038, 544, 1057, 34, 35, 36, 41, 45, 58, 60, 579, 1091, 1097, 1099, 78, 79, 81, 91, 1115,
-        #                1117, 95, 1122, 99, 1132, 621, 1135, 625, 118, 1144, 126, 642, 1155, 133, 1162, 139, 154, 174,
-        #                185,
-        #                699, 1215, 714, 717, 1229, 211, 729, 221, 229, 747, 235, 237, 779, 276, 805, 299, 829, 852, 347,
-        #                371, 382, 896, 392, 926, 937, 428, 429, 961, 452, 979, 980, 982, 475, 480, 993, 1001, 502, 1018}
-        # aa = self.valid_classes[:2]
-        # bb = [cls['name'] for cls in self.gt_data['categories'] if (cls['id'] in seen_cats) and (cls['id'] not in distractors) and cls['id'] not in self.knowns]
-        # self.valid_classes = aa + bb[:2]
-
         if self.config['CLASSES_TO_EVAL']:
             self.class_list = [cls.lower() if cls.lower() in self.valid_classes else None
                                for cls in self.config['CLASSES_TO_EVAL']]
