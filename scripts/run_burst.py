@@ -1,8 +1,35 @@
 """ run_burst.py
 
+The example commands given below expect the following folder structure:
+
+- data
+    - gt
+        - burst
+            - {val,test}
+                - all_classes
+                    - all_classes.json (filename is irrelevant)
+    - trackers
+        - burst
+            - exemplar_guided
+                - {val,test}
+                    - my_tracking_method
+                        - data
+                            - results.json  (filename is irrelevant)
+            - class_guided
+                - {val,test}
+                    - my_other_tracking_method
+                        - data
+                            - results.json (filename is irrelevant)
+
 Run example:
-run_burst.py --USE_PARALLEL False --EXEMPLAR_GUIDED False --GT_FOLDER ../data/gt/tsunami/class_guided/common_classes --TRACKERS_FOLDER ../data/trackers/tsunami/class_guided/common_classes/
-run_burst.py --USE_PARALLEL False --EXEMPLAR_GUIDED True --GT_FOLDER ../data/gt/tsunami/exemplar_guided --TRACKERS_FOLDER ../data/trackers/tsunami/exemplar_guided/
+
+1) Exemplar-guided tasks (all three tasks share the same eval logic):
+run_burst.py --USE_PARALLEL True --EXEMPLAR_GUIDED True --GT_FOLDER ../data/gt/burst/{val,test}/all_classes --TRACKERS_FOLDER ../data/trackers/burst/exemplar_guided/{val,test}
+
+2) Class-guided tasks (common class and long-tail):
+run_burst.py --USE_PARALLEL FTrue --EXEMPLAR_GUIDED False --GT_FOLDER ../data/gt/burst/{val,test}/all_classes --TRACKERS_FOLDER ../data/trackers/burst/class_guided/{val,test}
+
+3) Refer to run_burst_ow.py for open world evaluation
 
 Command Line Arguments: Defaults, # Comments
     Eval arguments:
@@ -17,8 +44,8 @@ Command Line Arguments: Defaults, # Comments
         'OUTPUT_DETAILED': True,
         'PLOT_CURVES': True,
     Dataset arguments:
-        'GT_FOLDER': os.path.join(code_path, 'data/gt/tsunami/class_guided/common_classes'),  # Location of GT data
-        'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/tsunami/class_guided/common_classes/validation'),  # Trackers location
+        'GT_FOLDER': os.path.join(code_path, 'data/gt/burst/val'),  # Location of GT data
+        'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/burst/class-guided/'),  # Trackers location
         'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
         'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
         'CLASSES_TO_EVAL': None,  # Classes to eval (if None, all classes)

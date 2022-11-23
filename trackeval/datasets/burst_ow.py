@@ -13,9 +13,9 @@ class BURST_OW(BURST_OW_Base):
         tao_config = BURST_OW_Base.get_default_dataset_config()
         code_path = utils.get_code_path()
         tao_config['GT_FOLDER'] = os.path.join(
-            code_path, 'data/gt/tsunami/class_guided/open-world/')  # Location of GT data
+            code_path, 'data/gt/burst/all_classes/val/')  # Location of GT data
         tao_config['TRACKERS_FOLDER'] = os.path.join(
-            code_path, 'data/trackers/tsunami/class_guided/open-world/validation/')  # Trackers location
+            code_path, 'data/trackers/burst/open-world/val/')  # Trackers location
         return tao_config
 
     def _iou_type(self):
