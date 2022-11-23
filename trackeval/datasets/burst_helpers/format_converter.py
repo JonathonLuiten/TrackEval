@@ -1,6 +1,5 @@
 import os
 import json
-from trackeval import utils
 import pycocotools.mask as cocomask
 from tabulate import tabulate
 from typing import Union
@@ -13,7 +12,7 @@ def _global_track_id(*, local_track_id: Union[str, int],
     return track_id_mapping[str(video_id)][str(local_track_id)]
 
 
-class GroundTruthAliFormatToTAOFormatConverter:
+class GroundTruthBURSTFormatToTAOFormatConverter:
     def __init__(self, ali_format):
         self._ali_format = ali_format
         self._split = ali_format['split']
@@ -129,13 +128,12 @@ class GroundTruthAliFormatToTAOFormatConverter:
                 'split': self._split}
 
     def _make_categories(self):
-        tao_categories_path = os.path.join(utils.get_code_path(),
-                                           'tao_categories.json')
+        tao_categories_path = os.path.join(os.path.dirname(__file__), 'tao_categories.json')
         with open(tao_categories_path) as f:
             return json.load(f)
 
 
-class PredictionAliFormatToTAOFormatConverter:
+class PredictionBURSTFormatToTAOFormatConverter:
     def __init__(self, gt, ali_format, exemplar_guided):
         self._gt = gt
         self._ali_format = ali_format

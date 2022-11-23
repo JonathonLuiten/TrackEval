@@ -1,12 +1,12 @@
 import json
 import argparse
-from trackeval.ali_format import GroundTruthAliFormatToTAOFormatConverter, PredictionAliFormatToTAOFormatConverter
+from .format_converter import GroundTruthBURSTFormatToTAOFormatConverter, PredictionBURSTFormatToTAOFormatConverter
 
 
 def main(args):
     with open(args.gt_input_file) as f:
         ali_format_gt = json.load(f)
-    tao_format_gt = GroundTruthAliFormatToTAOFormatConverter(
+    tao_format_gt = GroundTruthBURSTFormatToTAOFormatConverter(
         ali_format_gt, args.split).convert()
     with open(args.gt_output_file, 'w') as f:
         json.dump(tao_format_gt, f)
@@ -15,7 +15,7 @@ def main(args):
         return
     with open(args.pred_input_file) as f:
         ali_format_pred = json.load(f)
-    tao_format_pred = PredictionAliFormatToTAOFormatConverter(
+    tao_format_pred = PredictionBURSTFormatToTAOFormatConverter(
         tao_format_gt, ali_format_pred, args.split,
         args.exemplar_guided).convert()
     with open(args.pred_output_file, 'w') as f:
