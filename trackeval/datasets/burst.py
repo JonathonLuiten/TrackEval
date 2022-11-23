@@ -1,15 +1,15 @@
 import os
-from .burst_helpers.tao_hacked import TAO
+from .burst_helpers.burst_base import BURSTBase
 from .burst_helpers.format_converter import GroundTruthBURSTFormatToTAOFormatConverter, PredictionBURSTFormatToTAOFormatConverter
 from .. import utils
 
 
-class BURST(TAO):
+class BURST(BURSTBase):
     """Dataset class for TAO tracking"""
 
     @staticmethod
     def get_default_dataset_config():
-        tao_config = TAO.get_default_dataset_config()
+        tao_config = BURSTBase.get_default_dataset_config()
         code_path = utils.get_code_path()
 
         # e.g. 'data/gt/tsunami/exemplar_guided/'

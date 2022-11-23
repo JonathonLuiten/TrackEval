@@ -1,16 +1,16 @@
 import json
 import os
-from .burst_helpers.tao_ow_hacked import TAO_OW
+from .burst_helpers.burst_ow_base import BURST_OW_Base
 from .burst_helpers.format_converter import GroundTruthBURSTFormatToTAOFormatConverter, PredictionBURSTFormatToTAOFormatConverter
 from .. import utils
 
 
-class BURST_OW(TAO_OW):
+class BURST_OW(BURST_OW_Base):
     """Dataset class for TAO tracking"""
 
     @staticmethod
     def get_default_dataset_config():
-        tao_config = TAO_OW.get_default_dataset_config()
+        tao_config = BURST_OW_Base.get_default_dataset_config()
         code_path = utils.get_code_path()
         tao_config['GT_FOLDER'] = os.path.join(
             code_path, 'data/gt/tsunami/class_guided/open-world/')  # Location of GT data

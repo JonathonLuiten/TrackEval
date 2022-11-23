@@ -10,7 +10,7 @@ from trackeval import utils
 from trackeval import _timing
 
 
-class TAO_OW(_BaseDataset):
+class BURST_OW_Base(_BaseDataset):
     """Dataset class for TAO tracking"""
 
     def _postproc_ground_truth_data(self, data):
