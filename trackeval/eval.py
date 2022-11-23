@@ -8,6 +8,12 @@ from .utils import TrackEvalException
 from . import _timing
 from .metrics import Count
 
+try:
+    import tqdm
+    TQDM_IMPORTED = True
+except ImportError as _:
+    TQDM_IMPORTED = False
+
 
 class Evaluator:
     """Evaluator class for evaluating different metrics for different datasets"""
@@ -46,7 +52,7 @@ class Evaluator:
                 _timing.DISPLAY_LESS_PROGRESS = True
 
     @_timing.time
-    def evaluate(self, dataset_list, metrics_list):
+    def evaluate(self, dataset_list, metrics_list, show_progressbar=False):
         """Evaluate a set of metrics on a set of datasets"""
         config = self.config
         metrics_list = metrics_list + [Count()]  # Count metrics are always run
@@ -74,17 +80,38 @@ class Evaluator:
                     print('\nEvaluating %s\n' % tracker)
                     time_start = time.time()
                     if config['USE_PARALLEL']:
-                        with Pool(config['NUM_PARALLEL_CORES']) as pool:
-                            _eval_sequence = partial(eval_sequence, dataset=dataset, tracker=tracker,
-                                                     class_list=class_list, metrics_list=metrics_list,
-                                                     metric_names=metric_names)
-                            results = pool.map(_eval_sequence, seq_list)
-                            res = dict(zip(seq_list, results))
+                        if show_progressbar and TQDM_IMPORTED:
+                            seq_list_sorted = sorted(seq_list)
+
+                            with Pool(config['NUM_PARALLEL_CORES']) as pool, tqdm.tqdm(total=len(seq_list)) as pbar:
+                                _eval_sequence = partial(eval_sequence, dataset=dataset, tracker=tracker,
+                                                         class_list=class_list, metrics_list=metrics_list,
+                                                         metric_names=metric_names)
+                                results = []
+                                for r in pool.imap(_eval_sequence, seq_list_sorted,
+                                                   chunksize=20):
+                                    results.append(r)
+                                    pbar.update()
+                                res = dict(zip(seq_list_sorted, results))
+
+                        else:
+                            with Pool(config['NUM_PARALLEL_CORES']) as pool:
+                                _eval_sequence = partial(eval_sequence, dataset=dataset, tracker=tracker,
+                                                         class_list=class_list, metrics_list=metrics_list,
+                                                         metric_names=metric_names)
+                                results = pool.map(_eval_sequence, seq_list)
+                                res = dict(zip(seq_list, results))
                     else:
                         res = {}
-                        for curr_seq in sorted(seq_list):
-                            res[curr_seq] = eval_sequence(curr_seq, dataset, tracker, class_list, metrics_list,
-                                                          metric_names)
+                        if show_progressbar and TQDM_IMPORTED:
+                            seq_list_sorted = sorted(seq_list)
+                            for curr_seq in tqdm.tqdm(seq_list_sorted):
+                                res[curr_seq] = eval_sequence(curr_seq, dataset, tracker, class_list, metrics_list,
+                                                              metric_names)
+                        else:
+                            for curr_seq in sorted(seq_list):
+                                res[curr_seq] = eval_sequence(curr_seq, dataset, tracker, class_list, metrics_list,
+                                                              metric_names)
 
                     # Combine results over all sequences and then over all classes
 

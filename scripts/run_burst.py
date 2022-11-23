@@ -124,7 +124,7 @@ def main():
             metrics_list.append(metric())
     if len(metrics_list) == 0:
         raise Exception('No metrics selected for evaluation')
-    output_res, output_msg = evaluator.evaluate(dataset_list, metrics_list)
+    output_res, output_msg = evaluator.evaluate(dataset_list, metrics_list, show_progressbar=True)
 
     class_name_to_id = {x['name']: x['id'] for x in dataset_list[0].gt_data['categories']}
     known_list = [4, 13, 1038, 544, 1057, 34, 35, 36, 41, 45, 58, 60, 579, 1091, 1097, 1099, 78, 79, 81, 91, 1115,
