@@ -13,6 +13,21 @@ from .. import _timing
 class TAO(_BaseDataset):
     """Dataset class for TAO tracking"""
 
+    def _postproc_ground_truth_data(self, data):
+        return data
+
+    def _postproc_prediction_data(self, data):
+        return data
+
+    def _iou_type(self):
+        return 'bbox'
+
+    def _box_or_mask_from_det(self, det):
+        return np.atleast_1d(det['bbox'])
+
+    def _calculate_area_for_ann(self, ann):
+        return ann["bbox"][2] * ann["bbox"][3]
+
     @staticmethod
     def get_default_dataset_config():
         """Default class config values"""
@@ -29,6 +44,7 @@ class TAO(_BaseDataset):
             'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
             'TRACKER_DISPLAY_NAMES': None,  # Names of trackers to display, if None: TRACKERS_TO_EVAL
             'MAX_DETECTIONS': 300,  # Number of maximal allowed detections per image (0 for unlimited)
+            'EXEMPLAR_GUIDED': False,
         }
         return default_config
 
@@ -53,7 +69,7 @@ class TAO(_BaseDataset):
             raise TrackEvalException(self.gt_fol + ' does not contain exactly one json file.')
 
         with open(os.path.join(self.gt_fol, gt_dir_files[0])) as f:
-            self.gt_data = json.load(f)
+            self.gt_data = self._postproc_ground_truth_data(json.load(f))
 
         # merge categories marked with a merged tag in TAO dataset
         self._merge_categories(self.gt_data['annotations'] + self.gt_data['tracks'])
@@ -78,9 +94,22 @@ class TAO(_BaseDataset):
         considered_vid_ids = [self.seq_name_to_seq_id[vid] for vid in self.seq_list]
         seen_cats = set([cat_id for vid_id in considered_vid_ids for cat_id
                          in self.seq_to_classes[vid_id]['pos_cat_ids']])
-        # only classes with ground truth are evaluated in TAO
-        self.valid_classes = [cls['name'] for cls in self.gt_data['categories'] if cls['id'] in seen_cats]
+        # only classes with ground truth are evaluated in TAO, also we don't evaluate distactors.
+        distractors = {20, 63, 108, 180, 188, 204, 212, 247, 303, 403, 407, 415, 490, 504, 507, 513, 529, 567,
+                       569, 588, 672, 691, 702, 708, 711, 720, 736, 737, 798, 813, 815, 827, 831, 851, 877, 883,
+                       912, 971, 976, 1130, 1133, 1134, 1169, 1184, 1220}
+        self.valid_classes = [cls['name'] for cls in self.gt_data['categories'] if (cls['id'] in seen_cats) and (cls['id'] not in distractors)]
         cls_name_to_cls_id_map = {cls['name']: cls['id'] for cls in self.gt_data['categories']}
+
+        # # TODO: remove
+        # self.knowns = {4, 13, 1038, 544, 1057, 34, 35, 36, 41, 45, 58, 60, 579, 1091, 1097, 1099, 78, 79, 81, 91, 1115,
+        #                1117, 95, 1122, 99, 1132, 621, 1135, 625, 118, 1144, 126, 642, 1155, 133, 1162, 139, 154, 174,
+        #                185,
+        #                699, 1215, 714, 717, 1229, 211, 729, 221, 229, 747, 235, 237, 779, 276, 805, 299, 829, 852, 347,
+        #                371, 382, 896, 392, 926, 937, 428, 429, 961, 452, 979, 980, 982, 475, 480, 993, 1001, 502, 1018}
+        # aa = self.valid_classes[:2]
+        # bb = [cls['name'] for cls in self.gt_data['categories'] if (cls['id'] in seen_cats) and (cls['id'] not in distractors) and cls['id'] not in self.knowns]
+        # self.valid_classes = aa + bb[:2]
 
         if self.config['CLASSES_TO_EVAL']:
             self.class_list = [cls.lower() if cls.lower() in self.valid_classes else None
@@ -116,7 +145,7 @@ class TAO(_BaseDataset):
                 raise TrackEvalException(os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol)
                                          + ' does not contain exactly one json file.')
             with open(os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, tr_dir_files[0])) as f:
-                curr_data = json.load(f)
+                curr_data = self._postproc_prediction_data(json.load(f))
 
             # limit detections if MAX_DETECTIONS > 0
             if self.config['MAX_DETECTIONS']:
@@ -218,7 +247,7 @@ class TAO(_BaseDataset):
                              if cls in classes_to_consider else [] for cls in all_classes}
 
         # mapping from classes to track information
-        raw_data['classes_to_tracks'] = {cls: [{det['image_id']: np.atleast_1d(det['bbox'])
+        raw_data['classes_to_tracks'] = {cls: [{det['image_id']: self._box_or_mask_from_det(det)
                                                 for det in track['annotations']} for track in tracks]
                                          for cls, tracks in classes_to_tracks.items()}
         raw_data['classes_to_track_ids'] = {cls: [track['id'] for track in tracks]
@@ -298,6 +327,7 @@ class TAO(_BaseDataset):
         unique_tracker_ids = []
         num_gt_dets = 0
         num_tracker_dets = 0
+
         for t in range(raw_data['num_timesteps']):
 
             # Only extract relevant dets for this class for preproc and eval (cls)
@@ -313,28 +343,33 @@ class TAO(_BaseDataset):
             tracker_confidences = raw_data['tracker_confidences'][t][tracker_class_mask]
             similarity_scores = raw_data['similarity_scores'][t][gt_class_mask, :][:, tracker_class_mask]
 
-            # Match tracker and gt dets (with hungarian algorithm).
-            unmatched_indices = np.arange(tracker_ids.shape[0])
-            if gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
-                matching_scores = similarity_scores.copy()
-                matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = 0
-                match_rows, match_cols = linear_sum_assignment(-matching_scores)
-                actually_matched_mask = matching_scores[match_rows, match_cols] > 0 + np.finfo('float').eps
-                match_cols = match_cols[actually_matched_mask]
-                unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
+            if not self.config['EXEMPLAR_GUIDED']:
+                # Match tracker and gt dets (with hungarian algorithm).
+                unmatched_indices = np.arange(tracker_ids.shape[0])
+                if gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
+                    matching_scores = similarity_scores.copy()
+                    matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = 0
+                    match_rows, match_cols = linear_sum_assignment(-matching_scores)
+                    actually_matched_mask = matching_scores[match_rows, match_cols] > 0 + np.finfo('float').eps
+                    match_cols = match_cols[actually_matched_mask]
+                    unmatched_indices = np.delete(unmatched_indices, match_cols, axis=0)
 
-            if gt_ids.shape[0] == 0 and not is_neg_category:
-                to_remove_tracker = unmatched_indices
-            elif is_not_exhaustively_labeled:
-                to_remove_tracker = unmatched_indices
+                if gt_ids.shape[0] == 0 and not is_neg_category:
+                    to_remove_tracker = unmatched_indices
+                elif is_not_exhaustively_labeled:
+                    to_remove_tracker = unmatched_indices
+                else:
+                    to_remove_tracker = np.array([], dtype=np.int)
+
+                # remove all unwanted unmatched tracker detections
+                data['tracker_ids'][t] = np.delete(tracker_ids, to_remove_tracker, axis=0)
+                data['tracker_dets'][t] = np.delete(tracker_dets, to_remove_tracker, axis=0)
+                data['tracker_confidences'][t] = np.delete(tracker_confidences, to_remove_tracker, axis=0)
+                similarity_scores = np.delete(similarity_scores, to_remove_tracker, axis=1)
             else:
-                to_remove_tracker = np.array([], dtype=np.int)
-
-            # remove all unwanted unmatched tracker detections
-            data['tracker_ids'][t] = np.delete(tracker_ids, to_remove_tracker, axis=0)
-            data['tracker_dets'][t] = np.delete(tracker_dets, to_remove_tracker, axis=0)
-            data['tracker_confidences'][t] = np.delete(tracker_confidences, to_remove_tracker, axis=0)
-            similarity_scores = np.delete(similarity_scores, to_remove_tracker, axis=1)
+                data['tracker_ids'][t] = tracker_ids
+                data['tracker_dets'][t] = tracker_dets
+                data['tracker_confidences'][t] = tracker_confidences
 
             data['gt_ids'][t] = gt_ids
             data['gt_dets'][t] = gt_dets
@@ -380,7 +415,7 @@ class TAO(_BaseDataset):
         data['dt_track_areas'] = raw_data['classes_to_dt_track_areas'][cls_id]
         data['dt_track_scores'] = raw_data['classes_to_dt_track_scores'][cls_id]
         data['not_exhaustively_labeled'] = is_not_exhaustively_labeled
-        data['iou_type'] = 'bbox'
+        data['iou_type'] = self._iou_type()
 
         # sort tracker data tracks by tracker confidence scores
         if data['dt_tracks']:
@@ -430,7 +465,7 @@ class TAO(_BaseDataset):
             images[image['id']] = image
 
         for ann in annotations:
-            ann["area"] = ann["bbox"][2] * ann["bbox"][3]
+            ann["area"] = self._calculate_area_for_ann(ann)
 
             vid = ann["video_id"]
             if ann["video_id"] not in vids_to_tracks.keys():
@@ -446,7 +481,7 @@ class TAO(_BaseDataset):
             except ValueError:
                 index1 = -1
             if tid not in exist_tids:
-                curr_track = {"id": tid, "category_id": ann['category_id'],
+                curr_track = {"id": tid, "category_id": ann["category_id"],
                               "video_id": vid, "annotations": [ann]}
                 vids_to_tracks[vid].append(curr_track)
             else:
@@ -555,7 +590,7 @@ class TAO(_BaseDataset):
             max_track_id = max(max_track_id, t)
 
         if track_ids_to_update:
-            print('true')
+            #print('true')
             next_id = itertools.count(max_track_id + 1)
             new_track_ids = defaultdict(lambda: next(next_id))
             for ann in annotations:

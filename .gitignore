@@ -1,3 +1,7 @@
+.idea
+.vscode
+**.pyc
+**__pycache__
 gt_data/*
 !gt_data/Readme.md
 tracker_output/*

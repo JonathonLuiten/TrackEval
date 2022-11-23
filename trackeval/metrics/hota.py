@@ -16,7 +16,7 @@ class HOTA(_BaseMetric):
         self.plottable = True
         self.array_labels = np.arange(0.05, 0.99, 0.05)
         self.integer_array_fields = ['HOTA_TP', 'HOTA_FN', 'HOTA_FP']
-        self.float_array_fields = ['HOTA', 'DetA', 'AssA', 'DetRe', 'DetPr', 'AssRe', 'AssPr', 'LocA', 'RHOTA']
+        self.float_array_fields = ['HOTA', 'DetA', 'AssA', 'DetRe', 'DetPr', 'AssRe', 'AssPr', 'LocA', 'OWTA']
         self.float_fields = ['HOTA(0)', 'LocA(0)', 'HOTALocA(0)']
         self.fields = self.float_array_fields + self.integer_array_fields + self.float_fields
         self.summary_fields = self.float_array_fields + self.float_fields
@@ -171,7 +171,7 @@ class HOTA(_BaseMetric):
         res['DetPr'] = res['HOTA_TP'] / np.maximum(1, res['HOTA_TP'] + res['HOTA_FP'])
         res['DetA'] = res['HOTA_TP'] / np.maximum(1, res['HOTA_TP'] + res['HOTA_FN'] + res['HOTA_FP'])
         res['HOTA'] = np.sqrt(res['DetA'] * res['AssA'])
-        res['RHOTA'] = np.sqrt(res['DetRe'] * res['AssA'])
+        res['OWTA'] = np.sqrt(res['DetRe'] * res['AssA'])
 
         res['HOTA(0)'] = res['HOTA'][0]
         res['LocA(0)'] = res['LocA'][0]

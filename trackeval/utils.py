@@ -84,7 +84,7 @@ def write_summary_results(summaries, cls, output_folder):
     # they will be output in the summary first in the order below. Any further fields will be output in the order each
     # metric family is called, and within each family either in the order they were added to the dict (python >= 3.6) or
     # randomly (python < 3.6).
-    default_order = ['HOTA', 'DetA', 'AssA', 'DetRe', 'DetPr', 'AssRe', 'AssPr', 'LocA', 'RHOTA', 'HOTA(0)', 'LocA(0)',
+    default_order = ['HOTA', 'DetA', 'AssA', 'DetRe', 'DetPr', 'AssRe', 'AssPr', 'LocA', 'OWTA', 'HOTA(0)', 'LocA(0)',
                      'HOTALocA(0)', 'MOTA', 'MOTP', 'MODA', 'CLR_Re', 'CLR_Pr', 'MTR', 'PTR', 'MLR', 'CLR_TP', 'CLR_FN',
                      'CLR_FP', 'IDSW', 'MT', 'PT', 'ML', 'Frag', 'sMOTA', 'IDF1', 'IDR', 'IDP', 'IDTP', 'IDFN', 'IDFP',
                      'Dets', 'GT_Dets', 'IDs', 'GT_IDs']

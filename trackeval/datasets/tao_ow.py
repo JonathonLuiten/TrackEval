@@ -13,6 +13,21 @@ from .. import _timing
 class TAO_OW(_BaseDataset):
     """Dataset class for TAO tracking"""
 
+    def _postproc_ground_truth_data(self, data):
+        return data
+
+    def _postproc_prediction_data(self, data):
+        return data
+
+    def _iou_type(self):
+        return 'bbox'
+
+    def _box_or_mask_from_det(self, det):
+        return np.atleast_1d(det['bbox'])
+
+    def _calculate_area_for_ann(self, ann):
+        return ann["bbox"][2] * ann["bbox"][3]
+
     @staticmethod
     def get_default_dataset_config():
         """Default class config values"""
@@ -54,7 +69,7 @@ class TAO_OW(_BaseDataset):
             raise TrackEvalException(self.gt_fol + ' does not contain exactly one json file.')
 
         with open(os.path.join(self.gt_fol, gt_dir_files[0])) as f:
-            self.gt_data = json.load(f)
+            self.gt_data = self._postproc_ground_truth_data(json.load(f))
 
         self.subset = self.config['SUBSET']
         if self.subset != 'all':
@@ -126,7 +141,7 @@ class TAO_OW(_BaseDataset):
                 raise TrackEvalException(os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol)
                                          + ' does not contain exactly one json file.')
             with open(os.path.join(self.tracker_fol, tracker, self.tracker_sub_fol, tr_dir_files[0])) as f:
-                curr_data = json.load(f)
+                curr_data = self._postproc_prediction_data(json.load(f))
 
             # limit detections if MAX_DETECTIONS > 0
             if self.config['MAX_DETECTIONS']:
@@ -233,7 +248,7 @@ class TAO_OW(_BaseDataset):
         if cls in classes_to_consider else [] for cls in all_classes}  # class-agnostic
 
         # mapping from classes to track information
-        raw_data['classes_to_tracks'] = {cls: [{det['image_id']: np.atleast_1d(det['bbox'])
+        raw_data['classes_to_tracks'] = {cls: [{det['image_id']: self._box_or_mask_from_det(det)
                                                 for det in track['annotations']} for track in tracks]
                                          for cls, tracks in classes_to_tracks.items()}
         raw_data['classes_to_track_ids'] = {cls: [track['id'] for track in tracks]
@@ -395,7 +410,7 @@ class TAO_OW(_BaseDataset):
         data['dt_track_areas'] = raw_data['classes_to_dt_track_areas'][cls_id]
         data['dt_track_scores'] = raw_data['classes_to_dt_track_scores'][cls_id]
         data['not_exhaustively_labeled'] = is_not_exhaustively_labeled
-        data['iou_type'] = 'bbox'
+        data['iou_type'] = self._iou_type()
 
         # sort tracker data tracks by tracker confidence scores
         if data['dt_tracks']:
@@ -445,7 +460,7 @@ class TAO_OW(_BaseDataset):
             images[image['id']] = image
 
         for ann in annotations:
-            ann["area"] = ann["bbox"][2] * ann["bbox"][3]
+            ann["area"] = self._calculate_area_for_ann(ann)
 
             vid = ann["video_id"]
             if ann["video_id"] not in vids_to_tracks.keys():
@@ -461,7 +476,7 @@ class TAO_OW(_BaseDataset):
             except ValueError:
                 index1 = -1
             if tid not in exist_tids:
-                curr_track = {"id": tid, "category_id": ann['category_id'],
+                curr_track = {"id": tid, "category_id": ann["category_id"],
                               "video_id": vid, "annotations": [ann]}
                 vids_to_tracks[vid].append(curr_track)
             else:
@@ -570,7 +585,7 @@ class TAO_OW(_BaseDataset):
             max_track_id = max(max_track_id, t)
 
         if track_ids_to_update:
-            print('true')
+            #print('true')
             next_id = itertools.count(max_track_id + 1)
             new_track_ids = defaultdict(lambda: next(next_id))
             for ann in annotations:
@@ -646,7 +661,15 @@ class TAO_OW(_BaseDataset):
             if cat["id"] in valid_cat_ids:
                 filtered["categories"].append(cat)
 
-        filtered["info"] = raw_gt_data["info"]
-        filtered["licenses"] = raw_gt_data["licenses"]
+        if "info" in raw_gt_data:
+            filtered["info"] = raw_gt_data["info"]
+        if "licenses" in raw_gt_data:
+            filtered["licenses"] = raw_gt_data["licenses"]
+
+        if "track_id_offsets" in raw_gt_data:
+            filtered["track_id_offsets"] = raw_gt_data["track_id_offsets"]
+
+        if "split" in raw_gt_data:
+            filtered["split"] = raw_gt_data["split"]
 
         return filtered

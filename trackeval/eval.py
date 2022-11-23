@@ -1,3 +1,4 @@
+import tqdm
 import time
 import traceback
 from multiprocessing.pool import Pool
@@ -73,16 +74,21 @@ class Evaluator:
                     # e.g. res[seq_0001][pedestrian][hota][DetA]
                     print('\nEvaluating %s\n' % tracker)
                     time_start = time.time()
+                    seq_list_sorted = sorted(seq_list)
                     if config['USE_PARALLEL']:
-                        with Pool(config['NUM_PARALLEL_CORES']) as pool:
+                        with Pool(config['NUM_PARALLEL_CORES']) as pool, tqdm.tqdm(total=len(seq_list)) as pbar:
                             _eval_sequence = partial(eval_sequence, dataset=dataset, tracker=tracker,
                                                      class_list=class_list, metrics_list=metrics_list,
                                                      metric_names=metric_names)
-                            results = pool.map(_eval_sequence, seq_list)
-                            res = dict(zip(seq_list, results))
+                            results = []
+                            for r in pool.imap(_eval_sequence, seq_list_sorted,
+                                               chunksize=20):
+                                results.append(r)
+                                pbar.update()
+                            res = dict(zip(seq_list_sorted, results))
                     else:
                         res = {}
-                        for curr_seq in sorted(seq_list):
+                        for curr_seq in tqdm.tqdm(seq_list_sorted):
                             res[curr_seq] = eval_sequence(curr_seq, dataset, tracker, class_list, metrics_list,
                                                           metric_names)
 
