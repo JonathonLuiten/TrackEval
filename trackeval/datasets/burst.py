@@ -14,10 +14,10 @@ class BURST(BURSTBase):
 
         # e.g. 'data/gt/tsunami/exemplar_guided/'
         tao_config['GT_FOLDER'] = os.path.join(
-            code_path, 'data/gt/tsunami/TODO_SELECT_TASK/')  # Location of GT data
+            code_path, 'data/gt/burst/val/')  # Location of GT data
         # e.g. 'data/trackers/tsunami/exemplar_guided/mask_guided/validation/'
         tao_config['TRACKERS_FOLDER'] = os.path.join(
-            code_path, 'data/trackers/tsunami/TODO_SELECT_TASK/')  # Trackers location
+            code_path, 'data/trackers/burst/class-guided/')  # Trackers location
         # set to True or False
         tao_config['EXEMPLAR_GUIDED'] = False
         return tao_config
