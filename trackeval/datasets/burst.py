@@ -1,6 +1,6 @@
 import os
-from .tao import TAO
-from ..ali_format import GroundTruthAliFormatToTAOFormatConverter, PredictionAliFormatToTAOFormatConverter
+from .burst_helpers.tao_hacked import TAO
+from .burst_helpers.format_converter import GroundTruthBURSTFormatToTAOFormatConverter, PredictionBURSTFormatToTAOFormatConverter
 from .. import utils
 
 
@@ -41,9 +41,9 @@ class BURST(TAO):
         return exemplar_guided
 
     def _postproc_ground_truth_data(self, data):
-        return GroundTruthAliFormatToTAOFormatConverter(data).convert()
+        return GroundTruthBURSTFormatToTAOFormatConverter(data).convert()
 
     def _postproc_prediction_data(self, data):
-        return PredictionAliFormatToTAOFormatConverter(
+        return PredictionBURSTFormatToTAOFormatConverter(
             self.gt_data, data,
             exemplar_guided=self._is_exemplar_guided()).convert()

@@ -1,7 +1,7 @@
 import json
 import os
-from .tao_ow import TAO_OW
-from ..ali_format import GroundTruthAliFormatToTAOFormatConverter, PredictionAliFormatToTAOFormatConverter
+from .burst_helpers.tao_ow_hacked import TAO_OW
+from .burst_helpers.format_converter import GroundTruthBURSTFormatToTAOFormatConverter, PredictionBURSTFormatToTAOFormatConverter
 from .. import utils
 
 
@@ -37,7 +37,7 @@ class BURST_OW(TAO_OW):
         return similarity_scores
 
     def _postproc_ground_truth_data(self, data):
-        return GroundTruthAliFormatToTAOFormatConverter(data).convert()
+        return GroundTruthBURSTFormatToTAOFormatConverter(data).convert()
 
     def _postproc_prediction_data(self, data):
         # if it's a list, it's already in TAO format and not in Ali format
@@ -46,7 +46,7 @@ class BURST_OW(TAO_OW):
             _remap_image_ids(data, self.gt_data)
             return data
 
-        return PredictionAliFormatToTAOFormatConverter(
+        return PredictionBURSTFormatToTAOFormatConverter(
             self.gt_data, data,
             exemplar_guided=False).convert()
 
