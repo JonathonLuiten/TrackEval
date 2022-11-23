@@ -114,4 +114,4 @@ if __name__ == '__main__':
             metrics_list.append(metric())
     if len(metrics_list) == 0:
         raise Exception('No metrics selected for evaluation')
-    output_res, output_msg = evaluator.evaluate(dataset_list, metrics_list)
+    output_res, output_msg = evaluator.evaluate(dataset_list, metrics_list, show_progressbar=True)
