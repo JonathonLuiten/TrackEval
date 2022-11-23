@@ -22,8 +22,8 @@ The code can be run by running the following script (see script for arguments an
 To understand the the data is being read and used, see the TAO-OW dataset class:
 [TAO-OW dataset class](https://github.com/JonathonLuiten/TrackEval/blob/master/trackeval/datasets/tao_ow.py)
 
-The 'Open World Tracking Accuracy' (OWTA) metric proposed in the paper is call RHOTA (Recall-based HOTA) within this repository, and the implementation can be found here:
-[OWTA/RHOTA metric](https://github.com/JonathonLuiten/TrackEval/blob/master/trackeval/metrics/hota.py)
+The implementation of the 'Open World Tracking Accuracy' (OWTA) metric proposed in the paper can be found here:
+[OWTA metric](https://github.com/JonathonLuiten/TrackEval/blob/master/trackeval/metrics/hota.py)
 
 ## Citation
 If you work with the code and the benchmark, please cite:
