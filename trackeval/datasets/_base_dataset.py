@@ -285,6 +285,53 @@ class _BaseDataset(ABC):
             ious = intersection / union
             return ious
 
+
+    @staticmethod
+    def _calculate_box_ious_3d(bboxes1, bboxes2, do_ioa=False):
+        """ Calculates the IOU (intersection over union) between two arrays of 3d box parameters [h, w, l, x, y, z, rot_y]
+        If do_ioa (intersection over area) , then calculates the intersection over the area of boxes1 - this is commonly
+        used to determine if detections are within crowd ignore region.
+        """
+        def toPolygon(g):
+            import math
+            from shapely.geometry import Polygon
+
+            rot = np.array([[math.cos(g[-1]), math.sin(g[-1])], [-math.sin(g[-1]), math.cos(g[-1])]])
+            corners = np.array([[g[2] / 2, g[2] / 2, -g[2] / 2, -g[2] / 2],
+                                [g[1] / 2, -g[1] / 2, -g[1] / 2, g[1] / 2]])
+            ground_corners = np.matmul(rot, corners)
+            for i in range(4):
+                ground_corners[0, i] += g[3]
+                ground_corners[1, i] += g[5]
+            ground_corners_list = ground_corners.T.tolist()
+            ground_corners_list.append(ground_corners_list[0])
+
+            poly = Polygon(tuple(map(tuple, ground_corners.T)))
+            return poly
+
+        ious = np.zeros((bboxes1.shape[0], bboxes2.shape[0]))
+        for i, ground_truth in enumerate(bboxes1):
+            for j, detection in enumerate(bboxes2):
+                detection_polygon = toPolygon(detection)
+                ground_truth_polygon = toPolygon(ground_truth)
+
+                ymax = min(detection[4], ground_truth[4])
+                ymin = max(detection[4] - detection[0], ground_truth[4] - detection[0])
+
+                inter_area = detection_polygon.intersection(ground_truth_polygon).area
+
+                inter_vol = inter_area * max(0, ymax - ymin)
+
+                detection_vol = detection[0] * detection[1] * detection[2]
+                ground_truth_vol = ground_truth[0] * ground_truth[1] * ground_truth[2]
+
+                if do_ioa:
+                    ious[i, j] = inter_vol / ground_truth_vol
+                else:
+                    ious[i, j] = inter_vol / (detection_vol + ground_truth_vol - inter_vol)
+
+        return ious
+
     @staticmethod
     def _calculate_euclidean_similarity(dets1, dets2, zero_distance=2.0):
         """ Calculates the euclidean distance between two sets of detections, and then converts this into a similarity
