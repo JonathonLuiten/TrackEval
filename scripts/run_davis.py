@@ -18,7 +18,7 @@ Command Line Arguments: Defaults, # Comments
     Dataset arguments:
     '   'GT_FOLDER': os.path.join(code_path, 'data/gt/davis/'),  # Location of GT data
         'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/davis/davis_val'),  # Trackers location
-        'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
+        'OUTPUT_FOLDER': '',  # Where to save eval results (if empty, same as TRACKERS_FOLDER)
         'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
         'SPLIT_TO_EVAL': 'val',  # Valid: 'val', 'train'
         'PRINT_CONFIG': True,  # Whether to print current config

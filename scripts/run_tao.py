@@ -18,7 +18,7 @@ Command Line Arguments: Defaults, # Comments
     Dataset arguments:
         'GT_FOLDER': os.path.join(code_path, 'data/gt/tao/tao_training'),  # Location of GT data
         'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/tao/tao_training'),  # Trackers location
-        'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
+        'OUTPUT_FOLDER': '',  # Where to save eval results (if empty, same as TRACKERS_FOLDER)
         'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
         'CLASSES_TO_EVAL': None,  # Classes to eval (if None, all classes)
         'SPLIT_TO_EVAL': 'training',  # Valid: 'training', 'val'
