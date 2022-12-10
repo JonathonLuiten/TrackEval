@@ -1,7 +1,31 @@
-""" run_tao.py
+""" run_burst_ow.py
+
+The example commands given below expect the following folder structure:
+
+- data
+    - gt
+        - burst
+            - {val,test}
+                - all_classes
+                    - all_classes.json  (filename is irrelevant)
+                - common_classes
+                    - common_classes.json  (filename is irrelevant)
+                - uncommon_classes.json
+                    - uncommon_classes.json  (filename is irrelevant)
+    - trackers
+        - burst
+            - open-world
+                - {val,test}
+                    - my_tracking_method
+                        - data
+                            - results.json  (filename is irrelevant)
 
 Run example:
-run_tao_ow.py --USE_PARALLEL False --METRICS HOTA --TRACKERS_TO_EVAL Tracktor++
+
+You'll need to run the eval script separately to get the OWTA metric for the three class splits. In the command below,
+replace <SPLIT_NAME> with "common", "uncommon" and "all" to get the corresponding results.
+
+run_burst_ow.py --USE_PARALLEL True --GT_FOLDER data/gt/burst/{val,test}/<SPLIT_NAME>_classes --TRACKERS_FOLDER data/trackers/burst/open-world/{val,test}
 
 Command Line Arguments: Defaults, # Comments
     Eval arguments:
@@ -16,8 +40,8 @@ Command Line Arguments: Defaults, # Comments
         'OUTPUT_DETAILED': True,
         'PLOT_CURVES': True,
     Dataset arguments:
-        'GT_FOLDER': os.path.join(code_path, 'data/gt/tao/tao_training'),  # Location of GT data
-        'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/tao/tao_training'),  # Trackers location
+        'GT_FOLDER': os.path.join(code_path, '../data/gt/burst/{val,test}/<SPLIT_NAME>_classes'),  # Location of GT data
+        'TRACKERS_FOLDER': os.path.join(code_path, '../data/trackers/burst/open-world/{val,test}),  # Trackers location
         'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
         'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
         'CLASSES_TO_EVAL': None,  # Classes to eval (if None, all classes)
@@ -48,8 +72,9 @@ if __name__ == '__main__':
     # print only combined since TrackMAP is undefined for per sequence breakdowns
     default_eval_config['PRINT_ONLY_COMBINED'] = True
     default_eval_config['DISPLAY_LESS_PROGRESS'] = True
-    default_dataset_config = trackeval.datasets.TAO_OW.get_default_dataset_config()
-    default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity', 'TrackMAP']}
+    default_dataset_config = trackeval.datasets.BURST_OW.get_default_dataset_config()
+    # default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity', 'TrackMAP']}
+    default_metrics_config = {'METRICS': ['HOTA']}
     config = {**default_eval_config, **default_dataset_config, **default_metrics_config}  # Merge default configs
     parser = argparse.ArgumentParser()
     for setting in config.keys():
@@ -80,7 +105,7 @@ if __name__ == '__main__':
 
     # Run code
     evaluator = trackeval.Evaluator(eval_config)
-    dataset_list = [trackeval.datasets.TAO_OW(dataset_config)]
+    dataset_list = [trackeval.datasets.BURST_OW(dataset_config)]
     metrics_list = []
     # for metric in [trackeval.metrics.TrackMAP, trackeval.metrics.CLEAR, trackeval.metrics.Identity,
     #                trackeval.metrics.HOTA]:
@@ -89,4 +114,4 @@ if __name__ == '__main__':
             metrics_list.append(metric())
     if len(metrics_list) == 0:
         raise Exception('No metrics selected for evaluation')
-    evaluator.evaluate(dataset_list, metrics_list)
+    output_res, output_msg = evaluator.evaluate(dataset_list, metrics_list, show_progressbar=True)

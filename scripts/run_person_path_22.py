@@ -1,7 +1,29 @@
-""" run_tao.py
+
+""" run_person_path_22.py
 
 Run example:
-run_tao_ow.py --USE_PARALLEL False --METRICS HOTA --TRACKERS_TO_EVAL Tracktor++
+python3 run_person_path_22.py \
+    --BENCHMARK person_path_22 \
+    --SPLIT_TO_EVAL test \
+    --TRACKERS_TO_EVAL custom_tracker \
+    --METRICS HOTA CLEAR Identity VACE \
+    --USE_PARALLEL True \
+    --NUM_PARALLEL_CORES 12 \
+    --TRACKERS_FOLDER $TRACKER_FOLDER
+
+where $TRACKER_FOLDER is the path of the folder containing the tracker predictions in MOTChallenge format.
+In particular, $TRACKER_FOLDER is expected to have the following structure:
+$TRACKER_FOLDER/
+    person_path_22-test/
+        custom_tracker/
+            data/
+                uid_vid_00008.mp4.txt
+                uid_vid_00009.mp4.txt
+                [...]
+                uid_vid_00235.mp4.txt
+
+Each text file contains the tracker predictions in MOTChallenge format for a given video.
+
 
 Command Line Arguments: Defaults, # Comments
     Eval arguments:
@@ -16,20 +38,20 @@ Command Line Arguments: Defaults, # Comments
         'OUTPUT_DETAILED': True,
         'PLOT_CURVES': True,
     Dataset arguments:
-        'GT_FOLDER': os.path.join(code_path, 'data/gt/tao/tao_training'),  # Location of GT data
-        'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/tao/tao_training'),  # Trackers location
+        'GT_FOLDER': os.path.join(code_path, 'data/gt/person_path_22/'),  # Location of GT data
+        'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/person_path_22/'),  # Trackers location
         'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
         'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
-        'CLASSES_TO_EVAL': None,  # Classes to eval (if None, all classes)
-        'SPLIT_TO_EVAL': 'training',  # Valid: 'training', 'val'
+        'CLASSES_TO_EVAL': ['pedestrian'],  # Valid: ['pedestrian']
+        'BENCHMARK': 'person_path_22',  # Valid: 'person_path_22'
+        'SPLIT_TO_EVAL': 'train',  # Valid: 'train', 'test', 'all'
+        'INPUT_AS_ZIP': False,  # Whether tracker input files are zipped
         'PRINT_CONFIG': True,  # Whether to print current config
+        'DO_PREPROC': True,  # Whether to perform preprocessing
         'TRACKER_SUB_FOLDER': 'data',  # Tracker files are in TRACKER_FOLDER/tracker_name/TRACKER_SUB_FOLDER
         'OUTPUT_SUB_FOLDER': '',  # Output files are saved in OUTPUT_FOLDER/tracker_name/OUTPUT_SUB_FOLDER
-        'TRACKER_DISPLAY_NAMES': None,  # Names of trackers to display, if None: TRACKERS_TO_EVAL
-        'MAX_DETECTIONS': 300,  # Number of maximal allowed detections per image (0 for unlimited)
-        'SUBSET': 'unknown',  # Evaluate on the following subsets ['all', 'known', 'unknown', 'distractor']
     Metric arguments:
-        'METRICS': ['HOTA', 'CLEAR', 'Identity', 'TrackMAP']
+        'METRICS': ['HOTA', 'CLEAR', 'Identity', 'VACE']
 """
 
 import sys
@@ -45,11 +67,9 @@ if __name__ == '__main__':
 
     # Command line interface:
     default_eval_config = trackeval.Evaluator.get_default_eval_config()
-    # print only combined since TrackMAP is undefined for per sequence breakdowns
-    default_eval_config['PRINT_ONLY_COMBINED'] = True
-    default_eval_config['DISPLAY_LESS_PROGRESS'] = True
-    default_dataset_config = trackeval.datasets.TAO_OW.get_default_dataset_config()
-    default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity', 'TrackMAP']}
+    default_eval_config['DISPLAY_LESS_PROGRESS'] = False
+    default_dataset_config = trackeval.datasets.PersonPath22.get_default_dataset_config()
+    default_metrics_config = {'METRICS': ['HOTA', 'CLEAR', 'Identity'], 'THRESHOLD': 0.5}
     config = {**default_eval_config, **default_dataset_config, **default_metrics_config}  # Merge default configs
     parser = argparse.ArgumentParser()
     for setting in config.keys():
@@ -71,6 +91,8 @@ if __name__ == '__main__':
                 x = int(args[setting])
             elif type(args[setting]) == type(None):
                 x = None
+            elif setting == 'SEQ_INFO':
+                x = dict(zip(args[setting], [None]*len(args[setting])))
             else:
                 x = args[setting]
             config[setting] = x
@@ -80,13 +102,11 @@ if __name__ == '__main__':
 
     # Run code
     evaluator = trackeval.Evaluator(eval_config)
-    dataset_list = [trackeval.datasets.TAO_OW(dataset_config)]
+    dataset_list = [trackeval.datasets.PersonPath22(dataset_config)]
     metrics_list = []
-    # for metric in [trackeval.metrics.TrackMAP, trackeval.metrics.CLEAR, trackeval.metrics.Identity,
-    #                trackeval.metrics.HOTA]:
-    for metric in [trackeval.metrics.HOTA]:
+    for metric in [trackeval.metrics.HOTA, trackeval.metrics.CLEAR, trackeval.metrics.Identity, trackeval.metrics.VACE]:
         if metric.get_name() in metrics_config['METRICS']:
-            metrics_list.append(metric())
+            metrics_list.append(metric(metrics_config))
     if len(metrics_list) == 0:
         raise Exception('No metrics selected for evaluation')
     evaluator.evaluate(dataset_list, metrics_list)
