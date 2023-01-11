@@ -128,9 +128,9 @@ By default, we would recommend the MOTChallenge format, although any implemented
  - For J & F metric: opencv_python, scikit_image
  - For simples test-cases for metrics: pytest
 
-use ```pip3 -r install requirements.txt``` to install all possible requirements.
+use ```pip3 install -r requirements.txt``` to install all possible requirements.
 
-use ```pip3 -r install minimum_requirments.txt``` to only install the minimum if you don't need the extra functionality as listed above.
+use ```pip3 install -r minimum_requirments.txt``` to only install the minimum if you don't need the extra functionality as listed above.
 
 ## Timing analysis
 
