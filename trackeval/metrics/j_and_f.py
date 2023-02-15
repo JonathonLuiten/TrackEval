@@ -160,7 +160,7 @@ class JAndF(_BaseMetric):
          January 2003
         """
 
-        seg = seg.astype(np.bool)
+        seg = seg.astype(bool)
         seg[seg > 0] = 1
 
         assert np.atleast_3d(seg).shape[2] == 1
@@ -226,7 +226,7 @@ class JAndF(_BaseMetric):
         for t, (gt_masks, tracker_masks) in enumerate(zip(gt_data, tracker_data)):
             curr_tracker_mask = mask_utils.decode(tracker_masks[tracker_data_id])
             curr_gt_mask = mask_utils.decode(gt_masks[gt_id])
-            
+
             bound_pix = bound_th if bound_th >= 1 - np.finfo('float').eps else \
                 np.ceil(bound_th * np.linalg.norm(curr_tracker_mask.shape))
 

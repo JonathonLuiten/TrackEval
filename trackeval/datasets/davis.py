@@ -240,7 +240,7 @@ class DAVIS(_BaseDataset):
                     rows, columns = np.where(void_mask_ious > 0)
                     for r in rows:
                         det = mask_utils.decode(raw_data['tracker_dets'][t][r])
-                        void = mask_utils.decode(void_mask).astype(np.bool)
+                        void = mask_utils.decode(void_mask).astype(bool)
                         det[void] = 0
                         det = mask_utils.encode(np.array(det, order='F').astype(np.uint8))
                         raw_data['tracker_dets'][t][r] = det
@@ -253,14 +253,14 @@ class DAVIS(_BaseDataset):
             gt_id_map[unique_gt_ids] = np.arange(len(unique_gt_ids))
             for t in range(raw_data['num_timesteps']):
                 if len(data['gt_ids'][t]) > 0:
-                    data['gt_ids'][t] = gt_id_map[data['gt_ids'][t]].astype(np.int)
+                    data['gt_ids'][t] = gt_id_map[data['gt_ids'][t]].astype(int)
         if len(unique_tracker_ids) > 0:
             unique_tracker_ids = np.unique(unique_tracker_ids)
             tracker_id_map = np.nan * np.ones((np.max(unique_tracker_ids) + 1))
             tracker_id_map[unique_tracker_ids] = np.arange(len(unique_tracker_ids))
             for t in range(raw_data['num_timesteps']):
                 if len(data['tracker_ids'][t]) > 0:
-                    data['tracker_ids'][t] = tracker_id_map[data['tracker_ids'][t]].astype(np.int)
+                    data['tracker_ids'][t] = tracker_id_map[data['tracker_ids'][t]].astype(int)
 
         # Record overview statistics.
         data['num_tracker_dets'] = num_tracker_dets
