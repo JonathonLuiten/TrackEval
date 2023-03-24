@@ -116,7 +116,7 @@ class BDD100K(_BaseDataset):
             data = json.load(f)
 
         # sort data by frame index
-        data = sorted(data, key=lambda x: x['index'])
+        data = sorted(data, key=lambda x: x['frameIndex'])
 
         # check sequence length
         if is_gt:
@@ -139,7 +139,7 @@ class BDD100K(_BaseDataset):
             for i in range(len(data[t]['labels'])):
                 ann = data[t]['labels'][i]
                 if is_gt and (ann['category'] in self.distractor_classes or 'attributes' in ann.keys()
-                              and ann['attributes']['Crowd']):
+                              and ann['attributes']['crowd']):
                     ig_ids.append(i)
                 else:
                     keep_ids.append(i)
