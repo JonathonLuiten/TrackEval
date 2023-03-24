@@ -28,12 +28,12 @@ Each json file contains a list of frame objects, and each frame object has the f
 
 - name: string
 - videoName: string
-- index: int
+- frameIndex: int
 - labels: [ ]
     - id: string
     - category: string
     - attributes:
-        - Crowd: boolean
+        - crowd: boolean
         - Occluded: boolean
         - Truncated: boolean
     - box2d:
