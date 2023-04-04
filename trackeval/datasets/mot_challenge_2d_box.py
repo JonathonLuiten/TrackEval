@@ -86,7 +86,7 @@ class MotChallenge2DBox(_BaseDataset):
         # Check gt files exist
         for seq in self.seq_list:
             if not self.data_is_zipped:
-                curr_file = self.config["GT_LOC_FORMAT"].format(gt_folder=self.gt_fol, seq=seq)
+                curr_file = self.config["GT_LOC_FORMAT"].format(gt_folder=os.path.dirname(self.gt_fol), seq=seq)
                 if not os.path.isfile(curr_file):
                     print('GT file not found ' + curr_file)
                     raise TrackEvalException('GT file not found for sequence: ' + seq)
