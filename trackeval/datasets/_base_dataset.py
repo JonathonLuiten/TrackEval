@@ -204,7 +204,7 @@ class _BaseDataset(ABC):
                         raise TrackEvalException(exc_str)
             fp.close()
         except Exception:
-            print('Error loading file: %s, printing traceback.' % file)
+            print('Error loading file: %s, printing exception and traceback.' % file)
             traceback.print_exc()
             raise TrackEvalException(
                 'File %s cannot be read because it is either not present or invalidly formatted' % os.path.basename(
