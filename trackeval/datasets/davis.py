@@ -68,7 +68,7 @@ class DAVIS(_BaseDataset):
             self.seq_list = []
             seqmap_file = self.config["SEQMAP_FILE"]
             if not os.path.isfile(seqmap_file):
-                raise TrackEvalException('no seqmap found: ' + os.path.basename(seqmap_file))
+                raise TrackEvalException('no seqmap found: ' + seqmap_file)
             with open(seqmap_file) as fp:
                 reader = csv.reader(fp)
                 for i, row in enumerate(reader):

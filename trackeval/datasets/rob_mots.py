@@ -143,7 +143,7 @@ class RobMOTS(_BaseDataset):
                 seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], self.split + '.seqmap')
         if not os.path.isfile(seqmap_file):
             print('no seqmap found: ' + seqmap_file)
-            raise TrackEvalException('no seqmap found: ' + os.path.basename(seqmap_file))
+            raise TrackEvalException('no seqmap found: ' + seqmap_file)
         with open(seqmap_file) as fp:
             dialect = csv.Sniffer().sniff(fp.readline(), delimiters=' ')
             fp.seek(0)

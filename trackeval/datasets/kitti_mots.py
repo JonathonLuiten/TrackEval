@@ -129,7 +129,7 @@ class KittiMOTS(_BaseDataset):
                     seqmap_file = os.path.join(self.config["SEQMAP_FOLDER"], seqmap_name)
             if not os.path.isfile(seqmap_file):
                 print('no seqmap found: ' + seqmap_file)
-                raise TrackEvalException('no seqmap found: ' + os.path.basename(seqmap_file))
+                raise TrackEvalException('no seqmap found: ' + seqmap_file)
             with open(seqmap_file) as fp:
                 reader = csv.reader(fp)
                 for i, _ in enumerate(reader):

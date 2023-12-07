@@ -68,7 +68,7 @@ class Kitti2DBox(_BaseDataset):
         seqmap_name = 'evaluate_tracking.seqmap.' + self.config['SPLIT_TO_EVAL']
         seqmap_file = os.path.join(self.gt_fol, seqmap_name)
         if not os.path.isfile(seqmap_file):
-            raise TrackEvalException('no seqmap found: ' + os.path.basename(seqmap_file))
+            raise TrackEvalException('no seqmap found: ' + seqmap_file)
         with open(seqmap_file) as fp:
             dialect = csv.Sniffer().sniff(fp.read(1024))
             fp.seek(0)
