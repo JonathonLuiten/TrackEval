@@ -1,12 +1,14 @@
 
-import os
 import json
+import os
+
 import numpy as np
+
 from scipy.optimize import linear_sum_assignment
+
+from .. import _timing, utils
 from ..utils import TrackEvalException
 from ._base_dataset import _BaseDataset
-from .. import utils
-from .. import _timing
 
 
 class BDD100K(_BaseDataset):
@@ -115,8 +117,19 @@ class BDD100K(_BaseDataset):
         with open(file) as f:
             data = json.load(f)
 
+        if len(data) == 0:
+            raise TrackEvalException("Empty data list provided; cannot determine sorting field.")
+
         # sort data by frame index
-        data = sorted(data, key=lambda x: x['index'])
+        if 'index' in data[0]:
+            data = sorted(data, key=lambda x: x['index'])
+        elif 'frameIndex' in data[0]:
+            data = sorted(data, key=lambda x: x['frameIndex'])
+        else:
+            raise TrackEvalException(
+                "Neither 'index' nor 'frameIndex' field found in dataset JSON entries. "
+                "Expected one of these keys to exist for sorting frames."
+            )
 
         # check sequence length
         if is_gt:
@@ -133,13 +146,31 @@ class BDD100K(_BaseDataset):
         if is_gt:
             data_keys += ['gt_crowd_ignore_regions']
         raw_data = {key: [None] * num_timesteps for key in data_keys}
+
         for t in range(num_timesteps):
             ig_ids = []
             keep_ids = []
-            for i in range(len(data[t]['labels'])):
-                ann = data[t]['labels'][i]
-                if is_gt and (ann['category'] in self.distractor_classes or 'attributes' in ann.keys()
-                              and ann['attributes']['Crowd']):
+
+            for i, ann in enumerate(data[t]['labels']):
+                # Default flags
+                is_distractor = ann['category'] in self.distractor_classes
+                is_crowd = False
+
+                # Handle crowd attribute robustly
+                if 'attributes' in ann:
+                    attrs = ann['attributes']
+                    if 'Crowd' in attrs:
+                        is_crowd = attrs['Crowd']
+                    elif 'crowd' in attrs:
+                        is_crowd = attrs['crowd']
+                    else:
+                        raise TrackEvalException(
+                            f"Annotation at timestep {t}, index {i} has 'attributes' "
+                            f"but neither 'Crowd' nor 'crowd' key exists."
+                        )
+
+                # If GT, exclude distractors or crowd regions
+                if is_gt and (is_distractor or is_crowd):
                     ig_ids.append(i)
                 else:
                     keep_ids.append(i)
@@ -226,12 +257,12 @@ class BDD100K(_BaseDataset):
 
             # Only extract relevant dets for this class for preproc and eval (cls)
             gt_class_mask = np.atleast_1d(raw_data['gt_classes'][t] == cls_id)
-            gt_class_mask = gt_class_mask.astype(np.bool)
+            gt_class_mask = gt_class_mask.astype(bool)
             gt_ids = raw_data['gt_ids'][t][gt_class_mask]
             gt_dets = raw_data['gt_dets'][t][gt_class_mask]
 
             tracker_class_mask = np.atleast_1d(raw_data['tracker_classes'][t] == cls_id)
-            tracker_class_mask = tracker_class_mask.astype(np.bool)
+            tracker_class_mask = tracker_class_mask.astype(bool)
             tracker_ids = raw_data['tracker_ids'][t][tracker_class_mask]
             tracker_dets = raw_data['tracker_dets'][t][tracker_class_mask]
             similarity_scores = raw_data['similarity_scores'][t][gt_class_mask, :][:, tracker_class_mask]
@@ -276,14 +307,14 @@ class BDD100K(_BaseDataset):
             gt_id_map[unique_gt_ids] = np.arange(len(unique_gt_ids))
             for t in range(raw_data['num_timesteps']):
                 if len(data['gt_ids'][t]) > 0:
-                    data['gt_ids'][t] = gt_id_map[data['gt_ids'][t]].astype(np.int)
+                    data['gt_ids'][t] = gt_id_map[data['gt_ids'][t]].astype(int)
         if len(unique_tracker_ids) > 0:
             unique_tracker_ids = np.unique(unique_tracker_ids)
             tracker_id_map = np.nan * np.ones((np.max(unique_tracker_ids) + 1))
             tracker_id_map[unique_tracker_ids] = np.arange(len(unique_tracker_ids))
             for t in range(raw_data['num_timesteps']):
                 if len(data['tracker_ids'][t]) > 0:
-                    data['tracker_ids'][t] = tracker_id_map[data['tracker_ids'][t]].astype(np.int)
+                    data['tracker_ids'][t] = tracker_id_map[data['tracker_ids'][t]].astype(int)
 
         # Record overview statistics.
         data['num_tracker_dets'] = num_tracker_dets
