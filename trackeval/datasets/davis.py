@@ -1,10 +1,11 @@
-import os
 import csv
+import os
+
 import numpy as np
+
+from .. import _timing, utils
+from ..exception import TrackEvalException
 from ._base_dataset import _BaseDataset
-from ..utils import TrackEvalException
-from .. import utils
-from .. import _timing
 
 
 class DAVIS(_BaseDataset):
@@ -120,8 +121,8 @@ class DAVIS(_BaseDataset):
         """
 
         # Only loaded when run to reduce minimum requirements
-        from pycocotools import mask as mask_utils
         from PIL import Image
+        from pycocotools import mask as mask_utils
 
         # File location
         if is_gt:
@@ -240,7 +241,7 @@ class DAVIS(_BaseDataset):
                     rows, columns = np.where(void_mask_ious > 0)
                     for r in rows:
                         det = mask_utils.decode(raw_data['tracker_dets'][t][r])
-                        void = mask_utils.decode(void_mask).astype(np.bool)
+                        void = mask_utils.decode(void_mask).astype(bool)
                         det[void] = 0
                         det = mask_utils.encode(np.array(det, order='F').astype(np.uint8))
                         raw_data['tracker_dets'][t][r] = det
@@ -253,14 +254,14 @@ class DAVIS(_BaseDataset):
             gt_id_map[unique_gt_ids] = np.arange(len(unique_gt_ids))
             for t in range(raw_data['num_timesteps']):
                 if len(data['gt_ids'][t]) > 0:
-                    data['gt_ids'][t] = gt_id_map[data['gt_ids'][t]].astype(np.int)
+                    data['gt_ids'][t] = gt_id_map[data['gt_ids'][t]].astype(int)
         if len(unique_tracker_ids) > 0:
             unique_tracker_ids = np.unique(unique_tracker_ids)
             tracker_id_map = np.nan * np.ones((np.max(unique_tracker_ids) + 1))
             tracker_id_map[unique_tracker_ids] = np.arange(len(unique_tracker_ids))
             for t in range(raw_data['num_timesteps']):
                 if len(data['tracker_ids'][t]) > 0:
-                    data['tracker_ids'][t] = tracker_id_map[data['tracker_ids'][t]].astype(np.int)
+                    data['tracker_ids'][t] = tracker_id_map[data['tracker_ids'][t]].astype(int)
 
         # Record overview statistics.
         data['num_tracker_dets'] = num_tracker_dets

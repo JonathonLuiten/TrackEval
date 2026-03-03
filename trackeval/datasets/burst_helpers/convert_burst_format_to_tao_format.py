@@ -1,6 +1,10 @@
-import json
 import argparse
-from .format_converter import GroundTruthBURSTFormatToTAOFormatConverter, PredictionBURSTFormatToTAOFormatConverter
+import json
+
+from .format_converter import (
+    GroundTruthBURSTFormatToTAOFormatConverter,
+    PredictionBURSTFormatToTAOFormatConverter,
+)
 
 
 def main(args):

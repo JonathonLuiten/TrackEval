@@ -1,8 +1,24 @@
-
 # TrackEval
+
 *Code for evaluating object tracking.*
 
 This codebase provides code for a number of different tracking evaluation metrics (including the [HOTA metrics](https://link.springer.com/article/10.1007/s11263-020-01375-2)), as well as supporting running all of these metrics on a number of different tracking benchmarks. Plus plotting of results and other things one may want to do for tracking evaluation.
+
+## Using the uv package manager
+
+We recommend using the `uv` package manager for installing the dependencies.
+The installation procedure would go similar to the plan below
+
+ - Install a version of Python interpreter `Python>=3.8` 
+    - any minor version should do;
+    - `3.14` should be faster and less buggy, but it is difficult to guarantee without unit tests;
+ - Install the `uv` package manager. Note that `uv` is available only for `Python>=3.8`. 
+ - Run `uv sync` to install the dependencies and the package (in editable mode).
+
+```shell
+pip install uv
+uv sync
+```
 
 ## **NEW**: RobMOTS Challenge 2021
 
@@ -29,7 +45,7 @@ The following metrics are currently implemented:
 Metric Family | Sub metrics | Paper | Code | Notes |
 |----- | ----------- |----- | ----------- | ----- |
 | | | |  |  |
-|**HOTA metrics**|HOTA, DetA, AssA, LocA, DetPr, DetRe, AssPr, AssRe|[paper](https://link.springer.com/article/10.1007/s11263-020-01375-2)|[code](trackeval/metrics/hota.py)|**Recommended tracking metric**|
+|**HOTA metrics**|HOTA, DetA, AssA, LocA, DetPr, DetRe, AssPr, AssRe|[paper](https://link.springer.com/article/10.1007/s11263-020-01375-2)|[code](trackeval/metrics/hota/hota.py)|**Recommended tracking metric**|
 |**CLEARMOT metrics**|MOTA, MOTP, MT, ML, Frag, etc.|[paper](https://link.springer.com/article/10.1155/2008/246309)|[code](trackeval/metrics/clear.py)| |
 |**Identity metrics**|IDF1, IDP, IDR|[paper](https://arxiv.org/abs/1609.01775)|[code](trackeval/metrics/identity.py)| |
 |**VACE metrics**|ATA, SFDA|[paper](https://link.springer.com/chapter/10.1007/11612704_16)|[code](trackeval/metrics/vace.py)| |
@@ -70,7 +86,7 @@ For more information check out the following links:
  - [Short blog post on HOTA](https://jonathonluiten.medium.com/how-to-evaluate-tracking-with-the-hota-metrics-754036d183e1) - **HIGHLY RECOMMENDED READING**
  - [IJCV version of paper](https://link.springer.com/article/10.1007/s11263-020-01375-2) (Open Access)
  - [ArXiv version of paper](https://arxiv.org/abs/2009.07736)
- - [Code](trackeval/metrics/hota.py)
+ - [Code](trackeval/metrics/hota/hota.py)
 
 ## Properties of this codebase
 

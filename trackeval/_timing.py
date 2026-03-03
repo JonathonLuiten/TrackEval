@@ -1,6 +1,8 @@
+import inspect
+
 from functools import wraps
 from time import perf_counter
-import inspect
+
 
 DO_TIMING = False
 DISPLAY_LESS_PROGRESS = False

@@ -1,27 +1,31 @@
+from typing import List, Dict, Union
+
 import csv
 import io
-import zipfile
 import os
 import traceback
-import numpy as np
-from copy import deepcopy
+import zipfile
+
 from abc import ABC, abstractmethod
-from .. import _timing
-from ..utils import TrackEvalException
+from copy import deepcopy
+
+import numpy as np
+
+from trackeval import _timing
+from trackeval.exception import TrackEvalException
+from trackeval.types import FMT
 
 
 class _BaseDataset(ABC):
     @abstractmethod
     def __init__(self):
-        self.tracker_list = None
-        self.seq_list = None
-        self.class_list = None
+        self.tracker_list: List[str] = []
+        self.seq_list: List[str] = []
+        self.class_list: List[str] = []
         self.output_fol = None
         self.output_sub_fol = None
         self.should_classes_combine = True
         self.use_super_categories = False
-
-    # Functions to implement:
 
     @staticmethod
     @abstractmethod
@@ -44,16 +48,16 @@ class _BaseDataset(ABC):
     # Helper functions for all datasets:
 
     @classmethod
-    def get_class_name(cls):
+    def get_class_name(cls) -> str:
         return cls.__name__
 
-    def get_name(self):
+    def get_name(self) -> str:
         return self.get_class_name()
 
-    def get_output_fol(self, tracker):
-        return os.path.join(self.output_fol, tracker, self.output_sub_fol)
+    def get_output_fol(self, tracker: str) -> str:
+        return str(os.path.join(self.output_fol, tracker, self.output_sub_fol))
 
-    def get_display_name(self, tracker):
+    def get_display_name(self, tracker: str) -> str:
         """ Can be overwritten if the trackers name (in files) is different to how it should be displayed.
         By default this method just returns the trackers name as is.
         """
@@ -64,9 +68,9 @@ class _BaseDataset(ABC):
         return self.tracker_list, self.seq_list, self.class_list
 
     @_timing.time
-    def get_raw_seq_data(self, tracker, seq):
+    def get_raw_seq_data(self, tracker, seq) -> Dict[str, Union[int, FMT]]:
         """ Loads raw data (tracker and ground-truth) for a single tracker on a single sequence.
-        Raw data includes all of the information needed for both preprocessing and evaluation, for all classes.
+        Raw data includes all the information needed for both preprocessing and evaluation, for all classes.
         A later function (get_processed_seq_data) will perform such preprocessing and extract relevant information for
         the evaluation of each class.
 
@@ -245,7 +249,7 @@ class _BaseDataset(ABC):
         return ious
 
     @staticmethod
-    def _calculate_box_ious(bboxes1, bboxes2, box_format='xywh', do_ioa=False):
+    def _calculate_box_ious(bboxes1: FMT, bboxes2: FMT, box_format: str = 'xywh', do_ioa: bool = False) -> FMT:
         """ Calculates the IOU (intersection over union) between two arrays of boxes.
         Allows variable box formats ('xywh' and 'x0y0x1y1').
         If do_ioa (intersection over area) , then calculates the intersection over the area of boxes1 - this is commonly

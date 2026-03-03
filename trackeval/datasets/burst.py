@@ -1,7 +1,11 @@
 import os
-from .burst_helpers.burst_base import BURSTBase
-from .burst_helpers.format_converter import GroundTruthBURSTFormatToTAOFormatConverter, PredictionBURSTFormatToTAOFormatConverter
+
 from .. import utils
+from .burst_helpers.burst_base import BURSTBase
+from .burst_helpers.format_converter import (
+    GroundTruthBURSTFormatToTAOFormatConverter,
+    PredictionBURSTFormatToTAOFormatConverter,
+)
 
 
 class BURST(BURSTBase):

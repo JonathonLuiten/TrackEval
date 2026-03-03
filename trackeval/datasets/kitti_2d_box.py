@@ -1,12 +1,16 @@
 
-import os
 import csv
+import os
+
 import numpy as np
+
 from scipy.optimize import linear_sum_assignment
+
+from trackeval import _timing
+from trackeval.exception import TrackEvalException
+import trackeval.utils
+from trackeval.types import FMT
 from ._base_dataset import _BaseDataset
-from .. import utils
-from ..utils import TrackEvalException
-from .. import _timing
 
 
 class Kitti2DBox(_BaseDataset):
@@ -15,11 +19,11 @@ class Kitti2DBox(_BaseDataset):
     @staticmethod
     def get_default_dataset_config():
         """Default class config values"""
-        code_path = utils.get_code_path()
+        code_path = trackeval.utils.get_code_path()
         default_config = {
             'GT_FOLDER': os.path.join(code_path, 'data/gt/kitti/kitti_2d_box_train'),  # Location of GT data
             'TRACKERS_FOLDER': os.path.join(code_path, 'data/trackers/kitti/kitti_2d_box_train/'),  # Trackers location
-            'OUTPUT_FOLDER': None,  # Where to save eval results (if None, same as TRACKERS_FOLDER)
+            'OUTPUT_FOLDER': '',  # Where to save eval results (if None, same as TRACKERS_FOLDER)
             'TRACKERS_TO_EVAL': None,  # Filenames of trackers to eval (if None, all in folder)
             'CLASSES_TO_EVAL': ['car', 'pedestrian'],  # Valid: ['car', 'pedestrian']
             'SPLIT_TO_EVAL': 'training',  # Valid: 'training', 'val', 'training_minus_val', 'test'
@@ -32,10 +36,10 @@ class Kitti2DBox(_BaseDataset):
         return default_config
 
     def __init__(self, config=None):
-        """Initialise dataset, checking that all required files are present"""
+        """Initialize dataset, checking that all required files are present"""
         super().__init__()
         # Fill non-given config values with defaults
-        self.config = utils.init_config(config, self.get_default_dataset_config(), self.get_name())
+        self.config = trackeval.utils.init_config(config, self.get_default_dataset_config(), self.get_name())
         self.gt_fol = self.config['GT_FOLDER']
         self.tracker_fol = self.config['TRACKERS_FOLDER']
         self.should_classes_combine = False
@@ -43,7 +47,7 @@ class Kitti2DBox(_BaseDataset):
         self.data_is_zipped = self.config['INPUT_AS_ZIP']
 
         self.output_fol = self.config['OUTPUT_FOLDER']
-        if self.output_fol is None:
+        if self.output_fol == '':
             self.output_fol = self.tracker_fol
 
         self.tracker_sub_fol = self.config['TRACKER_SUB_FOLDER']
@@ -190,7 +194,7 @@ class Kitti2DBox(_BaseDataset):
         for t in range(num_timesteps):
             time_key = str(t)
             if time_key in read_data.keys():
-                time_data = np.asarray(read_data[time_key], dtype=np.float)
+                time_data = np.asarray(read_data[time_key], dtype=float)
                 raw_data['dets'][t] = np.atleast_2d(time_data[:, 6:10])
                 raw_data['ids'][t] = np.atleast_1d(time_data[:, 1]).astype(int)
                 raw_data['classes'][t] = np.atleast_1d(time_data[:, 2]).astype(int)
@@ -215,7 +219,7 @@ class Kitti2DBox(_BaseDataset):
                     raw_data['tracker_confidences'][t] = np.empty(0)
             if is_gt:
                 if time_key in ignore_data.keys():
-                    time_ignore = np.asarray(ignore_data[time_key], dtype=np.float)
+                    time_ignore = np.asarray(ignore_data[time_key], dtype=float)
                     raw_data['gt_crowd_ignore_regions'][t] = np.atleast_2d(time_ignore[:, 6:10])
                 else:
                     raw_data['gt_crowd_ignore_regions'][t] = np.empty((0, 4))
@@ -288,7 +292,7 @@ class Kitti2DBox(_BaseDataset):
 
             # Only extract relevant dets for this class for preproc and eval (cls + distractor classes)
             gt_class_mask = np.sum([raw_data['gt_classes'][t] == c for c in [cls_id] + distractor_classes], axis=0)
-            gt_class_mask = gt_class_mask.astype(np.bool)
+            gt_class_mask = gt_class_mask.astype(bool)
             gt_ids = raw_data['gt_ids'][t][gt_class_mask]
             gt_dets = raw_data['gt_dets'][t][gt_class_mask]
             gt_classes = raw_data['gt_classes'][t][gt_class_mask]
@@ -296,7 +300,7 @@ class Kitti2DBox(_BaseDataset):
             gt_truncation = raw_data['gt_extras'][t]['truncation'][gt_class_mask]
 
             tracker_class_mask = np.atleast_1d(raw_data['tracker_classes'][t] == cls_id)
-            tracker_class_mask = tracker_class_mask.astype(np.bool)
+            tracker_class_mask = tracker_class_mask.astype(bool)
             tracker_ids = raw_data['tracker_ids'][t][tracker_class_mask]
             tracker_dets = raw_data['tracker_dets'][t][tracker_class_mask]
             tracker_confidences = raw_data['tracker_confidences'][t][tracker_class_mask]
@@ -304,7 +308,7 @@ class Kitti2DBox(_BaseDataset):
 
             # Match tracker and gt dets (with hungarian algorithm) and remove tracker dets which match with gt dets
             # which are labeled as truncated, occluded, or belonging to a distractor class.
-            to_remove_matched = np.array([], np.int)
+            to_remove_matched = np.array([], int)
             unmatched_indices = np.arange(tracker_ids.shape[0])
             if gt_ids.shape[0] > 0 and tracker_ids.shape[0] > 0:
                 matching_scores = similarity_scores.copy()
@@ -362,14 +366,14 @@ class Kitti2DBox(_BaseDataset):
             gt_id_map[unique_gt_ids] = np.arange(len(unique_gt_ids))
             for t in range(raw_data['num_timesteps']):
                 if len(data['gt_ids'][t]) > 0:
-                    data['gt_ids'][t] = gt_id_map[data['gt_ids'][t]].astype(np.int)
+                    data['gt_ids'][t] = gt_id_map[data['gt_ids'][t]].astype(int)
         if len(unique_tracker_ids) > 0:
             unique_tracker_ids = np.unique(unique_tracker_ids)
             tracker_id_map = np.nan * np.ones((np.max(unique_tracker_ids) + 1))
             tracker_id_map[unique_tracker_ids] = np.arange(len(unique_tracker_ids))
             for t in range(raw_data['num_timesteps']):
                 if len(data['tracker_ids'][t]) > 0:
-                    data['tracker_ids'][t] = tracker_id_map[data['tracker_ids'][t]].astype(np.int)
+                    data['tracker_ids'][t] = tracker_id_map[data['tracker_ids'][t]].astype(int)
 
         # Record overview statistics.
         data['num_tracker_dets'] = num_tracker_dets
@@ -384,6 +388,5 @@ class Kitti2DBox(_BaseDataset):
 
         return data
 
-    def _calculate_similarities(self, gt_dets_t, tracker_dets_t):
-        similarity_scores = self._calculate_box_ious(gt_dets_t, tracker_dets_t, box_format='x0y0x1y1')
-        return similarity_scores
+    def _calculate_similarities(self, gt_az: FMT, trk_tz: FMT) -> FMT:
+        return self._calculate_box_ious(gt_az, trk_tz, box_format='x0y0x1y1')

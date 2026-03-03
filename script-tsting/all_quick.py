@@ -1,39 +1,49 @@
-import sys
+""" Test to ensure that the code is working correctly.
+Should test ALL metrics across all datasets and splits currently supported.
+Only tests one tracker per dataset/split to give a quick test result.
+"""
+
 import os
-import numpy as np
+import sys
+
 from multiprocessing import freeze_support
+
+import numpy as np
+
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import trackeval  # noqa: E402
+
 
 # Fixes multiprocessing on windows, does nothing otherwise
 if __name__ == '__main__':
     freeze_support()
 
-
 eval_config = {'USE_PARALLEL': False,
                'NUM_PARALLEL_CORES': 8,
-               'PRINT_RESULTS': False,
-               'PRINT_CONFIG': True,
-               'TIME_PROGRESS': True,
-               'DISPLAY_LESS_PROGRESS': True,
-               'OUTPUT_SUMMARY': False,
-               'OUTPUT_EMPTY_CLASSES': False,
-               'OUTPUT_DETAILED': False,
-               'PLOT_CURVES': False,
                }
 evaluator = trackeval.Evaluator(eval_config)
-metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity(),
-                trackeval.metrics.JAndF()]
+metrics_list = [trackeval.metrics.HOTA(), trackeval.metrics.CLEAR(), trackeval.metrics.Identity()]
 
 tests = [
-    {'SPLIT_TO_EVAL': 'val', 'TRACKERS_TO_EVAL': ['ags']},
+    {'DATASET': 'Kitti2DBox', 'SPLIT_TO_EVAL': 'training', 'TRACKERS_TO_EVAL': ['CIWT']},
+    {'DATASET': 'MotChallenge2DBox', 'BENCHMARK': 'MOT15', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
+    {'DATASET': 'MotChallenge2DBox', 'BENCHMARK': 'MOT16', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
+    {'DATASET': 'MotChallenge2DBox', 'BENCHMARK': 'MOT17', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
+    {'DATASET': 'MotChallenge2DBox', 'BENCHMARK': 'MOT20', 'SPLIT_TO_EVAL': 'train', 'TRACKERS_TO_EVAL': ['MPNTrack']},
 ]
 
 for dataset_config in tests:
 
-    dataset_list = [trackeval.datasets.DAVIS(dataset_config)]
-    file_loc = os.path.join('davis', 'davis_unsupervised_' + dataset_config['SPLIT_TO_EVAL'])
+    dataset_name = dataset_config.pop('DATASET')
+    if dataset_name == 'MotChallenge2DBox':
+        dataset_list = [trackeval.datasets.MotChallenge2DBox(dataset_config)]
+        file_loc = os.path.join('mot_challenge', dataset_config['BENCHMARK'] + '-' + dataset_config['SPLIT_TO_EVAL'])
+    elif dataset_name == 'Kitti2DBox':
+        dataset_list = [trackeval.datasets.Kitti2DBox(dataset_config)]
+        file_loc = os.path.join('kitti', 'kitti_2d_box_train')
+    else:
+        raise Exception('Dataset %s does not exist.' % dataset_name)
 
     raw_results, messages = evaluator.evaluate(dataset_list, metrics_list)
 
@@ -42,7 +52,7 @@ for dataset_config in tests:
     test_data_loc = os.path.join(os.path.dirname(__file__), '..', 'data', 'tests', file_loc)
 
     for cls in classes:
-        results = {seq: raw_results['DAVIS'][tracker][seq][cls] for seq in raw_results['DAVIS'][tracker].keys()}
+        results = {seq: raw_results[dataset_name][tracker][seq][cls] for seq in raw_results[dataset_name][tracker].keys()}
         current_metrics_list = metrics_list + [trackeval.metrics.Count()]
         metric_names = trackeval.utils.validate_metrics_list(current_metrics_list)
 
@@ -66,3 +76,4 @@ for dataset_config in tests:
 
     print('Tracker %s tests passed' % tracker)
 print('All tests passed')
+

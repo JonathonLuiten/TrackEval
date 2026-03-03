@@ -1,7 +1,9 @@
 import numpy as np
+
 from scipy.optimize import linear_sum_assignment
-from ._base_metric import _BaseMetric
+
 from .. import _timing
+from ._base_metric import _BaseMetric
 
 
 class VACE(_BaseMetric):

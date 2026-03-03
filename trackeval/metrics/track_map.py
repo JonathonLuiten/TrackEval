@@ -1,9 +1,10 @@
-import numpy as np
-from ._base_metric import _BaseMetric
-from .. import _timing
 from functools import partial
-from .. import utils
-from ..utils import TrackEvalException
+
+import numpy as np
+
+from .. import _timing, utils
+from ..exception import TrackEvalException
+from ._base_metric import _BaseMetric
 
 
 class TrackMAP(_BaseMetric):
@@ -220,8 +221,8 @@ class TrackMAP(_BaseMetric):
             tps = np.logical_and(dt_m != -1, np.logical_not(dt_ig))
             fps = np.logical_and(dt_m == -1, np.logical_not(dt_ig))
 
-            tp_sum = np.cumsum(tps, axis=1).astype(dtype=np.float)
-            fp_sum = np.cumsum(fps, axis=1).astype(dtype=np.float)
+            tp_sum = np.cumsum(tps, axis=1).astype(dtype=float)
+            fp_sum = np.cumsum(fps, axis=1).astype(dtype=float)
 
             for iou_thr_idx, (tp, fp) in enumerate(zip(tp_sum, fp_sum)):
                 tp = np.array(tp)
@@ -259,8 +260,8 @@ class TrackMAP(_BaseMetric):
 
         # compute the precision and recall averages for the respective alpha thresholds and ignore masks
         for lbl in self.lbls:
-            res['AP_' + lbl] = np.zeros((len(self.array_labels)), dtype=np.float)
-            res['AR_' + lbl] = np.zeros((len(self.array_labels)), dtype=np.float)
+            res['AP_' + lbl] = np.zeros((len(self.array_labels)), dtype=float)
+            res['AR_' + lbl] = np.zeros((len(self.array_labels)), dtype=float)
 
         for a_id, alpha in enumerate(self.array_labels):
             for lbl_idx, lbl in enumerate(self.lbls):
@@ -280,7 +281,7 @@ class TrackMAP(_BaseMetric):
         """
         res = {}
         for field in self.fields:
-            res[field] = np.zeros((len(self.array_labels)), dtype=np.float)
+            res[field] = np.zeros((len(self.array_labels)), dtype=float)
             field_stacked = np.array([res[field] for res in all_res.values()])
 
             for a_id, alpha in enumerate(self.array_labels):
@@ -297,7 +298,7 @@ class TrackMAP(_BaseMetric):
 
         res = {}
         for field in self.fields:
-            res[field] = np.zeros((len(self.array_labels)), dtype=np.float)
+            res[field] = np.zeros((len(self.array_labels)), dtype=float)
             field_stacked = np.array([res[field] for res in all_res.values()])
 
             for a_id, alpha in enumerate(self.array_labels):

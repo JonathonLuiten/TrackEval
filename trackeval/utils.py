@@ -1,8 +1,14 @@
 
-import os
-import csv
+from typing import List
+
 import argparse
+import csv
+import os
+
 from collections import OrderedDict
+
+from trackeval.exception import TrackEvalException
+from trackeval.metrics import MET
 
 
 def init_config(config, default_config, name=None):
@@ -57,7 +63,7 @@ def get_code_path():
     return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
-def validate_metrics_list(metrics_list):
+def validate_metrics_list(metrics_list: List[MET]) -> None:
     """Get names of metric class and ensures they are unique, further checks that the fields within each metric class
     do not have overlapping names.
     """
@@ -71,7 +77,6 @@ def validate_metrics_list(metrics_list):
     # check metric fields are unique
     if len(fields) != len(set(fields)):
         raise TrackEvalException('Code being run with multiple metrics with fields of the same name')
-    return metric_names
 
 
 def write_summary_results(summaries, cls, output_folder):
@@ -140,7 +145,3 @@ def load_detail(file):
                     data[seq][key] = float(value)
     return data
 
-
-class TrackEvalException(Exception):
-    """Custom exception for catching expected errors."""
-    ...

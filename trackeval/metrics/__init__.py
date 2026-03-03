@@ -1,8 +1,12 @@
-from .hota import HOTA
+from typing import Union
+
 from .clear import CLEAR
-from .identity import Identity
 from .count import Count
+from trackeval.metrics.hota.hota import HOTA
+from .identity import Identity
+from .ideucl import IDEucl
 from .j_and_f import JAndF
 from .track_map import TrackMAP
 from .vace import VACE
-from .ideucl import IDEucl
+
+MET = Union[HOTA, CLEAR, Identity]

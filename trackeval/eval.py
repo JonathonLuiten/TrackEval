@@ -1,18 +1,17 @@
+import os
 import time
 import traceback
-from multiprocessing.pool import Pool
-from functools import partial
-import os
-from . import utils
-from .utils import TrackEvalException
-from . import _timing
-from .metrics import Count
 
-try:
-    import tqdm
-    TQDM_IMPORTED = True
-except ImportError as _:
-    TQDM_IMPORTED = False
+from typing import Dict, Tuple, List
+from functools import partial
+from multiprocessing.pool import Pool
+
+import tqdm
+
+from . import _timing, utils
+from .metrics import Count, MET
+from .exception import TrackEvalException
+from .datasets import DST
 
 
 class Evaluator:
@@ -52,17 +51,21 @@ class Evaluator:
                 _timing.DISPLAY_LESS_PROGRESS = True
 
     @_timing.time
-    def evaluate(self, dataset_list, metrics_list, show_progressbar=False):
+    def evaluate(self,
+                 dataset_list: List[DST],
+                 metrics_list: List[MET],
+                 show_progressbar=False) -> Tuple[Dict, Dict]:
         """Evaluate a set of metrics on a set of datasets"""
         config = self.config
         metrics_list = metrics_list + [Count()]  # Count metrics are always run
-        metric_names = utils.validate_metrics_list(metrics_list)
-        dataset_names = [dataset.get_name() for dataset in dataset_list]
+        utils.validate_metrics_list(metrics_list)
         output_res = {}
         output_msg = {}
+        metric_names = tuple(metric.get_name() for metric in metrics_list)
 
-        for dataset, dataset_name in zip(dataset_list, dataset_names):
+        for dataset in dataset_list:
             # Get dataset info about what to evaluate
+            dataset_name = dataset.get_name()
             output_res[dataset_name] = {}
             output_msg[dataset_name] = {}
             tracker_list, seq_list, class_list = dataset.get_eval_info()
@@ -80,16 +83,14 @@ class Evaluator:
                     print('\nEvaluating %s\n' % tracker)
                     time_start = time.time()
                     if config['USE_PARALLEL']:
-                        if show_progressbar and TQDM_IMPORTED:
+                        if show_progressbar:
                             seq_list_sorted = sorted(seq_list)
 
                             with Pool(config['NUM_PARALLEL_CORES']) as pool, tqdm.tqdm(total=len(seq_list)) as pbar:
                                 _eval_sequence = partial(eval_sequence, dataset=dataset, tracker=tracker,
-                                                         class_list=class_list, metrics_list=metrics_list,
-                                                         metric_names=metric_names)
+                                                         class_list=class_list, metrics_list=metrics_list)
                                 results = []
-                                for r in pool.imap(_eval_sequence, seq_list_sorted,
-                                                   chunksize=20):
+                                for r in pool.imap(_eval_sequence, seq_list_sorted, chunksize=20):
                                     results.append(r)
                                     pbar.update()
                                 res = dict(zip(seq_list_sorted, results))
@@ -97,21 +98,18 @@ class Evaluator:
                         else:
                             with Pool(config['NUM_PARALLEL_CORES']) as pool:
                                 _eval_sequence = partial(eval_sequence, dataset=dataset, tracker=tracker,
-                                                         class_list=class_list, metrics_list=metrics_list,
-                                                         metric_names=metric_names)
+                                                         class_list=class_list, metrics_list=metrics_list)
                                 results = pool.map(_eval_sequence, seq_list)
                                 res = dict(zip(seq_list, results))
                     else:
                         res = {}
-                        if show_progressbar and TQDM_IMPORTED:
-                            seq_list_sorted = sorted(seq_list)
+                        seq_list_sorted = sorted(seq_list)
+                        if show_progressbar:
                             for curr_seq in tqdm.tqdm(seq_list_sorted):
-                                res[curr_seq] = eval_sequence(curr_seq, dataset, tracker, class_list, metrics_list,
-                                                              metric_names)
+                                res[curr_seq] = eval_sequence(curr_seq, dataset, tracker, class_list, metrics_list)
                         else:
-                            for curr_seq in sorted(seq_list):
-                                res[curr_seq] = eval_sequence(curr_seq, dataset, tracker, class_list, metrics_list,
-                                                              metric_names)
+                            for curr_seq in seq_list_sorted:
+                                res[curr_seq] = eval_sequence(curr_seq, dataset, tracker, class_list, metrics_list)
 
                     # Combine results over all sequences and then over all classes
 
@@ -121,31 +119,32 @@ class Evaluator:
                     # combine sequences for each class
                     for c_cls in class_list:
                         res['COMBINED_SEQ'][c_cls] = {}
-                        for metric, metric_name in zip(metrics_list, metric_names):
-                            curr_res = {seq_key: seq_value[c_cls][metric_name] for seq_key, seq_value in res.items() if
+                        for metric in metrics_list:
+                            name = metric.get_name()
+                            curr_res = {seq_key: seq_value[c_cls][name] for seq_key, seq_value in res.items() if
                                         seq_key != 'COMBINED_SEQ'}
-                            res['COMBINED_SEQ'][c_cls][metric_name] = metric.combine_sequences(curr_res)
+                            res['COMBINED_SEQ'][c_cls][name] = metric.combine_sequences(curr_res)
                     # combine classes
                     if dataset.should_classes_combine:
                         combined_cls_keys += ['cls_comb_cls_av', 'cls_comb_det_av', 'all']
                         res['COMBINED_SEQ']['cls_comb_cls_av'] = {}
                         res['COMBINED_SEQ']['cls_comb_det_av'] = {}
-                        for metric, metric_name in zip(metrics_list, metric_names):
-                            cls_res = {cls_key: cls_value[metric_name] for cls_key, cls_value in
+                        for metric in metrics_list:
+                            name = metric.get_name()
+                            cls_res = {cls_key: cls_value[name] for cls_key, cls_value in
                                        res['COMBINED_SEQ'].items() if cls_key not in combined_cls_keys}
-                            res['COMBINED_SEQ']['cls_comb_cls_av'][metric_name] = \
-                                metric.combine_classes_class_averaged(cls_res)
-                            res['COMBINED_SEQ']['cls_comb_det_av'][metric_name] = \
-                                metric.combine_classes_det_averaged(cls_res)
+                            res['COMBINED_SEQ']['cls_comb_cls_av'][name] = metric.combine_classes_class_averaged(cls_res)
+                            res['COMBINED_SEQ']['cls_comb_det_av'][name] = metric.combine_classes_det_averaged(cls_res)
                     # combine classes to super classes
                     if dataset.use_super_categories:
                         for cat, sub_cats in dataset.super_categories.items():
                             combined_cls_keys.append(cat)
                             res['COMBINED_SEQ'][cat] = {}
-                            for metric, metric_name in zip(metrics_list, metric_names):
-                                cat_res = {cls_key: cls_value[metric_name] for cls_key, cls_value in
+                            for metric in metrics_list:
+                                name = metric.get_name()
+                                cat_res = {cls_key: cls_value[name] for cls_key, cls_value in
                                            res['COMBINED_SEQ'].items() if cls_key in sub_cats}
-                                res['COMBINED_SEQ'][cat][metric_name] = metric.combine_classes_det_averaged(cat_res)
+                                res['COMBINED_SEQ'][cat][name] = metric.combine_classes_det_averaged(cat_res)
 
                     # Print and output results in various formats
                     if config['TIME_PROGRESS']:
@@ -157,12 +156,13 @@ class Evaluator:
                         details = []
                         num_dets = res['COMBINED_SEQ'][c_cls]['Count']['Dets']
                         if config['OUTPUT_EMPTY_CLASSES'] or num_dets > 0:
-                            for metric, metric_name in zip(metrics_list, metric_names):
+                            for metric in metrics_list:
+                                name = metric.get_name()
                                 # for combined classes there is no per sequence evaluation
                                 if c_cls in combined_cls_keys:
-                                    table_res = {'COMBINED_SEQ': res['COMBINED_SEQ'][c_cls][metric_name]}
+                                    table_res = {'COMBINED_SEQ': res['COMBINED_SEQ'][c_cls][name]}
                                 else:
-                                    table_res = {seq_key: seq_value[c_cls][metric_name] for seq_key, seq_value
+                                    table_res = {seq_key: seq_value[c_cls][name] for seq_key, seq_value
                                                  in res.items()}
 
                                 if config['PRINT_RESULTS'] and config['PRINT_ONLY_COMBINED']:
@@ -212,14 +212,18 @@ class Evaluator:
 
 
 @_timing.time
-def eval_sequence(seq, dataset, tracker, class_list, metrics_list, metric_names):
+def eval_sequence(seq: str,
+                  dataset: DST,
+                  tracker: str,
+                  class_list: list[str],
+                  metrics_list: list[MET],
+                  ) -> Dict[str, Dict[str, Dict[str, float]]]:
     """Function for evaluating a single sequence"""
-
     raw_data = dataset.get_raw_seq_data(tracker, seq)
     seq_res = {}
     for cls in class_list:
         seq_res[cls] = {}
         data = dataset.get_preprocessed_seq_data(raw_data, cls)
-        for metric, met_name in zip(metrics_list, metric_names):
-            seq_res[cls][met_name] = metric.eval_sequence(data)
+        for metric in metrics_list:
+            seq_res[cls][metric.get_name()] = metric.eval_sequence(data)
     return seq_res

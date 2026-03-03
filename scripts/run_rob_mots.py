@@ -1,14 +1,18 @@
 # python3 scripts/run_rob_mots.py --ROBMOTS_SPLIT train --TRACKERS_TO_EVAL STP --USE_PARALLEL True --NUM_PARALLEL_CORES 8
 
-import sys
-import os
 import csv
-import numpy as np
+import os
+import sys
+
 from multiprocessing import freeze_support
+
+import numpy as np
+
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import trackeval  # noqa: E402
-from trackeval import utils
+
+from trackeval import utils, exception
 
 code_path = utils.get_code_path()
 
@@ -74,7 +78,7 @@ if __name__ == '__main__':
         output = list(list(output_msg.values())[0].values())[0]
 
     except Exception as err:
-        if type(err) == trackeval.utils.TrackEvalException:
+        if type(err) == exception.TrackEvalException:
             output = str(err)
         else:
             output = 'Unknown error occurred.'

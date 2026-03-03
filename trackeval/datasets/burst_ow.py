@@ -1,8 +1,12 @@
 import json
 import os
-from .burst_helpers.burst_ow_base import BURST_OW_Base
-from .burst_helpers.format_converter import GroundTruthBURSTFormatToTAOFormatConverter, PredictionBURSTFormatToTAOFormatConverter
+
 from .. import utils
+from .burst_helpers.burst_ow_base import BURST_OW_Base
+from .burst_helpers.format_converter import (
+    GroundTruthBURSTFormatToTAOFormatConverter,
+    PredictionBURSTFormatToTAOFormatConverter,
+)
 
 
 class BURST_OW(BURST_OW_Base):

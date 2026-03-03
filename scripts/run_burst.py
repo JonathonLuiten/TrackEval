@@ -59,11 +59,14 @@ Command Line Arguments: Defaults, # Comments
         'METRICS': ['HOTA', 'CLEAR', 'Identity', 'TrackMAP']
 """
 
-import sys
-import os
 import argparse
-from tabulate import tabulate
+import os
+import sys
+
 from multiprocessing import freeze_support
+
+from tabulate import tabulate
+
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import trackeval  # noqa: E402

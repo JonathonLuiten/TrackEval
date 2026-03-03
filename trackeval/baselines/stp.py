@@ -9,13 +9,17 @@ detections. It is also able to match detections to tracks at more than one times
 
 import os
 import sys
-import numpy as np
-from multiprocessing.pool import Pool
+
 from multiprocessing import freeze_support
+from multiprocessing.pool import Pool
+
+import numpy as np
+
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from trackeval.baselines import baseline_utils as butils
 from trackeval.utils import get_code_path
+
 
 code_path = get_code_path()
 config = {
@@ -49,7 +53,7 @@ def track_sequence(seq_file):
 
         # Initialize container for holding previously tracked objects.
         prev = {'boxes': np.empty((0, 4)),
-                'ids': np.array([], np.int),
+                'ids': np.array([], int),
                 'timesteps': np.array([])}
 
         # Run tracker for each timestep.
@@ -80,7 +84,7 @@ def track_sequence(seq_file):
             match_cols = match_cols[actually_matched_mask]
 
             # Assign the prev track ID to the current dets if they were matched.
-            ids = np.nan * np.ones((len(boxes),), np.int)
+            ids = np.nan * np.ones((len(boxes),), int)
             ids[match_cols] = prev['ids'][match_rows]
 
             # Create new track IDs for dets that were not matched to previous tracks.

@@ -1,10 +1,13 @@
 
-import numpy as np
 import math
+
+import numpy as np
+
 from scipy.optimize import linear_sum_assignment
-from ..utils import TrackEvalException
-from ._base_metric import _BaseMetric
+
 from .. import _timing
+from ..exception import TrackEvalException
+from ._base_metric import _BaseMetric
 
 
 class JAndF(_BaseMetric):
@@ -160,7 +163,7 @@ class JAndF(_BaseMetric):
          January 2003
         """
 
-        seg = seg.astype(np.bool)
+        seg = seg.astype(bool)
         seg[seg > 0] = 1
 
         assert np.atleast_3d(seg).shape[2] == 1
@@ -217,9 +220,10 @@ class JAndF(_BaseMetric):
         """
 
         # Only loaded when run to reduce minimum requirements
+        import cv2
+
         from pycocotools import mask as mask_utils
         from skimage.morphology import disk
-        import cv2
 
         f = np.zeros(len(gt_data))
 

@@ -1,6 +1,6 @@
 import baseline_utils
-import stp
 import non_overlap
 import pascal_colormap
+import stp
 import thresholder
 import vizualize

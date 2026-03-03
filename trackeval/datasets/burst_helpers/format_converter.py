@@ -1,8 +1,11 @@
-import os
 import json
-import pycocotools.mask as cocomask
-from tabulate import tabulate
+import os
+
 from typing import Union
+
+import pycocotools.mask as cocomask
+
+from tabulate import tabulate
 
 
 def _global_track_id(*, local_track_id: Union[str, int],

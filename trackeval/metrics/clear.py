@@ -1,9 +1,11 @@
 
 import numpy as np
+
 from scipy.optimize import linear_sum_assignment
+
+from .. import _timing, utils
 from ._base_metric import _BaseMetric
-from .. import _timing
-from .. import utils
+
 
 class CLEAR(_BaseMetric):
     """Class which implements the CLEAR metrics"""
